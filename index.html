@@ -323,7 +323,7 @@
         ];
         
         // --- Boss 觸發參數 ---
-        const BOSS_PREP_DURATION = 10000; 
+        const BOSS_PREP_DURATION = 8000; 
         
         // Boss 1 參數
         const BOSS1_COOLDOWN_INTERVAL = 2000; 
@@ -340,7 +340,7 @@
         
         const BOSS_BASE_CONFIG = { 
             type: 99, 
-            baseHp: 600.0, 
+            baseHp: 540.0, 
             score: 100, 
             color: 'darkred', 
             className: 'boss-enemy' 
@@ -829,7 +829,8 @@
                             createEnemyBullet(boss, playerCenter.x, playerCenter.y, spreadRad/2.3); // 右
                             createEnemyBullet(boss, playerCenter.x, playerCenter.y, -3.1415/2); // 右
                             createEnemyBullet(boss, playerCenter.x, playerCenter.y, 3.1415/2); // 右
-                            createEnemyBullet(boss, playerCenter.x, playerCenter.y, 3.1415); // 右                            
+                            createEnemyBullet(boss, playerCenter.x, playerCenter.y, 3.1415); // 右
+                            
                             // 視覺
                             boss.element.style.boxShadow = '0 0 30px 15px rgba(255, 100, 255, 1), inset 0 0 20px white';
                             setTimeout(() => {
@@ -864,8 +865,13 @@
                             const randomOffset = (Math.random() * spreadRange) - (spreadRange / 2);
                             
                             createEnemyBullet(boss, playerCenter.x, playerCenter.y, randomOffset);
+                            createEnemyBullet(boss, playerCenter.x, playerCenter.y, -3.1415/2-randomOffset); // 右
+                            createEnemyBullet(boss, playerCenter.x, playerCenter.y, 3.1415/2+randomOffset); // 右
+
+
                         }
                     } else {
+
                         // 連射結束，進入 Phase 3 (休息)
                         state.phase = 3;
                         state.phaseStartTime = timestamp;
@@ -1323,13 +1329,16 @@ function fireKineticLaser(damage) {
 
             if (isType2) {
                 burstCount = 3; 
-                shotInterval = 11250; 
-                spreadAngle = 5; 
+                shotInterval = 18250; 
+                spreadAngle = 25; 
                 isMovingToCenter = true; 
             } else if (isGriefer) {
                 shotInterval = 999999; 
                 isMovingToCenter = false; 
             } else if (baseConfig.type === 3) {
+                burstCount = 5; 
+                shotInterval = 18250; 
+                spreadAngle = 330; 
                 dropChance = 1.0; 
             }
 
