@@ -1,0 +1,1847 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>AI 戰機彈幕遊戲 (V69.2)</title>
+    <style>
+        /* 樣式保持不變 */
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh; 
+            margin: 0;
+            background-color: #111;
+            color: white;
+            font-family: 'Courier New', monospace;
+        }
+        #top-info { 
+            width: 750px; 
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        #hp-display { font-size: 1.5em; color: lime; }
+        #score-board { font-size: 1.5em; }
+        #dps-display { font-size: 1.5em; color: orange; }
+        #weapon-status {
+            font-size: 1.2em;
+            color: #ccc;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        #game-container {
+            width: 500px;
+            height: 600px;
+            background-color: #000;
+            border: 2px solid #555;
+            position: relative;
+            overflow: hidden;
+            outline: none; 
+            cursor: crosshair; 
+        }
+        #player {
+            position: absolute;
+            width: 18px; 
+            height: 18px; 
+            background-color: cyan;
+            border-radius: 50%; 
+            bottom: 291px; 
+            left: 241px; 
+            transition: background-color 0.1s, box-shadow 0.2s; 
+            z-index: 10; 
+        }
+        .player-hit { 
+            opacity: 0.5;
+            transition: opacity 0.05s ease-in-out;
+        }
+        /* Dash ready visual */
+        .player-dash-ready {
+            box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.35), 0 0 14px 4px rgba(0, 180, 255, 0.45);
+            animation: dash-ready-pulse 1.8s infinite ease-in-out;
+        }
+        @keyframes dash-ready-pulse {
+            0% { box-shadow: 0 0 5px 2px rgba(255,255,255,0.25), 0 0 10px 3px rgba(0,180,255,0.35); }
+            50% { box-shadow: 0 0 8px 3px rgba(255,255,255,0.45), 0 0 18px 5px rgba(0,180,255,0.6); }
+            100% { box-shadow: 0 0 5px 2px rgba(255,255,255,0.25), 0 0 10px 3px rgba(0,180,255,0.35); }
+        }
+        
+        #continuous-sword-blade {
+            position: absolute;
+            width: 35px; 
+            height: 130px; 
+            clip-path: polygon(25% 100%, 75% 100%, 50% 0%); 
+            background: linear-gradient(to top, rgba(0, 100, 255, 1) 10%, rgba(50, 200, 255, 1) 50%, rgba(255, 255, 255, 1) 90%);
+            box-shadow: 0 0 10px 5px rgba(0, 191, 255, 0.9), 0 0 25px 10px rgba(0, 50, 200, 0.6), inset 0 0 5px 2px rgba(255, 255, 255, 1);
+            border-radius: 2px; 
+            transform-origin: bottom center; 
+            z-index: 9;
+            pointer-events: none;
+            opacity: 1;
+            transition: left 0.01s linear, top 0.01s linear, transform 0.01s linear; 
+            display: none; 
+            animation: blue-flame-flicker 0.2s infinite alternate; 
+        }
+        @keyframes blue-flame-flicker {
+            from { opacity: 0.9; transform: scaleY(1) rotate(var(--current-rotation)); }
+            to { opacity: 1.0; transform: scaleY(1.02) rotate(var(--current-rotation)); }
+        }
+
+        #static-field-aura {
+            position: absolute;
+            border: 2px solid rgba(138, 43, 226, 0.9); 
+            border-radius: 50%;
+            background-color: rgba(128, 0, 128, 0.05); 
+            pointer-events: none; 
+            z-index: 5;
+            transition: box-shadow 0.15s ease-out, transform 0.15s ease-out;
+            box-shadow: 0 0 10px 5px rgba(138, 43, 226, 0.5), inset 0 0 10px 5px rgba(138, 43, 226, 0.4); 
+            animation: pulse-base 2s infinite alternate; 
+        }
+        .static-field-pulse {
+            box-shadow: 0 0 20px 10px rgba(255, 255, 255, 0.8), 0 0 40px 20px rgba(255, 0, 0, 0.6), inset 0 0 15px 7px rgba(138, 43, 226, 0.8);
+            transform: scale(1.03); 
+        }
+        @keyframes pulse-base { from { opacity: 0.85; } to { opacity: 1.0; } }
+
+         .sword-hit-effect {
+            box-shadow: 0 0 15px 10px rgba(255, 255, 255, 1), 0 0 40px 20px rgba(255, 50, 0, 0.8), inset 0 0 10px 5px rgba(255, 255, 255, 1);
+            transition: all 0.05s ease-out; 
+        }
+
+
+	/* 新增雷射樣式 */
+	.laser-beam {
+    		position: absolute;
+    		height: 14px; /* 雷射寬度 */
+    		background: white;
+    		transform-origin: center left; /* 從左側旋轉 */
+    		opacity: 1;
+    		z-index: 20;
+    		box-shadow: 0 0 10px 4px cyan, 0 0 20px 8px blue;
+    		pointer-events: none;
+    		border-radius: 4px;
+	}
+	/* 蓄力時玩家的發光效果 */
+	//.player-charging {
+    	//	box-shadow: 0 0 15px 5px cyan, inset 0 0 10px white !important;
+    	//	background-color: #00FFFF !important;
+	//}
+	
+	
+	.player-charging {
+    	/* 使用 Electric Violet (#BF00FF) 作為玩家顏色 */
+    		background-color: #E0FFFF !important; 
+
+    	/* 邊框發光使用更深的紫色和洋紅色混合，營造能量感 */
+    		box-shadow: 
+        	0 0 15px 5px #00FFFF,        /* 主要光暈：電光紫 */
+        	0 0 20wpx 8px #00BFFF,        /* 次要光暈：洋紅 */
+        	//inset 0 0 10px white !important; /* 中心亮點 */
+	}
+
+	.laser-charging-alt {
+    		background-color: #E0FFFF !important; /* 很白的藍色 */
+    		//box-shadow: 
+        	//0 0 15px 5px #00FFFF,         /* 青色光暈 */
+       		//0 0 25px 10px #00BFFF,        
+        	//inset 0 0 10px white !important; 
+	}
+	
+	.laser-charging-alt2 {
+    		background-color: #E0FFFF !important; /* 很白的藍色 */
+    		box-shadow: 
+        	0 0 15px 5px #00FFFF,         /* 青色光暈 */
+       		0 0 25px 10px #00BFFF,        
+        	inset 0 0 10px white !important; 
+	}
+	
+	
+	
+	
+	
+	
+	
+
+
+
+        .bullet {
+            position: absolute;
+            width: 4px; height: 4px;
+            background-color: white; 
+            border-radius: 50%;
+            z-index: 9;
+        }
+        .enemy, .griefer-enemy { 
+            position: absolute;
+            width: 30px; height: 30px;
+            background-color: red;
+            border-radius: 5px;
+            box-shadow: 0 0 5px orange;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 10px; font-weight: bold; color: white;
+            z-index: 8;
+        }
+        .griefer-enemy { background-color: gray; box-shadow: 0 0 5px #ccc; }
+        .rare-enemy {
+             position: absolute;
+            width: 50px; height: 50px;
+            background-color: gold;
+            border-radius: 10px;
+            box-shadow: 0 0 10px yellow;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 12px; font-weight: bold; color: black;
+            border: 2px solid white;
+            z-index: 8;
+        }
+        /* Boss 樣式 */
+        .boss-enemy {
+            position: absolute;
+            width: 100px; height: 100px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px 10px rgba(255, 0, 0, 0.8), inset 0 0 15px white;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 16px; font-weight: bold; color: white;
+            z-index: 10; 
+            border: 3px solid red;
+            transition: transform 0.5s ease-out; 
+        }
+
+        .enemy-bullet { 
+            position: absolute;
+            width: 6px; height: 6px;
+            background-color: yellow; 
+            border-radius: 50%;
+            z-index: 7;
+        }
+        .heart-drop {
+            position: absolute;
+            width: 15px; height: 15px;
+            background-color: pink;
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 10px; color: darkred;
+            z-index: 6;
+        }
+        
+        #start-message, #game-over-message, #pause-message { 
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px; color: lime;
+            text-shadow: 0 0 5px lime;
+            z-index: 11;
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+        }
+        #game-over-message { color: red; text-shadow: 0 0 10px red; display: none; }
+        #pause-message { color: yellow; text-shadow: 0 0 5px yellow; display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>太空戰機彈幕 - 競技場模式 </h1>
+    <div id="top-info">
+        <div id="hp-display">HP: <span id="player-hp">30</span></div>
+        <div id="score-board">分數: <span id="score">0</span></div>
+        <div id="dps-display">DPS: <span id="current-dps">0.0</span></div>
+    </div>
+    
+    <div id="weapon-status">武器: <span id="weapon-name">單管機槍</span> (<span id="fire-rate-info">85ms</span>) | 瞬移: **空白鍵** (3s CD)</div>
+    
+    <div id="game-container" tabindex="0"> 
+        <div id="continuous-sword-blade"></div> 
+        <div id="static-field-aura"></div> 
+        <div id="player"></div>
+        <div id="start-message">
+            按 **WASD/方向鍵** 開始遊戲
+            <br>
+            <span style="font-size:14px; color:#aaa;">(E 鍵或滑鼠滾輪切換武器 / 空白鍵瞬移 / ESC 暫停)</span>
+        </div>
+        
+        <div id="pause-message">
+            **遊戲暫停 (PAUSED)**
+            <br>
+            <span style="font-size:14px; color:#ccc;">再次按下 ESC 繼續遊戲</span>
+        </div>
+        
+        <div id="game-over-message">
+            遊戲結束！
+            <div id="final-score"></div>
+            <button onclick="window.location.reload()" style="padding: 10px 20px; margin-top: 15px;">重新開始</button>
+        </div>
+    </div>
+    
+    <p>使用 WASD/方向鍵 移動，滑鼠瞄準。</p>
+
+    <script>
+        // *** 核心參數 ***
+        const MAX_PLAYER_HP = 30.0; 
+        const ENEMY_BULLET_SPEED = 0.3; 
+        const BOSS_BULLET_SPEED = 1.5; // Boss 子彈速度
+        const ENEMY_BULLET_DAMAGE = 1.0; 
+        const INITIAL_FIRE_RATE_MODIFIER = 2.2533; 
+        const BASE_SINGLE_SHOT_RATE = 50 * INITIAL_FIRE_RATE_MODIFIER; 
+        const PLAYER_HIT_COOLDOWN = 250; 
+
+        // DPS 參數
+        const DPS_UPDATE_INTERVAL = 500; 
+        const DPS_WINDOW_SIZE = 4000;    
+
+        // 靜電力場參數 
+        const STATIC_FIELD_RATE = BASE_SINGLE_SHOT_RATE * 3; 
+        const STATIC_FIELD_DAMAGE = 1.0; 
+        const BASE_STATIC_RANGE = 75;
+        const STATIC_FIELD_RANGE = BASE_STATIC_RANGE * 1.035; 
+
+        // 脈衝火焰參數 
+        const SWORD_BLADE_RATE = BASE_SINGLE_SHOT_RATE * 1.3; 
+        const SWORD_BLADE_DAMAGE = 1.0; 
+        const SWORD_BLADE_WIDTH = 35; 
+        const SWORD_BLADE_HEIGHT = 130; 
+        const SWORD_DAMAGE_POINTS = 10; 
+        const SWORD_ROTATION_SPEED = 0.5; 
+        const SWORD_OFFSET_DISTANCE = 0; 
+        
+        // 遊戲中心點坐標
+        const GAME_CENTER = { x: 250, y: 300 };
+        const PLAYER_MAX_Y_BOUND = 440; 
+
+        // 敵人配置
+        const BASE_ENEMY_CONFIGS = [
+            { type: 1, baseHp: 6.0, score: 100, color: 'red', className: 'enemy' },
+            { type: 2, baseHp: 6.0, score: 100, color: 'purple', className: 'enemy' },
+            { type: 3, baseHp: 60.0, score: 500, color: 'gold', className: 'rare-enemy' },
+            { type: 4, baseHp: 3.0, score: 100, color: 'gray', className: 'griefer-enemy' }
+        ];
+        
+        // --- Boss 觸發參數 ---
+        const BOSS_PREP_DURATION = 10000; 
+        
+        // Boss 1 參數
+        const BOSS1_COOLDOWN_INTERVAL = 2000; 
+        const BOSS1_BURST_COUNT = 5; 
+        const BOSS1_BURST_INTERVAL = 500; 
+        const BOSS1_SPREAD_SHOTS = 6; 
+        
+        // Boss 2 參數
+        const BOSS2_PHASE_A_WAVES = 10;
+        const BOSS2_PHASE_A_INTERVAL = 200;
+        const BOSS2_PHASE_B_SHOTS = 30;
+        const BOSS2_PHASE_B_INTERVAL = 50;
+        const BOSS2_REST_TIME = 100; // 1秒休息
+        
+        const BOSS_BASE_CONFIG = { 
+            type: 99, 
+            baseHp: 600.0, 
+            score: 100, 
+            color: 'darkred', 
+            className: 'boss-enemy' 
+        };
+
+        // 武器基礎配置
+        const BASE_WEAPONS = [
+            { name: "單管機槍", baseFireRate: BASE_SINGLE_SHOT_RATE, color: "white", bulletSpeed: 4.5, type: "single", baseDamage: 1.0 },        
+            { name: "廣域霰彈", baseFireRate: 1200 * INITIAL_FIRE_RATE_MODIFIER, color: "yellow", bulletSpeed: 6, type: "random_spread_15", baseDamage: 2.0 },  
+            { name: "惡火重機槍", baseFireRate: 150 * INITIAL_FIRE_RATE_MODIFIER, color: "lime", bulletSpeed: 4.5, type: "random_twin", baseDamage: 1.5 }, 
+            { name: "靜電力場", baseFireRate: STATIC_FIELD_RATE, color: "red", bulletSpeed: 0, type: "static_field", baseDamage: STATIC_FIELD_DAMAGE },
+            { name: "脈衝火焰", baseFireRate: SWORD_BLADE_RATE, color: "blue", bulletSpeed: 0, type: "continuous_sword", baseDamage: SWORD_BLADE_DAMAGE }, 
+	    { name: "充能雷射", baseFireRate: 65 * INITIAL_FIRE_RATE_MODIFIER, color: "cyan", bulletSpeed: 0, type: "kinetic_laser", baseDamage: 1.0 }
+        ];
+
+        const STATIC_FIELD_WEAPON_INDEX = 3; 
+        const SWORD_BLADE_WEAPON_INDEX = 4;
+	const KINETIC_LASER_WEAPON_INDEX = 5; // 新增索引
+
+        const container = document.getElementById('game-container');
+        const player = document.getElementById('player');
+        const scoreElement = document.getElementById('score');
+        const hpElement = document.getElementById('player-hp'); 
+        const weaponNameElement = document.getElementById('weapon-name');
+        const fireRateInfoElement = document.getElementById('fire-rate-info');
+        const startMessageElement = document.getElementById('start-message'); 
+        const gameOverMessageElement = document.getElementById('game-over-message');
+        const finalScoreElement = document.getElementById('final-score');
+        const staticFieldAura = document.getElementById('static-field-aura'); 
+        const continuousSwordBlade = document.getElementById('continuous-sword-blade');
+        const dpsDisplayElement = document.getElementById('current-dps');
+        const pauseMessageElement = document.getElementById('pause-message');
+
+        const Game = {
+            width: 500,
+            height: 600, 
+            score: 0,
+            scoreLevel: 0, 
+            fireRateMultiplier: 1.0, 
+            bullets: [],          
+            enemies: [],          
+            enemyBullets: [],     
+            drops: [],
+            lastEnemyTime: 0,
+            enemyInterval: 800, 
+            spawnRateMultiplier: 1.0,           
+            spawnAccumulator: 0,                
+            isRunning: true,
+            isGameActive: false,
+            isPaused: false,
+            
+            // Boss 相關狀態
+            gameState: 'NORMAL', 
+            boss: null, 
+            bossSpawnTime: 0, 
+            bossPrepDuration: BOSS_PREP_DURATION, 
+            bossCount: 0, // 擊敗過幾次 Boss
+            
+            // Boss 射擊狀態 (通用)
+            bossShotState: {
+                isCoolingDown: false,
+                lastBurstTime: 0,
+                burstCounter: 0,
+                lastShotTime: 0, 
+                // Boss 2 專用狀態
+                phase: 0, // 0: Shotgun, 1: Rest, 2: Rapid, 3: Rest
+                phaseStartTime: 0
+            },
+
+            player: {
+                x: 241, 
+                y: 291, 
+                speed: 0.6, 
+                width: 18, 
+                height: 18, 
+                hp: MAX_PLAYER_HP,            
+            },
+            mouse: { x: 0, y: 0, isFiring: false }, 
+            
+            weapons: JSON.parse(JSON.stringify(BASE_WEAPONS)), 
+            currentWeaponIndex: 0,
+            
+            fireAccumulators: [0, 0, 0], 
+            
+            lastStaticDamageTime: 0, 
+            lastSwordDamageTime: 0, 
+            currentSwordAngle: 0, 
+            
+            lastDashTime: 0,
+            dashCooldown: 3000, 
+            
+            lastPlayerHitTime: 0, 
+            isInvincible: false, 
+            
+            lastFrameTime: 0,
+            
+            damageRecords: [], 
+            lastDPSTime: 0,
+
+	    // --- 新增：充能雷射專用變數 ---
+    	    kineticChargeTime: 0, // 當前累積的毫秒數
+    	    isPlayerMoving: false, // 追蹤玩家是否移動
+	    // --- 新增：靜止計時器 ---
+    	    timeStopped: 0, // 追蹤玩家停止移動累積的毫秒數
+        };
+        
+        let isWeaponKeyHeld = false;
+
+        function getPlayerCenter() {
+            return {
+                x: Game.player.x + Game.player.width / 2,
+                y: Game.player.y + Game.player.height / 2
+            };
+        }
+
+        function normalizeAngle(angle) {
+            const TWO_PI = 2 * Math.PI;
+            let result = angle % TWO_PI;
+            if (result < 0) result += TWO_PI;
+            return result;
+        }
+        
+        function getShortestAngleDiff(current, target) {
+            let diff = target - current;
+            const TWO_PI = 2 * Math.PI;
+            if (diff > Math.PI) diff -= TWO_PI;
+            else if (diff < -Math.PI) diff += TWO_PI;
+            return diff;
+        }
+
+        function getEnemyHP(baseConfig) {
+            const multiplier = 1.0 + Game.scoreLevel * 0.1; 
+            return baseConfig.baseHp * multiplier; 
+        }
+
+        function getEnemyScore(baseConfig) { return baseConfig.score; }
+
+        function updateWeaponStats() {
+            const fireMultiplier = Game.fireRateMultiplier; 
+            const damageBonusLevel = Math.floor(Game.score / 10000);
+            const damageBonus = damageBonusLevel * 0.00;
+
+            Game.weapons.forEach((weapon, index) => {
+                weapon.fireRate = BASE_WEAPONS[index].baseFireRate / fireMultiplier; 
+                if (index >= 0 && index <= 2) { 
+                    weapon.damage = BASE_WEAPONS[index].baseDamage + damageBonus; 
+                } else {
+                    weapon.damage = BASE_WEAPONS[index].baseDamage;
+                }
+            });
+            updateWeaponStatusDisplay();
+        }
+        
+        function updateWeaponStatusDisplay() {
+            const currentWeapon = Game.weapons[Game.currentWeaponIndex];
+            weaponNameElement.innerText = currentWeapon.name;
+            const rateText = `${Math.round(currentWeapon.fireRate)}ms`; 
+            fireRateInfoElement.innerText = rateText;
+        }
+
+        function enemyHitEffect(enemy) {
+            const originalColor = enemy.element.style.backgroundColor;
+            const originalShadow = enemy.element.style.boxShadow; 
+            enemy.element.style.backgroundColor = 'white';
+            
+            if (enemy.type === 99 || enemy.type === 100) {
+                 enemy.element.style.boxShadow = '0 0 20px 10px white, inset 0 0 10px red';
+            } else {
+                enemy.element.style.boxShadow = '0 0 10px white';
+            }
+            
+            setTimeout(() => {
+                if (enemy.type === 99 || enemy.type === 100) {
+                    enemy.element.style.backgroundColor = enemy.baseColor; 
+                    enemy.element.style.boxShadow = originalShadow;
+                } else {
+                    const config = BASE_ENEMY_CONFIGS.find(c => c.type === enemy.type);
+                    if (config) {
+                        enemy.element.style.backgroundColor = config.color;
+                        enemy.element.style.boxShadow = originalShadow;
+                    } else {
+                        enemy.element.style.backgroundColor = originalColor;
+                        enemy.element.style.boxShadow = originalShadow;
+                    }
+                }
+            }, 50); 
+        }
+
+        function recordDamage(damage) {
+            const now = performance.now();
+            Game.damageRecords.push({ time: now, damage: damage });
+        }
+        
+        function updateDPS(timestamp) {
+            if (timestamp - Game.lastDPSTime >= DPS_UPDATE_INTERVAL) {
+                Game.lastDPSTime = timestamp;
+                const timeWindow = timestamp - DPS_WINDOW_SIZE;
+                Game.damageRecords = Game.damageRecords.filter(record => record.time >= timeWindow);
+                const totalDamage = Game.damageRecords.reduce((sum, record) => sum + record.damage, 0);
+                const currentDPS = (totalDamage / DPS_WINDOW_SIZE) * 1000;
+                dpsDisplayElement.innerText = currentDPS.toFixed(1); 
+            }
+        }
+        
+        function updateScore(points) {
+            const oldLevel = Game.scoreLevel;
+            const oldScore = Game.score;
+            Game.score += points;
+            scoreElement.innerText = Game.score;
+
+            // Boss 戰機制啟動檢查
+            // 20000分 -> Boss 1
+            // 50000分 -> Boss 2
+            let spawnBoss = false;
+            let bossName = "";
+
+            if (Game.gameState === 'NORMAL') {
+                if (Game.bossCount === 0 && Game.score >= 20000) {
+                    spawnBoss = true;
+                    bossName = "Boss 1";
+                } else if (Game.bossCount === 1 && Game.score >= 50000) {
+                    spawnBoss = true;
+                    bossName = "Boss 2";
+                }
+            }
+
+            if (spawnBoss) {
+                Game.gameState = 'BOSS_PREP';
+                Game.bossSpawnTime = performance.now();
+                
+                const messageDiv = document.createElement('div');
+                messageDiv.id = 'boss-warning-message';
+                messageDiv.style.cssText = 'position: absolute; top: 10%; left: 50%; transform: translateX(-50%); font-size: 24px; color: red; text-shadow: 0 0 10px yellow; z-index: 12; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px;';
+                messageDiv.innerHTML = `!!! 警告：${bossName} 即將出現 !!!`;
+                container.appendChild(messageDiv);
+                
+                Game.enemies.forEach(e => container.removeChild(e.element));
+                Game.enemies = [];
+                Game.bullets.forEach(b => container.removeChild(b.element));
+                Game.bullets = [];
+                Game.enemyBullets.forEach(b => container.removeChild(b.element));
+                Game.enemyBullets = [];
+                Game.drops.forEach(d => container.removeChild(d.element));
+                Game.drops = [];
+		
+		const centerX = GAME_CENTER.x - 7.5; 
+    		const centerY = GAME_CENTER.y - 7.5;
+                createHeartDrop(centerX, centerY);
+                setTimeout(() => {
+                    const msg = document.getElementById('boss-warning-message');
+                    if (msg) container.removeChild(msg);
+                }, BOSS_PREP_DURATION); 
+            }
+
+            const newLevel = Math.floor(Game.score / 2000);
+            if (newLevel > oldLevel) {
+                Game.scoreLevel = newLevel;
+                Game.fireRateMultiplier = 1.0 + newLevel * 0.1; 
+                updateWeaponStats(); 
+                Game.spawnRateMultiplier = 1.0 + newLevel * 0.01; 
+            }
+        }
+        
+        function updatePlayerPosition() {
+            player.style.left = `${Game.player.x}px`;
+            player.style.top = `${Game.player.y}px`;
+            
+            const center = getPlayerCenter();
+            const radius = STATIC_FIELD_RANGE;
+            const diameter = radius * 2; 
+            const borderWidth = 2; 
+            
+            staticFieldAura.style.width = `${diameter}px`;
+            staticFieldAura.style.height = `${diameter}px`;
+            staticFieldAura.style.left = `${center.x - radius - borderWidth}px`; 
+            staticFieldAura.style.top = `${center.y - radius - borderWidth}px`;  
+        }
+
+        function updateHPDisplay() {
+            hpElement.innerText = Math.ceil(Game.player.hp);
+        }
+
+        function gameOver() {
+            Game.isRunning = false;
+            Game.isGameActive = false;
+            finalScoreElement.innerText = `最終分數: ${Game.score}`;
+            gameOverMessageElement.style.display = 'block';
+            pauseMessageElement.style.display = 'none';
+        }
+
+        function performDash(timestamp) {
+            if (timestamp - Game.lastDashTime >= Game.dashCooldown) {
+		        player.classList.remove('player-dash-ready');
+                const targetX = Game.mouse.x - Game.player.width / 2;
+                const targetY = Game.mouse.y - Game.player.height / 2;
+                
+                const maxX = Game.width; 
+                const maxY = PLAYER_MAX_Y_BOUND; 
+
+                Game.player.x = Math.max(0, Math.min(maxX - Game.player.width, targetX));
+                Game.player.y = Math.max(0, Math.min(maxY - Game.player.height, targetY)); 
+
+                updatePlayerPosition();
+                Game.lastDashTime = timestamp;
+
+                player.style.backgroundColor = 'white';
+                setTimeout(() => {
+                    if (!Game.isInvincible) { 
+                        resetPlayerColor(); 
+                    }
+                }, 50);
+            }
+        }
+        
+        function resetPlayerColor() {
+             const currentWeapon = Game.weapons[Game.currentWeaponIndex];
+             player.style.boxShadow = 'none';
+             if (Game.currentWeaponIndex === STATIC_FIELD_WEAPON_INDEX) {
+                player.style.backgroundColor = 'darkviolet';
+            } else if (Game.currentWeaponIndex === SWORD_BLADE_WEAPON_INDEX) {
+                 player.style.backgroundColor = 'deepskyblue'; 
+            } else {
+                player.style.backgroundColor = currentWeapon.color === "white" ? "cyan" : currentWeapon.color; 
+            }
+        }
+
+        function updateDashVisual(timestamp) {
+            const dashReady = (timestamp - Game.lastDashTime >= Game.dashCooldown);
+            if (dashReady) {
+                player.classList.add('player-dash-ready');
+            } else {
+                player.classList.remove('player-dash-ready');
+            }
+        }
+
+        function updateStaticFieldAura(isDamaging) {
+             if (Game.currentWeaponIndex !== STATIC_FIELD_WEAPON_INDEX) return;
+             if (isDamaging) {
+                 staticFieldAura.classList.add('static-field-pulse');
+                 setTimeout(() => {
+                     staticFieldAura.classList.remove('static-field-pulse');
+                 }, 150); 
+             }
+        }
+
+        // *** Boss 邏輯區塊 ***
+
+        function createBoss() {
+            // Game.bossCount = 0 -> Boss 1
+            // Game.bossCount = 1 -> Boss 2
+            const isBoss2 = (Game.bossCount === 1);
+
+            const config = BOSS_BASE_CONFIG;
+            // Boss 2 HP 是金色敵軍 (60) 的 5 倍 = 300
+            const goldenEnemyHP = BASE_ENEMY_CONFIGS[2].baseHp;
+            //const currentHP = isBoss2 ? (goldenEnemyHP * 5) : 600.0;
+ 	    
+
+	    const currentHP = getEnemyHP(config);
+            const bossColor = isBoss2 ? '#9370DB' : 'darkred'; 
+            
+            const boss = {
+                x: Game.width / 2 - 100 / 2, 
+                y: -100, 
+                width: 100,
+                height: 100,
+                speed: 0.05, 
+                hp: currentHP, 
+                baseHp: currentHP, 
+                score: isBoss2 ? 100 : 100,
+                dropChance: 1.0, 
+                lastShotTime: 0,
+                element: document.createElement('div'),
+                type: isBoss2 ? 100 : 99,
+                
+                targetY: isBoss2 ? 60 : 80, // Boss 2 停在 60，Boss 1 停在 80
+                isMovingToTarget: true, 
+                
+                moveOscillation: 0, 
+                oscillationDirection: 1,
+                
+                baseColor: bossColor,
+                isBoss2: isBoss2
+            };
+
+            boss.element.className = config.className;
+            boss.element.innerHTML = Math.ceil(boss.hp); 
+            boss.element.style.backgroundColor = bossColor;
+            boss.element.style.left = `${boss.x}px`;
+            boss.element.style.top = `${boss.y}px`;
+            container.appendChild(boss.element);
+            Game.boss = boss;
+            Game.enemies.push(boss); 
+            
+            // 初始化 Boss 2 的攻擊狀態
+            if (isBoss2) {
+                Game.bossShotState.phase = 0;
+                Game.bossShotState.burstCounter = 0;
+                Game.bossShotState.lastShotTime = performance.now();
+                Game.bossShotState.phaseStartTime = performance.now();
+            }
+        }
+
+        function updateBossMovement(boss) {
+            
+            if (boss.isMovingToTarget) {
+                if (boss.y < boss.targetY) {
+                    boss.y = Math.min(boss.targetY, boss.y + boss.speed * 4); 
+                } else {
+                    boss.isMovingToTarget = false;
+                }
+            } else {
+                const oscillationSpeed = 0.05; 
+                const oscillationRange = 50; 
+                
+                boss.moveOscillation += boss.oscillationDirection * oscillationSpeed;
+                
+                if (boss.moveOscillation > oscillationRange || boss.moveOscillation < -oscillationRange) {
+                    boss.oscillationDirection *= -1;
+                }
+                boss.x = Game.width / 2 - boss.width / 2 + boss.moveOscillation;
+            }
+
+            boss.element.style.top = `${boss.y}px`;
+            boss.element.style.left = `${boss.x}px`;
+        }
+        
+        function bossShoot(boss, timestamp) {
+            // Boss 1 邏輯
+            if (boss.type === 99) {
+                let state = Game.bossShotState;
+                if (state.isCoolingDown) {
+                    if (timestamp - state.lastBurstTime >= BOSS1_COOLDOWN_INTERVAL) {
+                        state.isCoolingDown = false;
+                        state.burstCounter = 0; 
+                        state.lastShotTime = timestamp; 
+                    }
+                    return;
+                }
+
+                if (state.burstCounter < BOSS1_BURST_COUNT) {
+                    if (timestamp - state.lastShotTime >= BOSS1_BURST_INTERVAL) {
+                        state.lastShotTime = timestamp;
+                        state.burstCounter++;
+                        const playerCenter = getPlayerCenter();
+                        const bossCenter = { x: boss.x + boss.width / 2, y: boss.y + boss.height / 2 };
+                        const baseAngle = Math.atan2(playerCenter.y - bossCenter.y, playerCenter.x - bossCenter.x);
+                        
+                        const spreadRadians = 60 * (Math.PI / 180);
+                        const halfSpreadRadians = spreadRadians / 2; 
+                        
+                        for (let i = 0; i < BOSS1_SPREAD_SHOTS; i++) {
+                            const angleOffset = (Math.random() * 2 - 1) * halfSpreadRadians; 
+                            createEnemyBullet(boss, playerCenter.x, playerCenter.y, angleOffset);
+                        }
+
+                        if (state.burstCounter >= BOSS1_BURST_COUNT) {
+                            state.isCoolingDown = true;
+                            state.lastBurstTime = timestamp;
+                        }
+                    }
+                }
+            } 
+            // Boss 2 邏輯 (Type 100)
+            else if (boss.type === 100) {
+                let state = Game.bossShotState;
+                
+                // Phase 0: 散彈 (Shotgun)
+                // 朝玩家 15度 3顆, 間隔 200ms, 5波
+                if (state.phase === 0) {
+                    if (state.burstCounter < BOSS2_PHASE_A_WAVES) {
+                        if (timestamp - state.lastShotTime >= BOSS2_PHASE_A_INTERVAL) {
+                            state.lastShotTime = timestamp;
+                            state.burstCounter++;
+                            
+                            const playerCenter = getPlayerCenter();
+                            const bossCenter = { x: boss.x + boss.width / 2, y: boss.y + boss.height / 2 };
+                            const baseAngle = Math.atan2(playerCenter.y - bossCenter.y, playerCenter.x - bossCenter.x);
+                            const spreadRad = 25 * (Math.PI / 180);
+                            
+                            // 發射 3 顆
+                            createEnemyBullet(boss, playerCenter.x, playerCenter.y, 0); // 中心
+                            createEnemyBullet(boss, playerCenter.x, playerCenter.y, -spreadRad/2); // 左
+                            createEnemyBullet(boss, playerCenter.x, playerCenter.y, spreadRad/2); // 右
+                            createEnemyBullet(boss, playerCenter.x, playerCenter.y, -spreadRad/2.3); // 右
+                            createEnemyBullet(boss, playerCenter.x, playerCenter.y, spreadRad/2.3); // 右
+                            createEnemyBullet(boss, playerCenter.x, playerCenter.y, -3.1415/2); // 右
+                            createEnemyBullet(boss, playerCenter.x, playerCenter.y, 3.1415/2); // 右
+                            createEnemyBullet(boss, playerCenter.x, playerCenter.y, 3.1415); // 右                            
+                            // 視覺
+                            boss.element.style.boxShadow = '0 0 30px 15px rgba(255, 100, 255, 1), inset 0 0 20px white';
+                            setTimeout(() => {
+                                boss.element.style.boxShadow = '0 0 20px 10px rgba(255, 0, 0, 0.8), inset 0 0 15px white';
+                            }, 100);
+                        }
+                    } else {
+                        // 5波結束，進入 Phase 1 (休息)
+                        state.phase = 1;
+                        state.phaseStartTime = timestamp;
+                    }
+                }
+                // Phase 1: 休息 1 秒
+                else if (state.phase === 1) {
+                    if (timestamp - state.phaseStartTime >= BOSS2_REST_TIME) {
+                        state.phase = 2;
+                        state.burstCounter = 0;
+                        state.lastShotTime = timestamp;
+                    }
+                }
+                // Phase 2: 連射 (Rapid Fire)
+                // 連發 20 顆, 間隔 50ms, 亂射 45度
+                else if (state.phase === 2) {
+                    if (state.burstCounter < BOSS2_PHASE_B_SHOTS) {
+                        if (timestamp - state.lastShotTime >= BOSS2_PHASE_B_INTERVAL) {
+                            state.lastShotTime = timestamp;
+                            state.burstCounter++;
+                            
+                            const playerCenter = getPlayerCenter();
+                            // 修改這裡：加入隨機亂射 45 度 (左右各 22.5 度)
+                            const spreadRange = 45 * (Math.PI / 180); 
+                            const randomOffset = (Math.random() * spreadRange) - (spreadRange / 2);
+                            
+                            createEnemyBullet(boss, playerCenter.x, playerCenter.y, randomOffset);
+                        }
+                    } else {
+                        // 連射結束，進入 Phase 3 (休息)
+                        state.phase = 3;
+                        state.phaseStartTime = timestamp;
+                    }
+                }
+                // Phase 3: 休息 1 秒 -> 回到 Phase 0
+                else if (state.phase === 3) {
+                    if (timestamp - state.phaseStartTime >= BOSS2_REST_TIME) {
+                        state.phase = 0;
+                        state.burstCounter = 0;
+                        state.lastShotTime = timestamp;
+                    }
+                }
+            }
+        }
+
+        // *** 遊戲迴圈 ***
+        function gameLoop(timestamp) {
+            if (!Game.isRunning) return;
+            
+            handleInput(timestamp); 
+            updateDashVisual(timestamp);
+            
+            if (Game.isPaused) {
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
+            const now = timestamp; 
+            
+            if (Game.lastFrameTime === 0) {
+                Game.lastFrameTime = now;
+            }
+            const dt = now - Game.lastFrameTime;
+            Game.lastFrameTime = now;
+
+            if (Game.isGameActive) { 
+                
+                const currentWeaponIndex = Game.currentWeaponIndex;
+                updateDPS(now); 
+
+                if (currentWeaponIndex === STATIC_FIELD_WEAPON_INDEX) {
+                    updateStaticField(now);
+                    continuousSwordBlade.style.display = 'none';
+                } else if (currentWeaponIndex === SWORD_BLADE_WEAPON_INDEX) {
+                    updateContinuousSword(now); 
+                } else if (currentWeaponIndex === KINETIC_LASER_WEAPON_INDEX) {
+    		    updateKineticLaser(now, dt);
+    		    continuousSwordBlade.style.display = 'none';
+		}else {
+                    playerShoot(now, dt);    
+                    continuousSwordBlade.style.display = 'none';
+                }
+                
+                if (Game.gameState === 'BOSS_PREP' && now - Game.bossSpawnTime >= Game.bossPrepDuration) {
+                    createBoss();
+                    Game.gameState = 'BOSS_FIGHT';
+                    updateBossMovement(Game.boss);
+                }
+                
+                if (Game.gameState === 'BOSS_FIGHT' && Game.boss) {
+                    updateBossMovement(Game.boss);
+                    bossShoot(Game.boss, now);
+                    
+                    Game.boss.element.innerHTML = Math.ceil(Game.boss.hp); 
+                    
+                    if (Game.boss.hp <= 0) {
+                         const bossScore = Game.boss.score;
+                         const bossDropChance = Game.boss.dropChance;
+
+                        container.removeChild(Game.boss.element);
+                        
+                        if (bossDropChance > 0 && Math.random() < bossDropChance) {
+                             createHeartDrop(Game.boss.x + Game.boss.width / 2 - 7, Game.boss.y + Game.boss.height / 2 - 7);
+                        }
+                        
+                        Game.boss = null;
+                        Game.enemies = []; 
+                        
+                        // Boss 擊敗後，Boss計數+1
+                        Game.bossCount++; 
+                        
+                        Game.gameState = 'NORMAL'; 
+                        updateScore(bossScore); 
+                        
+                        // 重置 Boss 1 射擊狀態
+                        Game.bossShotState = {
+                            isCoolingDown: false,
+                            lastBurstTime: 0,
+                            burstCounter: 0,
+                            lastShotTime: 0,
+                            phase: 0, // Reset phase for next boss
+                            phaseStartTime: 0
+                        };
+                        
+                        const messageDiv = document.createElement('div');
+                        messageDiv.style.cssText = 'position: absolute; top: 10%; left: 50%; transform: translateX(-50%); font-size: 24px; color: lime; text-shadow: 0 0 10px green; z-index: 12; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px;';
+                        messageDiv.innerHTML = '!!! Boss 被擊敗！敵軍生成恢復 !!!';
+                        container.appendChild(messageDiv);
+                        setTimeout(() => {
+                            if (container.contains(messageDiv)) container.removeChild(messageDiv);
+                        }, 5000); 
+                    }
+                }
+
+                updateBullets();
+                spawnEnemy(now);
+                updateEnemies(now); 
+                updateEnemyBullets(); 
+                updateDrops(); 
+                checkCollisions(now); 
+                cleanupObjects();
+            }
+            requestAnimationFrame(gameLoop); 
+        }
+
+        function updateContinuousSword(timestamp) {
+            const weapon = Game.weapons[SWORD_BLADE_WEAPON_INDEX];
+            const center = getPlayerCenter();
+            
+            const targetAngle = Math.atan2(Game.mouse.y - center.y, Game.mouse.x - center.x);
+            const angleDiff = getShortestAngleDiff(Game.currentSwordAngle, targetAngle);
+            const maxRotation = SWORD_ROTATION_SPEED;
+            let rotationStep = 0;
+            
+            if (Math.abs(angleDiff) > maxRotation) {
+                rotationStep = Math.sign(angleDiff) * maxRotation;
+            } else {
+                rotationStep = angleDiff;
+            }
+            
+            Game.currentSwordAngle += rotationStep;
+
+            const visualAngle = Game.currentSwordAngle + Math.PI / 2;
+            continuousSwordBlade.style.setProperty('--current-rotation', `${visualAngle}rad`); 
+            continuousSwordBlade.style.transform = `rotate(${visualAngle}rad)`; 
+            
+            const swordBaseX = center.x;
+            const swordBaseY = center.y;
+
+            continuousSwordBlade.style.left = `${swordBaseX - SWORD_BLADE_WIDTH / 2}px`;
+            continuousSwordBlade.style.top = `${swordBaseY - SWORD_BLADE_HEIGHT}px`;
+            
+            continuousSwordBlade.style.display = 'block';
+
+            if (timestamp - Game.lastSwordDamageTime >= weapon.fireRate) {
+                Game.lastSwordDamageTime = timestamp;
+
+                const enemiesToRemove = [];
+                let swordDamaged = false;
+                
+                const dx = Math.cos(Game.currentSwordAngle);
+                const dy = Math.sin(Game.currentSwordAngle);
+                const halfWidth = SWORD_BLADE_WIDTH / 4; 
+                
+                const damagePoints = [];
+                for (let i = 0; i <= SWORD_DAMAGE_POINTS; i++) {
+                    const distance = (i / SWORD_DAMAGE_POINTS) * SWORD_BLADE_HEIGHT;
+                    
+                    damagePoints.push({
+                        x: swordBaseX + distance * dx,
+                        y: swordBaseY + distance * dy
+                    });
+                }
+
+                Game.enemies.forEach((enemy, eIndex) => {
+                    const enemyCenter = { x: enemy.x + enemy.width / 2, y: enemy.y + enemy.height / 2 };
+                    const enemyRadius = enemy.width / 2;
+                    let isHit = false;
+
+                    for (const point of damagePoints) {
+                        const distanceToEnemy = Math.sqrt(
+                            Math.pow(point.x - enemyCenter.x, 2) + 
+                            Math.pow(point.y - enemyCenter.y, 2)
+                        );
+                        
+                        if (distanceToEnemy <= enemyRadius + halfWidth) { 
+                             isHit = true;
+                             break;
+                        }
+                    }
+
+                    if (isHit) { 
+                        enemyHitEffect(enemy);
+                        swordDamaged = true;
+                        
+                        const damage = weapon.damage; 
+                        enemy.hp -= damage; 
+                        enemy.element.innerHTML = Math.ceil(enemy.hp); 
+                        recordDamage(damage); 
+                        
+                        if (enemy.hp <= 0 && enemy.type !== 99 && enemy.type !== 100) {
+                            enemiesToRemove.push(eIndex);
+                            updateScore(enemy.score); 
+                            if (enemy.dropChance > 0 && Math.random() < enemy.dropChance) {
+                                createHeartDrop(enemy.x + enemy.width / 2 - 7, enemy.y + enemy.height / 2 - 7);
+                            }
+                        }
+                    }
+                });
+
+                cleanupHits(Game.enemies, enemiesToRemove);
+                
+                if (swordDamaged) {
+                    continuousSwordBlade.classList.add('sword-hit-effect');
+                    setTimeout(() => {
+                         continuousSwordBlade.classList.remove('sword-hit-effect');
+                    }, 50);
+                }
+            }
+        }
+
+        function updateStaticField(timestamp) {
+            const currentWeapon = Game.weapons[STATIC_FIELD_WEAPON_INDEX];
+            
+            if (timestamp - Game.lastStaticDamageTime >= currentWeapon.fireRate) {
+                Game.lastStaticDamageTime = timestamp;
+                const playerCenter = getPlayerCenter();
+                const damageDoneEnemies = []; 
+                let fieldDamaged = false; 
+
+                Game.enemies.forEach((enemy, eIndex) => {
+                    const enemyCenter = { x: enemy.x + enemy.width / 2, y: enemy.y + enemy.height / 2 };
+                    const distance = Math.sqrt(
+                        Math.pow(enemyCenter.x - playerCenter.x, 2) + 
+                        Math.pow(enemyCenter.y - playerCenter.y, 2)
+                    );
+                    
+                    const enemyRadius = enemy.width / 2; 
+                    if (distance <= STATIC_FIELD_RANGE + enemyRadius) { 
+                        if (!damageDoneEnemies.includes(eIndex)) {
+                            enemyHitEffect(enemy); 
+                            const damage = currentWeapon.damage; 
+                            enemy.hp -= damage; 
+                            enemy.element.innerHTML = Math.ceil(enemy.hp);
+                            damageDoneEnemies.push(eIndex);
+                            fieldDamaged = true; 
+                            recordDamage(damage); 
+                            
+                            if (enemy.hp <= 0 && enemy.type !== 99 && enemy.type !== 100) {
+                                cleanupHits(Game.enemies, [eIndex]);
+                                updateScore(enemy.score); 
+                                if (enemy.dropChance > 0 && Math.random() < enemy.dropChance) {
+                                    createHeartDrop(enemy.x + enemy.width / 2 - 7, enemy.y + enemy.height / 2 - 7);
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                if (fieldDamaged) {
+                    updateStaticFieldAura(true);
+                }
+            }
+        }
+
+
+
+
+// --- 修改後的函數：移動蓄力 + 靜止延遲發射邏輯 ---
+const STOP_THRESHOLD_MS = 500; // 靜止發射門檻值 (1 秒)
+
+function updateKineticLaser(timestamp, dt) {
+    const weapon = Game.weapons[KINETIC_LASER_WEAPON_INDEX];
+
+    // 狀態 A: 判斷玩家是否正在移動
+    if (Game.isPlayerMoving) {
+        // 玩家移動：
+        
+        // 1. 持續蓄力 (移動時才累積傷害)
+        Game.kineticChargeTime += dt;
+        
+        // 2. 顯示蓄力顏色 (發出光芒)
+	player.classList.add('laser-charging-alt2'); 
+        player.classList.remove('player-charging'); // 移除舊的/通用的蓄力 class
+        
+        // 3. 清除靜止計時器 (移動時，靜止計時歸零)
+        Game.timeStopped = 0;
+        
+    } else {
+        // 狀態 B: 玩家停止
+        
+        // 1. 停止蓄力 (Game.kineticChargeTime 不增加)
+        
+        // 2. 移除蓄力顏色 (因為停止蓄力了，光芒應減弱或消失)
+    	player.classList.add('laser-charging-alt'); 
+        player.classList.remove('laser-charging-alt2'); 
+        player.classList.remove('player-charging');
+        
+        // 3. 繼續計算靜止時間
+        Game.timeStopped += dt;
+
+        // 4. 檢查是否達到發射閾值 (靜止超過 1 秒)
+        if (Game.timeStopped >= STOP_THRESHOLD_MS) {
+            
+            // 檢查是否有足夠的蓄力時間來發射
+            if (Game.kineticChargeTime > 100) { 
+                
+                // 1. 計算傷害倍率
+                const ratio = Game.kineticChargeTime / weapon.fireRate;
+                const finalDamage = weapon.damage * ratio;
+                
+                // 2. 發射雷射
+                fireKineticLaser(finalDamage);
+
+                // 3. 重置所有計時器
+                Game.kineticChargeTime = 0;
+                Game.timeStopped = 0;
+            }
+        }
+    }
+}
+// ------------------------------------------------
+
+
+
+
+function fireKineticLaser(damage) {
+    const center = getPlayerCenter();
+    const angle = Math.atan2(Game.mouse.y - center.y, Game.mouse.x - center.x);
+    
+    // 1. 視覺效果：建立雷射 DOM
+    const laserLength = 1000; // 足夠長穿過螢幕
+    const laser = document.createElement('div');
+    laser.className = 'laser-beam';
+    laser.style.width = `${laserLength}px`;
+    laser.style.left = `${center.x}px`;
+    laser.style.top = `${center.y - 7}px`; // 修正垂直居中 (高度的一半)
+    laser.style.transform = `rotate(${angle}rad)`;
+    container.appendChild(laser);
+    
+    // 雷射消失動畫
+    setTimeout(() => { laser.style.opacity = '0'; }, 100);
+    setTimeout(() => { if(laser.parentNode) laser.parentNode.removeChild(laser); }, 300);
+
+    // 2. 傷害計算 (射線碰撞檢測)
+    // 我們使用「點到直線距離」公式來判斷敵人是否在雷射路徑上
+    // 直線方程式由 (center.x, center.y) 和角度 angle 決定
+    
+    // 計算直線向量 (一般式 Ax + By + C = 0 不好用，我們用向量投影或點線距離)
+    // P1 = center, P2 = end of laser
+    const p1 = center;
+    const p2 = {
+        x: center.x + Math.cos(angle) * laserLength,
+        y: center.y + Math.sin(angle) * laserLength
+    };
+
+    const hitEnemies = [];
+
+    Game.enemies.forEach((enemy, index) => {
+        const enemyCenter = { x: enemy.x + enemy.width/2, y: enemy.y + enemy.height/2 };
+        const enemyRadius = enemy.width / 2;
+        
+        // 判斷 1: 敵人是否在前方 (點積 > 0)
+        const vecPlayerToEnemy = { x: enemyCenter.x - p1.x, y: enemyCenter.y - p1.y };
+        const vecLaser = { x: p2.x - p1.x, y: p2.y - p1.y };
+        const dotProduct = vecPlayerToEnemy.x * vecLaser.x + vecPlayerToEnemy.y * vecLaser.y;
+        
+        if (dotProduct > 0) {
+            // 判斷 2: 計算垂直距離
+            // Area of parallelogram = |Cross Product|
+            // Dist = |Cross Product| / |Base|
+            const crossProduct = Math.abs(vecLaser.x * vecPlayerToEnemy.y - vecLaser.y * vecPlayerToEnemy.x);
+            const laserLen = Math.sqrt(vecLaser.x**2 + vecLaser.y**2);
+            const dist = crossProduct / laserLen;
+            
+            // 判定寬度：雷射半寬 (7px) + 敵人半徑
+            if (dist <= (7 + enemyRadius)) {
+                // 命中！
+                enemyHitEffect(enemy);
+                enemy.hp -= damage;
+                enemy.element.innerHTML = Math.ceil(enemy.hp);
+                recordDamage(damage);
+                
+                if (enemy.hp <= 0 && enemy.type !== 99 && enemy.type !== 100) {
+                    hitEnemies.push(index);
+                    updateScore(enemy.score);
+                    if (enemy.dropChance > 0 && Math.random() < enemy.dropChance) {
+                        createHeartDrop(enemy.x + enemy.width/2 - 7, enemy.y + enemy.height/2 - 7);
+                    }
+                }
+            }
+        }
+    });
+    
+    cleanupHits(Game.enemies, hitEnemies);
+}
+
+
+
+
+        
+        function spawnEnemy(timestamp) { 
+            if (Game.gameState !== 'NORMAL') return; 
+
+            if (timestamp - Game.lastEnemyTime > Game.enemyInterval) {
+                const targetSpawn = Game.spawnRateMultiplier + Game.spawnAccumulator; 
+                const actualSpawn = Math.floor(targetSpawn);
+                Game.spawnAccumulator = targetSpawn - actualSpawn; 
+
+                for (let i = 0; i < actualSpawn; i++) {
+                    createSingleEnemy();
+                }
+                Game.lastEnemyTime = timestamp;
+            }
+        }
+
+        function createSingleEnemy() { 
+            let baseConfig;
+            let isType2 = false; 
+            let isGriefer = false; 
+            
+            const rand = Math.random();
+
+            if (rand < 0.015) { 
+                baseConfig = BASE_ENEMY_CONFIGS[2]; 
+            } else if (rand < 0.015 + 0.15) { 
+                baseConfig = BASE_ENEMY_CONFIGS[0]; 
+            } else if (rand < 0.165 + 0.15) { 
+                isType2 = true;
+                baseConfig = BASE_ENEMY_CONFIGS[1]; 
+            } else {
+                isGriefer = true;
+                baseConfig = BASE_ENEMY_CONFIGS[3]; 
+            }
+            
+            const enemyWidth = baseConfig.className === 'rare-enemy' ? 50 : 30;
+            const enemyHeight = baseConfig.className === 'rare-enemy' ? 50 : 30;
+
+            let startX, startY;
+            const side = Math.floor(Math.random() * 4); 
+
+            if (side === 0) { 
+                startX = Math.random() * (Game.width - enemyWidth);
+                startY = -enemyHeight;
+            } else if (side === 1) { 
+                startX = Game.width;
+                startY = Math.random() * (Game.height - enemyHeight);
+            } else if (side === 2) { 
+                startX = Math.random() * (Game.width - enemyWidth);
+                startY = Game.height;
+            } else { 
+                startX = -enemyWidth;
+                startY = Math.random() * (Game.height - enemyHeight);
+            }
+
+            const currentHP = getEnemyHP(baseConfig); 
+            const scoreValue = getEnemyScore(baseConfig);
+            
+            let burstCount = 1;
+            let shotInterval = 3750; 
+            let spreadAngle = 0; 
+            let isMovingToCenter = false;
+            let dropChance = 0; 
+
+            if (isType2) {
+                burstCount = 3; 
+                shotInterval = 11250; 
+                spreadAngle = 5; 
+                isMovingToCenter = true; 
+            } else if (isGriefer) {
+                shotInterval = 999999; 
+                isMovingToCenter = false; 
+            } else if (baseConfig.type === 3) {
+                dropChance = 1.0; 
+            }
+
+            const enemy = {
+                x: startX, 
+                y: startY,
+                width: enemyWidth,
+                height: enemyHeight,
+                speed: 0.15 * 0.5, 
+                hp: currentHP, 
+                baseHp: currentHP, 
+                score: scoreValue,
+                dropChance: dropChance,
+                lastShotTime: 0,
+                shotInterval: shotInterval, 
+                burstCount: burstCount, 
+                spreadAngle: spreadAngle, 
+                isMovingToCenter: isMovingToCenter, 
+                element: document.createElement('div'),
+                type: baseConfig.type 
+            };
+
+            enemy.element.className = baseConfig.className;
+            enemy.element.innerHTML = Math.ceil(enemy.hp); 
+            enemy.element.style.backgroundColor = baseConfig.color;
+            enemy.element.style.left = `${enemy.x}px`;
+            enemy.element.style.top = `${enemy.y}px`;
+            container.appendChild(enemy.element);
+            Game.enemies.push(enemy);
+        }
+
+        function isEnemyInBounds(enemy) { 
+            return (
+                enemy.x + enemy.width > 0 &&     
+                enemy.x < Game.width &&          
+                enemy.y >= 0 &&                  
+                enemy.y < Game.height            
+            );
+        }
+
+        function updateEnemies(timestamp) { 
+            if (Game.gameState === 'BOSS_FIGHT' && Game.boss) {
+                return;
+            }
+
+            Game.enemies = Game.enemies.filter(enemy => {
+                const enemyCenter = { x: enemy.x + enemy.width / 2, y: enemy.y + enemy.height / 2 };
+                let targetX, targetY;
+                if (enemy.isMovingToCenter) {
+                    targetX = GAME_CENTER.x;
+                    targetY = GAME_CENTER.y;
+                } else {
+                    const playerCenter = getPlayerCenter();
+                    targetX = playerCenter.x;
+                    targetY = playerCenter.y;
+                }
+                const angleToTarget = Math.atan2(targetY - enemyCenter.y, targetX - enemyCenter.x);
+                enemy.x += enemy.speed * Math.cos(angleToTarget);
+                enemy.y += enemy.speed * Math.sin(angleToTarget);
+
+                enemy.element.style.top = `${enemy.y}px`;
+                enemy.element.style.left = `${enemy.x}px`;
+                enemy.element.innerHTML = Math.ceil(enemy.hp); 
+
+                if (enemy.hp > 0 && enemy.hp <= enemy.baseHp && enemy.type !== 4) { 
+                    if (isEnemyInBounds(enemy)) { 
+                        if (enemy.type === 1 || enemy.type === 2 || enemy.hp < enemy.baseHp * 0.5) { 
+                            if (timestamp - enemy.lastShotTime > enemy.shotInterval) {
+                                if (enemy.type === 2 || enemy.spreadAngle > 0) {
+                                    const spreadRadians = enemy.spreadAngle * (Math.PI / 180); 
+                                    const totalSpread = enemy.burstCount - 1; 
+                                    for (let i = 0; i < enemy.burstCount; i++) {
+                                        const spreadOffset = i - totalSpread / 2; 
+                                        const angleOffset = spreadOffset * (spreadRadians / (totalSpread > 0 ? totalSpread : 1));
+                                        createEnemyBullet(enemy, getPlayerCenter().x, getPlayerCenter().y, angleOffset);
+                                    }
+                                } else {
+                                    createEnemyBullet(enemy, getPlayerCenter().x, getPlayerCenter().y, 0); 
+                                }
+                                enemy.lastShotTime = timestamp;
+                            }
+                        }
+                    } 
+                }
+                
+                const REMOVE_MARGIN = 100;
+                const enemyLeft = enemy.x;
+                const enemyRight = enemy.x + enemy.width;
+                const enemyTop = enemy.y;
+                const enemyBottom = enemy.y + enemy.height;
+                
+                if (enemyRight < -REMOVE_MARGIN || 
+                    enemyLeft > Game.width + REMOVE_MARGIN || 
+                    enemyBottom < -REMOVE_MARGIN || 
+                    enemyTop > Game.height + REMOVE_MARGIN) {
+                    container.removeChild(enemy.element);
+                    return false; 
+                }
+                return true;
+            });
+        }
+
+        function createEnemyBullet(enemy, targetX, targetY, angleOffset = 0) { 
+            const currentSpeed = (enemy.type === 99 || enemy.type === 100) ? BOSS_BULLET_SPEED : ENEMY_BULLET_SPEED;
+            const center = {
+                x: enemy.x + enemy.width / 2,
+                y: enemy.y + enemy.height / 2
+            };
+            const angle = Math.atan2(targetY - center.y, targetX - center.x) + angleOffset;
+
+            const bullet = {
+                x: center.x - 3, 
+                y: center.y - 3, 
+                width: 6, height: 6, 
+                element: document.createElement('div'),
+                isTracking: false,
+                dx: Math.cos(angle) * currentSpeed, 
+                dy: Math.sin(angle) * currentSpeed,
+                speed: currentSpeed, 
+                type: enemy.type, 
+                damage: ENEMY_BULLET_DAMAGE
+            };
+            
+            bullet.element.className = 'enemy-bullet';
+            bullet.element.style.backgroundColor = (enemy.type === 1) ? 'red' : (enemy.type === 2) ? 'magenta' : 'yellow';
+            bullet.element.style.left = `${bullet.x}px`;
+            bullet.element.style.top = `${bullet.y}px`;
+            container.appendChild(bullet.element);
+            Game.enemyBullets.push(bullet);
+        }
+
+        function updateEnemyBullets() { 
+            Game.enemyBullets.forEach(bullet => {
+                bullet.x += bullet.dx;
+                bullet.y += bullet.dy;
+                bullet.element.style.top = `${bullet.y}px`;
+                bullet.element.style.left = `${bullet.x}px`;
+            });
+        }
+        
+        function playerShoot(timestamp, dt) { 
+            const currentWeaponIndex = Game.currentWeaponIndex;
+            if (currentWeaponIndex >= 3) return; 
+
+            const weapon = Game.weapons[currentWeaponIndex];
+            const center = getPlayerCenter();
+            const angleToMouse = Math.atan2(Game.mouse.y - center.y, Game.mouse.x - center.x);
+
+            Game.fireAccumulators[currentWeaponIndex] += dt; 
+
+            let fireRate = weapon.fireRate;
+            let firedCount = 0;
+
+            while (Game.fireAccumulators[currentWeaponIndex] >= fireRate) {
+                Game.fireAccumulators[currentWeaponIndex] -= fireRate; 
+                firedCount++;
+
+                const bulletsToFire = [];
+                const speed = weapon.bulletSpeed;
+                const damage = weapon.damage; 
+                
+                if (weapon.type === "single") {
+                    bulletsToFire.push({ angle: angleToMouse, damage: damage });
+                } 
+                else if (weapon.type === "random_spread_15") { 
+                    const numBullets = 15;
+                    const spreadAngle = 15; 
+                    const spreadRadians = spreadAngle * (Math.PI / 180); 
+                    for (let i = 0; i < numBullets; i++) {
+                        const randomOffset = (Math.random() * 2 - 1) * spreadRadians; 
+                        bulletsToFire.push({ angle: angleToMouse + randomOffset, damage: damage }); 
+                    }
+                } 
+                else if (weapon.type === "random_twin") {
+                    const numBullets = 2;
+                    const spreadAngle = 7.5; 
+                    const spreadRadians = spreadAngle * (Math.PI / 180); 
+                    for (let i = 0; i < numBullets; i++) {
+                        const randomOffset = (Math.random() * 2 - 1) * spreadRadians; 
+                        bulletsToFire.push({ angle: angleToMouse + randomOffset, damage: damage }); 
+                    }
+                } 
+                
+                bulletsToFire.forEach(config => {
+                    createBullet(center.x - 2, center.y - 2, weapon.color, speed, config.angle, config.damage);
+                });
+                
+                if (firedCount > 50) break; 
+            }
+            
+            if (Game.fireAccumulators[currentWeaponIndex] > fireRate * 1.5) {
+                 Game.fireAccumulators[currentWeaponIndex] = fireRate * 0.99;
+            }
+        }
+        
+        function createBullet(x, y, color, speed, angle, damage) { 
+            const dx = speed * Math.cos(angle);
+            const dy = speed * Math.sin(angle);
+
+            const bullet = {
+                x: x, y: y, width: 4, height: 4, dx: dx, dy: dy, 
+                element: document.createElement('div'),
+                damage: damage 
+            };
+
+            bullet.element.className = 'bullet';
+            bullet.element.style.backgroundColor = color;
+            bullet.element.style.left = `${bullet.x}px`;
+            bullet.element.style.top = `${bullet.y}px`;
+            container.appendChild(bullet.element);
+            Game.bullets.push(bullet);
+        }
+
+        function updateBullets() { 
+            Game.bullets.forEach(bullet => {
+                bullet.x += bullet.dx;
+                bullet.y += bullet.dy;
+                
+                bullet.element.style.top = `${bullet.y}px`;
+                bullet.element.style.left = `${bullet.x}px`;
+            });
+        }
+        
+        function createHeartDrop(x, y) { 
+             const drop = {
+                x: x, y: y, width: 15, height: 15, dy: 0, 
+                value: 10, element: document.createElement('div')
+            };
+            drop.element.className = 'heart-drop';
+            drop.element.innerHTML = 'H';
+            drop.element.style.left = `${drop.x}px`;
+            drop.element.style.top = `${drop.y}px`;
+            container.appendChild(drop.element);
+            Game.drops.push(drop);
+        }
+
+        function updateDrops() { }
+        
+        function checkCollisions(timestamp) { 
+            const hitBullets = [];
+            const hitEnemies = [];
+            const hitEnemyBullets = [];
+            const collectedDrops = [];
+            
+            const isTotallyInvulnerable = Game.isInvincible || (timestamp - Game.lastPlayerHitTime < PLAYER_HIT_COOLDOWN);
+            
+            if (isTotallyInvulnerable) {
+                player.classList.add('player-hit');
+                player.classList.remove('player-dash-ready');
+            } else {
+                player.classList.remove('player-hit');
+            }
+
+            // 1. 玩家子彈 vs 敵軍
+            Game.bullets.forEach((bullet, bIndex) => {
+                const damage = bullet.damage || 1.0; 
+                Game.enemies.forEach((enemy, eIndex) => {
+                    if (isColliding(bullet, enemy)) {
+                        if (!hitBullets.includes(bIndex)) hitBullets.push(bIndex);
+                        enemyHitEffect(enemy);
+                        enemy.hp -= damage; 
+                        enemy.element.innerHTML = Math.ceil(enemy.hp);
+                        recordDamage(damage); 
+
+                        if (enemy.hp <= 0 && enemy.type !== 99 && enemy.type !== 100) {
+                            if (!hitEnemies.includes(eIndex)) {
+                                hitEnemies.push(eIndex);
+                                updateScore(enemy.score); 
+                                if (enemy.dropChance > 0 && Math.random() < enemy.dropChance) {
+                                    createHeartDrop(enemy.x + enemy.width / 2 - 7, enemy.y + enemy.height / 2 - 7);
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+
+            // 2. 玩家 vs 敵軍子彈 / 3. 玩家 vs 敵軍
+            if (Game.player.hp > 0 && !isTotallyInvulnerable) { 
+                let playerWasHit = false;
+
+                Game.enemyBullets.forEach((eBullet, ebIndex) => {
+                    if (isColliding(eBullet, Game.player)) {
+                         if (!hitEnemyBullets.includes(ebIndex)) {
+                            hitEnemyBullets.push(ebIndex);
+                            Game.player.hp -= ENEMY_BULLET_DAMAGE; 
+                            playerWasHit = true;
+                        }
+                    }
+                });
+
+                Game.enemies.forEach((enemy, eIndex) => {
+                    if (isColliding(enemy, Game.player)) {
+                        Game.player.hp -= ENEMY_BULLET_DAMAGE; 
+                        playerWasHit = true;
+                         if (enemy.hp <= 0 && enemy.type !== 99 && enemy.type !== 100) { 
+                            if (!hitEnemies.includes(eIndex)) {
+                                hitEnemies.push(eIndex);
+                                updateScore(enemy.score); 
+                            }
+                        }
+                    }
+                });
+                
+                if (playerWasHit) {
+                    Game.lastPlayerHitTime = timestamp; 
+                    updateHPDisplay(); 
+                    if (Game.player.hp <= 0) gameOver(); 
+                }
+            } else if (Game.player.hp > 0 && isTotallyInvulnerable) { 
+                Game.enemyBullets.forEach((eBullet, ebIndex) => {
+                    if (isColliding(eBullet, Game.player)) {
+                         if (!hitEnemyBullets.includes(ebIndex)) hitEnemyBullets.push(ebIndex);
+                    }
+                });
+                 Game.enemies.forEach((enemy, eIndex) => {
+                    if (isColliding(enemy, Game.player)) {
+                        if (enemy.hp <= 0 && enemy.type !== 99 && enemy.type !== 100) {
+                             if (!hitEnemies.includes(eIndex)) {
+                                hitEnemies.push(eIndex);
+                                updateScore(enemy.score); 
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 4. 玩家 vs 掉落物 
+            Game.drops.forEach((drop, dIndex) => {
+                if (isColliding(drop, Game.player)) {
+                    if (!collectedDrops.includes(dIndex)) {
+                        collectedDrops.push(dIndex);
+                        Game.player.hp = Math.min(MAX_PLAYER_HP, Game.player.hp + drop.value);
+                        updateHPDisplay();
+                    }
+                }
+            });
+
+            cleanupHits(Game.bullets, hitBullets);
+            cleanupHits(Game.enemies, hitEnemies); 
+            cleanupHits(Game.enemyBullets, hitEnemyBullets);
+            cleanupHits(Game.drops, collectedDrops);
+        }
+        
+        function isColliding(rect1, rect2) { 
+            const overlapX = rect1.x < rect2.x + rect2.width && rect1.x + rect1.width > rect2.x;
+            const overlapY = rect1.y < rect2.y + rect2.height && rect1.y + rect1.height > rect2.y;
+            return overlapX && overlapY;
+        }
+
+        function cleanupHits(array, indices) { 
+            indices.sort((a, b) => b - a).forEach(index => {
+                if(array[index] && array[index].element) {
+                     if ((array[index].type === 99 || array[index].type === 100) && array[index].hp <= 0) {
+                        return;
+                    }
+                    container.removeChild(array[index].element);
+                    array.splice(index, 1);
+                }
+            });
+        }
+
+        function cleanupObjects() { 
+            const removeBullet = (bullet) => {
+                const margin = 50; 
+                return bullet.y < -margin || bullet.y > Game.height + margin || bullet.x > Game.width + margin || bullet.x < -margin;
+            };
+            Game.bullets = Game.bullets.filter(bullet => {
+                if (removeBullet(bullet)) { container.removeChild(bullet.element); return false; }
+                return true;
+            });
+            Game.enemyBullets = Game.enemyBullets.filter(bullet => {
+                if (removeBullet(bullet)) { container.removeChild(bullet.element); return false; }
+                return true;
+            });
+            Game.drops = Game.drops.filter(drop => {
+                if (drop.y > Game.height) { container.removeChild(drop.element); return false; }
+                return true;
+            });
+        }
+        
+        // --- 鍵盤和滑鼠處理 ---
+        const keys = {};
+        const directionalKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'];
+
+        document.addEventListener('keydown', (e) => {
+            if (directionalKeys.includes(e.key) || e.key === ' ' || e.key === 'e' || e.key === 'E' || e.key === 'i' || e.key === 'I' || e.key === 'u' || e.key === 'U' || e.key === 'Escape') {
+                e.preventDefault();
+                if (!Game.isGameActive && directionalKeys.includes(e.key)) {
+                    Game.isGameActive = true;
+                    startMessageElement.style.display = 'none'; 
+                    Game.lastFrameTime = performance.now(); 
+                }
+            }
+            
+            if (e.key === 'Escape' && Game.isGameActive && !Game.isRunning) return; 
+
+            if (e.key === 'Escape' && Game.isGameActive) {
+                Game.isPaused = !Game.isPaused;
+                if (Game.isPaused) {
+                    pauseMessageElement.style.display = 'block';
+                } else {
+                    pauseMessageElement.style.display = 'none';
+                    Game.lastFrameTime = performance.now(); 
+                }
+            }
+            
+            if (!Game.isPaused) {
+                 if (e.key === 'e' || e.key === 'E') {
+                    if (!isWeaponKeyHeld && Game.isGameActive) {
+                        toggleWeapon();
+                        isWeaponKeyHeld = true; 
+                    }
+                }
+                if (e.key === 'i' || e.key === 'I') {
+                    Game.isInvincible = !Game.isInvincible;
+                    if (Game.isInvincible) {
+                        player.style.backgroundColor = 'yellow'; player.style.boxShadow = '0 0 15px white';
+                    } else { resetPlayerColor(); }
+                }
+                if (e.key === 'u' || e.key === 'U') {
+                    if (Game.isGameActive) updateScore(10000); 
+                }
+            }
+            keys[e.key] = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+            if (e.key === 'e' || e.key === 'E') isWeaponKeyHeld = false;
+        });
+        
+        container.addEventListener('mousemove', (e) => {
+            const rect = container.getBoundingClientRect();
+            Game.mouse.x = e.clientX - rect.left;
+            Game.mouse.y = e.clientY - rect.top;
+        });
+
+
+	container.addEventListener('wheel', (e) => {
+            if (Game.isPaused || !Game.isGameActive) return;
+            e.preventDefault();
+            if (e.deltaY > 0) {
+                toggleWeapon(1); // 下一個
+            } else {
+                toggleWeapon(-1); // 上一個
+            }
+        });
+
+
+        function handleInput(timestamp) {
+            if (!Game.isGameActive || Game.isPaused) return; 
+
+            const p = Game.player;
+            const s = p.speed;
+            const maxY = PLAYER_MAX_Y_BOUND; 
+	    
+	    let isMoving = false;
+
+            if (keys['ArrowLeft'] || keys['a']) { p.x = Math.max(0, p.x - s); isMoving = true;}
+            if (keys['ArrowRight'] || keys['d']) { p.x = Math.min(Game.width - p.width, p.x + s); isMoving = true;}
+            if (keys['ArrowUp'] || keys['w']) { p.y = Math.max(0, p.y - s); isMoving = true;}
+            if (keys['ArrowDown'] || keys['s']) { p.y = Math.min(maxY - p.height, p.y + s); isMoving = true;} 
+	    Game.isPlayerMoving = isMoving;
+            if (keys[' ']) performDash(timestamp);
+            updatePlayerPosition();
+        }
+
+        function toggleWeapon(direction = 1) {
+	    // 計算新的 index
+            if (direction === 1) {
+                Game.currentWeaponIndex = (Game.currentWeaponIndex + 1) % Game.weapons.length;
+            } else {
+                Game.currentWeaponIndex = (Game.currentWeaponIndex - 1 + Game.weapons.length) % Game.weapons.length;
+            }
+
+	    // --- 確保所有雷射相關的 class 都被移除 (換武器時的關鍵清理) ---
+    	    player.classList.remove('player-charging');
+    	    player.classList.remove('laser-charging-alt');
+    	    // 如果您程式碼中還有 laser-charging-alt2，也應在此移除
+    	    player.classList.remove('laser-charging-alt2'); 
+    	    Game.kineticChargeTime = 0; 
+    	    Game.timeStopped = 0; // 重置靜止計時器
+
+            staticFieldAura.style.display = 'none';
+            continuousSwordBlade.style.display = 'none';
+            if (!Game.isInvincible) resetPlayerColor();
+            if (Game.currentWeaponIndex === STATIC_FIELD_WEAPON_INDEX) {
+                staticFieldAura.style.display = 'block';
+                staticFieldAura.classList.remove('static-field-pulse');
+            } else if (Game.currentWeaponIndex === SWORD_BLADE_WEAPON_INDEX) {
+                const center = getPlayerCenter();
+                Game.currentSwordAngle = Math.atan2(Game.mouse.y - center.y, Game.mouse.x - center.x);
+            }
+            updateWeaponStatusDisplay();
+        }
+
+        function initializeGame() {
+            updateWeaponStats(); 
+            updatePlayerPosition(); 
+            updateHPDisplay(); 
+            container.focus(); 
+            staticFieldAura.style.display = 'none';
+            continuousSwordBlade.style.display = 'none'; 
+            
+            const center = getPlayerCenter();
+            Game.currentSwordAngle = Math.atan2(Game.mouse.y - center.y, Game.mouse.x - center.x);
+            
+            updateWeaponStatusDisplay();
+            updateDPS(performance.now()); 
+            
+            Game.lastFrameTime = 0;
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = initializeGame;
+    </script>
+</body>
+</html>
