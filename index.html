@@ -33,7 +33,11 @@
         }
         #game-container {
             width: 500px;
-            height: 600px;
+            height: 440px;
+	    /* 🎯 關鍵修正 2：確保寬高不會被壓縮，維持剛性 */
+   	    min-width: 500px;
+   	    min-height: 440px;
+
             background-color: #000;
             border: 2px solid #555;
             position: relative;
@@ -1845,4 +1849,3 @@ function fireKineticLaser(damage) {
     </script>
 </body>
 </html>
-
