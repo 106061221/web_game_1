@@ -162,7 +162,10 @@
 	}
 	
 	
-	
+	.player-overload {
+    		filter: brightness(1.8) drop-shadow(0 0 10px orange) !important;
+    		box-shadow: 0 0 20px orange !important;
+	}
 	
 	
 	
@@ -295,6 +298,27 @@
         const DPS_UPDATE_INTERVAL = 500; 
         const DPS_WINDOW_SIZE = 3000;    
 
+
+
+
+
+
+
+
+// --- 惡火重機槍 (HMG) 過載專屬參數 ---
+const HMG_OVERLOAD_TRIGGER_MS = 500;   // 0.5秒進入過載
+const HMG_OVERLOAD_SPREAD = 2.5;         // 過載散度 5度
+const HMG_RAMP_INTERVAL = 200;         // 0.2秒成長一次
+const HMG_RAMP_RATE = 0.09;            // 每次快 10%
+const HMG_MAX_DURATION = 3200;         // 4秒大招
+const HMG_EXPLOSION_BASE_SEC = 2000;   // 大招基數
+const HMG_COOLDOWN_MS = 1300;          // 1秒冷卻
+
+
+
+
+
+
         // 靜電力場參數 
         const STATIC_FIELD_RATE = BASE_SINGLE_SHOT_RATE * 3; 
         const STATIC_FIELD_DAMAGE = 1.0; 
@@ -323,7 +347,7 @@
         ];
         
         // --- Boss 觸發參數 ---
-        const BOSS_PREP_DURATION = 8000; 
+        const BOSS_PREP_DURATION = 5000; 
         
         // Boss 1 參數
         const BOSS1_COOLDOWN_INTERVAL = 2000; 
@@ -338,19 +362,80 @@
         const BOSS2_PHASE_B_INTERVAL = 50;
         const BOSS2_REST_TIME = 100; // 1秒休息
         
+
+
+	// ==========================================
+        // *** 新增：Boss 3 (Type 101) 參數設定 ***
+        // ==========================================
+        const BOSS3_TRIGGER_SCORE = 80000;      // 出現分數
+        const BOSS3_Y_POS = 60;                 // 停留在 Y=60
+
+        // --- 模式 1: 全方位旋轉彈幕 (Spin) ---
+        const BOSS3_P1_INTERVAL = 10;           // 發射間隔 (ms)
+        const BOSS3_P1_ROTATION_SEC = 0.45;      // 轉一圈需要幾秒
+        const BOSS3_P1_TOTAL_LOOPS = 1.5;         // 總共轉幾圈
+        const BOSS3_P1_REST = 1400;             // 休息時間 (ms)
+        const BOSS3_P1_SPEED = 1.2;             // 子彈速度
+        const BOSS3_P1_COLOR = 'lime';          // 子彈顏色
+
+        // --- 模式 2: 紫色慢速散彈 (Shotgun) ---
+        const BOSS3_P2_BURST_COUNT = 3;         // 連續發射幾波
+        const BOSS3_P2_INTERVAL = 500;          // 每波間隔 (ms)
+        const BOSS3_P2_SPREAD_ANGLE = 35;       // 散彈角度範圍
+        const BOSS3_P2_BULLETS_NUM = 3;         // 每次發射幾顆
+        const BOSS3_P2_SPEED = 0.5;             // 速度很慢
+        //const BOSS3_P2_COLOR = '#9932CC';       // 紫色 (DarkOrchid)
+        const BOSS3_P2_COLOR = 'lime';       // 紫色 (DarkOrchid)
+        const BOSS3_P2_REST = 500;             // 休息時間 (ms)
+
+        // --- 模式 3: 紅色超快狙擊 (Sniper) ---
+        const BOSS3_P3_SPEED = 1.5;             // 速度超快
+        //const BOSS3_P3_COLOR = 'red';           // 紅色
+        const BOSS3_P3_COLOR = 'lime';           // 紅色
+        const BOSS3_P3_REST = 300;             // 休息時間 (ms)
+	const BOSS3_P3_SMEAR_ANGLE = 40;        // 狙擊彈的隨機誤差範圍 (度)
+
+
+
+// --- 模式 4: 三段式連招 (Phase 4) ---
+const BOSS3_P4_OFFSET_ANGLE = 30;    
+const BOSS3_P4_OFFSET_COLOR = 'orange'; 
+const BOSS3_P4_WAIT_TIME = 2500;     // 第一段與第二段間隔
+
+const BOSS3_P4_SPREAD_COUNT = 20;    
+const BOSS3_P4_SPREAD_RANGE = 40;    
+const BOSS3_P4_SPREAD_COLOR = 'orange'; 
+
+// ✨ 新增：第三段隨機連發參數
+const BOSS3_P4_RAPID_COUNT = 40;     // 連發 20 顆
+const BOSS3_P4_RAPID_RANGE = 20;     // 20 度內隨機
+const BOSS3_P4_RAPID_INTERVAL = 25;  // 每顆間隔 50ms
+const BOSS3_P4_RAPID_COLOR = 'cyan'; // 連發子彈顏色
+const BOSS3_P4_RAPID_SPEED = 2.8;      // 連發速度稍微快一點
+
+const BOSS3_P4_REST = 13000;         // 最終休息 10 秒
+const BOSS3_P4_BULLET_SPEED = 3;
+        // ==========================================
+
+
+
+
+
+
         const BOSS_BASE_CONFIG = { 
             type: 99, 
-            baseHp: 540.0, 
+            baseHp: 600.0, 
             score: 100, 
             color: 'darkred', 
             className: 'boss-enemy' 
         };
 
+
         // 武器基礎配置
         const BASE_WEAPONS = [
             { name: "單管機槍", baseFireRate: BASE_SINGLE_SHOT_RATE, color: "white", bulletSpeed: 4.5, type: "single", baseDamage: 1.0 },        
             { name: "廣域霰彈", baseFireRate: 1200 * INITIAL_FIRE_RATE_MODIFIER, color: "yellow", bulletSpeed: 6, type: "random_spread_15", baseDamage: 2.0 },  
-            { name: "惡火重機槍", baseFireRate: 150 * INITIAL_FIRE_RATE_MODIFIER, color: "lime", bulletSpeed: 4.5, type: "random_twin", baseDamage: 1.5 }, 
+            { name: "惡火重機槍", baseFireRate: 215 * INITIAL_FIRE_RATE_MODIFIER, color: "lime", bulletSpeed: 4.5, type: "random_twin", baseDamage: 2.0 }, 
             { name: "靜電力場", baseFireRate: STATIC_FIELD_RATE, color: "red", bulletSpeed: 0, type: "static_field", baseDamage: STATIC_FIELD_DAMAGE },
             { name: "脈衝火焰", baseFireRate: SWORD_BLADE_RATE, color: "blue", bulletSpeed: 0, type: "continuous_sword", baseDamage: SWORD_BLADE_DAMAGE }, 
 	    { name: "充能雷射", baseFireRate: 65 * INITIAL_FIRE_RATE_MODIFIER, color: "cyan", bulletSpeed: 0, type: "kinetic_laser", baseDamage: 1.0 }
@@ -445,6 +530,18 @@
     	    isPlayerMoving: false, // 追蹤玩家是否移動
 	    // --- 新增：靜止計時器 ---
     	    timeStopped: 0, // 追蹤玩家停止移動累積的毫秒數
+
+
+    hmgState: {
+        lastMoveTime: 0,
+        isOverloading: false,
+        overloadStartTime: 0,
+        isCoolingDown: false,
+        cooldownEndTime: 0
+    }
+
+
+
         };
         
         let isWeaponKeyHeld = false;
@@ -506,27 +603,33 @@
             const originalShadow = enemy.element.style.boxShadow; 
             enemy.element.style.backgroundColor = 'white';
             
-            if (enemy.type === 99 || enemy.type === 100) {
-                 enemy.element.style.boxShadow = '0 0 20px 10px white, inset 0 0 10px red';
-            } else {
-                enemy.element.style.boxShadow = '0 0 10px white';
-            }
-            
-            setTimeout(() => {
-                if (enemy.type === 99 || enemy.type === 100) {
-                    enemy.element.style.backgroundColor = enemy.baseColor; 
-                    enemy.element.style.boxShadow = originalShadow;
-                } else {
-                    const config = BASE_ENEMY_CONFIGS.find(c => c.type === enemy.type);
-                    if (config) {
-                        enemy.element.style.backgroundColor = config.color;
-                        enemy.element.style.boxShadow = originalShadow;
-                    } else {
-                        enemy.element.style.backgroundColor = originalColor;
-                        enemy.element.style.boxShadow = originalShadow;
-                    }
-                }
-            }, 50); 
+
+
+	    if (enemy.type >= 99) { // 所有的 Boss 類型 (99, 100, 101...)
+	        enemy.element.style.boxShadow = '0 0 20px 10px white, inset 0 0 10px red';
+    	    } else {
+            	enemy.element.style.boxShadow = '0 0 10px white';
+    	    }
+
+	setTimeout(() => {
+        	if (enemy.hp > 0) {
+            	// ✨ 關鍵修正：優先變回我們在 createBoss 中設定好的 baseColor
+            	if (enemy.baseColor) {
+                	enemy.element.style.backgroundColor = enemy.baseColor;
+            	} else {
+                	// 普通小怪回歸設定檔中的顏色
+                	const config = BASE_ENEMY_CONFIGS.find(c => c.type === enemy.type);
+                	if (config) {
+                    	enemy.element.style.backgroundColor = config.color;
+                	}
+            	}
+            	enemy.element.style.boxShadow = originalShadow;
+        	}
+    	}, 50);
+
+
+
+
         }
 
         function recordDamage(damage) {
@@ -564,6 +667,11 @@
                 } else if (Game.bossCount === 1 && Game.score >= 50000) {
                     spawnBoss = true;
                     bossName = "Boss 2";
+                }
+		// *** 新增這段 ***
+                else if (Game.bossCount === 2 && Game.score >= BOSS3_TRIGGER_SCORE) {
+                    spawnBoss = true;
+                    bossName = "Boss 3";
                 }
             }
 
@@ -689,20 +797,36 @@
         // *** Boss 邏輯區塊 ***
 
         function createBoss() {
-            // Game.bossCount = 0 -> Boss 1
+	    // Game.bossCount = 0 -> Boss 1
             // Game.bossCount = 1 -> Boss 2
-            const isBoss2 = (Game.bossCount === 1);
-
+            // Game.bossCount = 2 -> Boss 3
+            const bossIndex = Game.bossCount; 
             const config = BOSS_BASE_CONFIG;
-            // Boss 2 HP 是金色敵軍 (60) 的 5 倍 = 300
-            const goldenEnemyHP = BASE_ENEMY_CONFIGS[2].baseHp;
-            //const currentHP = isBoss2 ? (goldenEnemyHP * 5) : 600.0;
- 	    
-
-	    const currentHP = getEnemyHP(config);
-            const bossColor = isBoss2 ? '#9370DB' : 'darkred'; 
+            let currentHP = 600.0;
+            let bossColor = 'darkred';
+            let bossType = 99;
+            let targetY = 80;
+            if (bossIndex === 0) { // Boss 1
+                currentHP = getEnemyHP(BOSS_BASE_CONFIG); // Boss 1
+                bossColor = 'darkred';
+                bossType = 99;
+                targetY = 80;
+	    }
+            else if (bossIndex === 1) { // Boss 2
+                currentHP = getEnemyHP(BOSS_BASE_CONFIG); // Boss 1
+                bossColor = '#9370DB';
+                bossType = 100;
+                targetY = 60;
+            } else if (bossIndex === 2) { // *** 新增 Boss 3 設定 ***
+                currentHP = getEnemyHP(BOSS_BASE_CONFIG); // Boss 1
+                bossColor = '#FFD700'; // 金色
+                bossType = 101;
+                targetY = BOSS3_Y_POS; // 參數化位置
+            } else {
+                 currentHP = getEnemyHP(BOSS_BASE_CONFIG); // Boss 1
+            }
             
-            const boss = {
+	    const boss = {
                 x: Game.width / 2 - 100 / 2, 
                 y: -100, 
                 width: 100,
@@ -710,20 +834,19 @@
                 speed: 0.05, 
                 hp: currentHP, 
                 baseHp: currentHP, 
-                score: isBoss2 ? 100 : 100,
+                score: 100,
                 dropChance: 1.0, 
                 lastShotTime: 0,
                 element: document.createElement('div'),
-                type: isBoss2 ? 100 : 99,
+                type: bossType, // 設定類型
                 
-                targetY: isBoss2 ? 60 : 80, // Boss 2 停在 60，Boss 1 停在 80
+                targetY: targetY, // 設定目標 Y
                 isMovingToTarget: true, 
                 
                 moveOscillation: 0, 
                 oscillationDirection: 1,
                 
-                baseColor: bossColor,
-                isBoss2: isBoss2
+                baseColor: bossColor
             };
 
             boss.element.className = config.className;
@@ -735,12 +858,41 @@
             Game.boss = boss;
             Game.enemies.push(boss); 
             
-            // 初始化 Boss 2 的攻擊狀態
-            if (isBoss2) {
+
+	    // 初始化狀態
+            if (bossType === 100) {
+                // ... Boss 2 狀態 (保持不變)
                 Game.bossShotState.phase = 0;
                 Game.bossShotState.burstCounter = 0;
                 Game.bossShotState.lastShotTime = performance.now();
                 Game.bossShotState.phaseStartTime = performance.now();
+            } else if (bossType === 101) { 
+                // *** 新增：Boss 3 的三個獨立狀態機 ***
+                Game.boss3State = {
+                    p1: { // 旋轉彈幕
+                        lastShot: 0,
+                        angle: 0,
+                        loopsDone: 0,
+                        isResting: false,
+                        restEnd: 0
+                    },
+                    p2: { // 紫色散彈
+                        lastShot: 0,
+                        count: 0,
+                        isResting: false,
+                        restEnd: 0
+                    },
+                    p3: { // 紅色狙擊
+                        isResting: false,
+                        restEnd: 0
+                    },
+p4: {
+    subPhase: 0,      
+    nextActionTime: 0,
+    rapidShotCounter: 0, // ✨ 記錄連發了幾顆
+    targetAngle: 0       // ✨ 記錄噴散彈時的方向
+}
+                };
             }
         }
 
@@ -885,6 +1037,186 @@
                         state.lastShotTime = timestamp;
                     }
                 }
+            }
+
+
+	    // *** 新增：Boss 3 邏輯 (Type 101) ***
+            else if (boss.type === 101) {
+                const s = Game.boss3State;
+                const bossCenterX = boss.x + boss.width / 2;
+                const bossCenterY = boss.y + boss.height / 2;
+                const playerCenter = getPlayerCenter();
+
+                // -------------------------------------------------
+                // 模式 1: 全方位順時針旋轉 (獨立運行)
+                // -------------------------------------------------
+                if (s.p1.isResting) {
+                    if (timestamp >= s.p1.restEnd) {
+                        s.p1.isResting = false;
+                        s.p1.angle = 0; // 重置角度
+                        s.p1.loopsDone = 0;
+                        s.p1.lastShot = timestamp;
+                    }
+                } else {
+                    if (timestamp - s.p1.lastShot >= BOSS3_P1_INTERVAL) {
+                        // 計算角度增量: (360度 / 轉一圈秒數) * (間隔/1000)
+                        const anglePerStep = (360 / BOSS3_P1_ROTATION_SEC) * (BOSS3_P1_INTERVAL / 1000);
+                        
+                        createEnemyBulletManual(
+                            bossCenterX, bossCenterY, 
+                            s.p1.angle * (Math.PI / 180), 
+                            BOSS3_P1_SPEED, 
+                            BOSS3_P1_COLOR
+                        );
+
+                        s.p1.angle += anglePerStep;
+                        s.p1.lastShot = timestamp;
+
+                        // 檢查是否完成指定圈數
+                        if (s.p1.angle >= 360 * BOSS3_P1_TOTAL_LOOPS) {
+                            s.p1.isResting = true;
+                            s.p1.restEnd = timestamp + BOSS3_P1_REST;
+                        }
+                    }
+                }
+
+                // -------------------------------------------------
+                // 模式 2: 紫色散彈 (獨立運行)
+                // -------------------------------------------------
+                if (s.p2.isResting) {
+                    if (timestamp >= s.p2.restEnd) {
+                        s.p2.isResting = false;
+                        s.p2.count = 0;
+                        s.p2.lastShot = timestamp;
+                    }
+                } else {
+                    if (s.p2.count < BOSS3_P2_BURST_COUNT) {
+                        if (timestamp - s.p2.lastShot >= BOSS3_P2_INTERVAL) {
+                            // 計算朝向玩家的基礎角度
+                            const baseAngle = Math.atan2(playerCenter.y - bossCenterY, playerCenter.x - bossCenterX);
+                            const spreadRad = BOSS3_P2_SPREAD_ANGLE * (Math.PI / 180);
+                            
+                            // 發射散彈 (BOSS3_P2_BULLETS_NUM 顆)
+                            for(let i=0; i<BOSS3_P2_BULLETS_NUM; i++) {
+                                // 計算偏移: 讓子彈均勻分佈在 spreadAngle 內
+                                let offset = 0;
+                                if(BOSS3_P2_BULLETS_NUM > 1) {
+                                    offset = (i / (BOSS3_P2_BULLETS_NUM - 1) - 0.5) * spreadRad;
+                                }
+                                createEnemyBulletManual(
+                                    bossCenterX, bossCenterY, 
+                                    baseAngle + offset, 
+                                    BOSS3_P2_SPEED, 
+                                    BOSS3_P2_COLOR
+                                );
+                            }
+                            
+                            s.p2.count++;
+                            s.p2.lastShot = timestamp;
+                        }
+                    } else {
+                        // 發射完畢，進入休息
+                        s.p2.isResting = true;
+                        s.p2.restEnd = timestamp + BOSS3_P2_REST;
+                    }
+                }
+
+		// -------------------------------------------------
+                // 模式 3: 紅色狙擊 (獨立運行) - 使用專屬誤差參數
+                // -------------------------------------------------
+                if (s.p3.isResting) {
+                    if (timestamp >= s.p3.restEnd) {
+                        s.p3.isResting = false;
+                    }
+                } else {
+                    // 1. 獲取指向玩家的基礎角度
+                    const baseAngle = Math.atan2(playerCenter.y - bossCenterY, playerCenter.x - bossCenterX);
+                    
+                    // 2. 計算專屬模式三的隨機偏移 (正負 SMEAR_ANGLE/2)
+                    // 例如：20度範圍代表玩家中心往左10度到往右10度
+                    const halfSpread = BOSS3_P3_SMEAR_ANGLE / 2;
+                    const randomOffsetDeg = (Math.random() * BOSS3_P3_SMEAR_ANGLE) - halfSpread;
+                    const randomOffsetRad = randomOffsetDeg * (Math.PI / 180);
+                    
+                    // 3. 結合隨機角度
+                    const finalAngle = baseAngle + randomOffsetRad;
+
+                    createEnemyBulletManual(
+                        bossCenterX, bossCenterY, 
+                        finalAngle, 
+                        BOSS3_P3_SPEED, 
+                        BOSS3_P3_COLOR
+                    );
+
+                    // 發射後進入休息
+                    s.p3.isResting = true;
+                    s.p3.restEnd = timestamp + BOSS3_P3_REST;
+                }
+
+		// -------------------------------------------------
+                // 模式 4: 三段式連招 (左右狙擊 -> 大散彈 -> 隨機連發)
+                // -------------------------------------------------
+                const p4 = s.p4;
+                if (timestamp >= p4.nextActionTime) {
+                    if (p4.subPhase === 0) {
+                        // 【階段 A】噴兩顆子彈 (左右 30 度)
+                        const baseAngle = Math.atan2(playerCenter.y - bossCenterY, playerCenter.x - bossCenterX);
+                        const offsetRad = BOSS3_P4_OFFSET_ANGLE * (Math.PI / 180);
+
+                        [baseAngle - offsetRad, baseAngle + offsetRad].forEach(angle => {
+                            createEnemyBulletManual(bossCenterX, bossCenterY, angle, BOSS3_P4_BULLET_SPEED, BOSS3_P4_OFFSET_COLOR);
+                        });
+
+                        p4.subPhase = 1;
+                        p4.nextActionTime = timestamp + BOSS3_P4_WAIT_TIME;
+
+                    } else if (p4.subPhase === 1) {
+                        // 【階段 B】噴 20 顆大散彈
+                        const baseAngle = Math.atan2(playerCenter.y - bossCenterY, playerCenter.x - bossCenterX);
+                        const startAngle = baseAngle - (BOSS3_P4_SPREAD_RANGE / 2) * (Math.PI / 180);
+                        const angleStep = (BOSS3_P4_SPREAD_RANGE * (Math.PI / 180)) / (BOSS3_P4_SPREAD_COUNT - 1);
+
+                        for (let i = 0; i < BOSS3_P4_SPREAD_COUNT; i++) {
+                            const angle = startAngle + (angleStep * i);
+                            createEnemyBulletManual(bossCenterX, bossCenterY, angle, BOSS3_P4_BULLET_SPEED - 0.5, BOSS3_P4_SPREAD_COLOR);
+                        }
+
+                        // ✨ 準備進入第三階段：記錄方向與重置計數器
+                        p4.targetAngle = baseAngle; // 鎖定剛才噴散彈的方向
+                        p4.rapidShotCounter = 0;
+                        p4.subPhase = 2;
+                        p4.nextActionTime = timestamp; // 立即開始連發
+
+                    } else if (p4.subPhase === 2) {
+                        // 【階段 C】隨機連發 20 顆 (每顆間隔 50ms)
+                        if (p4.rapidShotCounter < BOSS3_P4_RAPID_COUNT) {
+                            // 在鎖定的方向 20 度內隨機取角
+                            const halfRange = BOSS3_P4_RAPID_RANGE / 2;
+                            const randomOffset = (Math.random() * BOSS3_P4_RAPID_RANGE - halfRange) * (Math.PI / 180);
+                            const finalAngle = p4.targetAngle + randomOffset;
+
+                            createEnemyBulletManual(
+                                bossCenterX, bossCenterY,
+                                finalAngle,
+                                BOSS3_P4_RAPID_SPEED,
+                                BOSS3_P4_RAPID_COLOR
+                            );
+
+                            p4.rapidShotCounter++;
+                            p4.nextActionTime = timestamp + BOSS3_P4_RAPID_INTERVAL; // 50ms 後下一發
+                        } else {
+                            // 連發結束，進入大休息
+                            p4.subPhase = 3;
+                            p4.nextActionTime = timestamp + BOSS3_P4_REST;
+                        }
+
+                    } else if (p4.subPhase === 3) {
+                        // 10 秒休息結束，重置循環
+                        p4.subPhase = 0;
+                    }
+                }
+
+
             }
         }
 
@@ -1063,7 +1395,7 @@
                         enemy.element.innerHTML = Math.ceil(enemy.hp); 
                         recordDamage(damage); 
                         
-                        if (enemy.hp <= 0 && enemy.type !== 99 && enemy.type !== 100) {
+                        if (enemy.hp <= 0 && enemy.type < 99) {
                             enemiesToRemove.push(eIndex);
                             updateScore(enemy.score); 
                             if (enemy.dropChance > 0 && Math.random() < enemy.dropChance) {
@@ -1111,7 +1443,7 @@
                             fieldDamaged = true; 
                             recordDamage(damage); 
                             
-                            if (enemy.hp <= 0 && enemy.type !== 99 && enemy.type !== 100) {
+                            if (enemy.hp <= 0 && enemy.type < 99) {
                                 cleanupHits(Game.enemies, [eIndex]);
                                 updateScore(enemy.score); 
                                 if (enemy.dropChance > 0 && Math.random() < enemy.dropChance) {
@@ -1132,7 +1464,7 @@
 
 
 // --- 修改後的函數：移動蓄力 + 靜止延遲發射邏輯 ---
-const STOP_THRESHOLD_MS = 500; // 靜止發射門檻值 (1 秒)
+const STOP_THRESHOLD_MS = 400; // 靜止發射門檻值 (1 秒)
 
 function updateKineticLaser(timestamp, dt) {
     const weapon = Game.weapons[KINETIC_LASER_WEAPON_INDEX];
@@ -1246,7 +1578,7 @@ function fireKineticLaser(damage) {
                 enemy.element.innerHTML = Math.ceil(enemy.hp);
                 recordDamage(damage);
                 
-                if (enemy.hp <= 0 && enemy.type !== 99 && enemy.type !== 100) {
+                if (enemy.hp <= 0 && enemy.type < 99) {
                     hitEnemies.push(index);
                     updateScore(enemy.score);
                     if (enemy.dropChance > 0 && Math.random() < enemy.dropChance) {
@@ -1470,6 +1802,38 @@ function fireKineticLaser(damage) {
             Game.enemyBullets.push(bullet);
         }
 
+
+	// *** 新增函式：允許手動指定角度、速度、顏色的子彈 ***
+        function createEnemyBulletManual(startX, startY, angle, speed, color) {
+            const bullet = {
+                x: startX - 3, 
+                y: startY - 3, 
+                width: 6, height: 6, 
+                element: document.createElement('div'),
+                isTracking: false,
+                dx: Math.cos(angle) * speed, 
+                dy: Math.sin(angle) * speed,
+                speed: speed, 
+                type: 101, // 標記為 Boss 3 子彈
+                damage: ENEMY_BULLET_DAMAGE
+            };
+            
+            bullet.element.className = 'enemy-bullet';
+            bullet.element.style.backgroundColor = color;
+            bullet.element.style.left = `${bullet.x}px`;
+            bullet.element.style.top = `${bullet.y}px`;
+            bullet.element.style.boxShadow = `0 0 5px ${color}`; // 增加一點發光感
+            
+            container.appendChild(bullet.element);
+            Game.enemyBullets.push(bullet);
+        }
+
+
+
+
+
+
+
         function updateEnemyBullets() { 
             Game.enemyBullets.forEach(bullet => {
                 bullet.x += bullet.dx;
@@ -1479,60 +1843,131 @@ function fireKineticLaser(damage) {
             });
         }
         
-        function playerShoot(timestamp, dt) { 
-            const currentWeaponIndex = Game.currentWeaponIndex;
-            if (currentWeaponIndex >= 3) return; 
 
-            const weapon = Game.weapons[currentWeaponIndex];
-            const center = getPlayerCenter();
-            const angleToMouse = Math.atan2(Game.mouse.y - center.y, Game.mouse.x - center.x);
 
-            Game.fireAccumulators[currentWeaponIndex] += dt; 
 
-            let fireRate = weapon.fireRate;
-            let firedCount = 0;
 
-            while (Game.fireAccumulators[currentWeaponIndex] >= fireRate) {
-                Game.fireAccumulators[currentWeaponIndex] -= fireRate; 
-                firedCount++;
+function playerShoot(timestamp, dt) { 
+    const currentWeaponIndex = Game.currentWeaponIndex;
+    if (currentWeaponIndex >= 3) return; 
 
-                const bulletsToFire = [];
-                const speed = weapon.bulletSpeed;
-                const damage = weapon.damage; 
-                
-                if (weapon.type === "single") {
-                    bulletsToFire.push({ angle: angleToMouse, damage: damage });
-                } 
-                else if (weapon.type === "random_spread_15") { 
-                    const numBullets = 15;
-                    const spreadAngle = 15; 
-                    const spreadRadians = spreadAngle * (Math.PI / 180); 
-                    for (let i = 0; i < numBullets; i++) {
-                        const randomOffset = (Math.random() * 2 - 1) * spreadRadians; 
-                        bulletsToFire.push({ angle: angleToMouse + randomOffset, damage: damage }); 
-                    }
-                } 
-                else if (weapon.type === "random_twin") {
-                    const numBullets = 2;
-                    const spreadAngle = 7.5; 
-                    const spreadRadians = spreadAngle * (Math.PI / 180); 
-                    for (let i = 0; i < numBullets; i++) {
-                        const randomOffset = (Math.random() * 2 - 1) * spreadRadians; 
-                        bulletsToFire.push({ angle: angleToMouse + randomOffset, damage: damage }); 
-                    }
-                } 
-                
-                bulletsToFire.forEach(config => {
-                    createBullet(center.x - 2, center.y - 2, weapon.color, speed, config.angle, config.damage);
-                });
-                
-                if (firedCount > 50) break; 
+    const hmg = Game.hmgState;
+    const weapon = Game.weapons[currentWeaponIndex];
+    const center = getPlayerCenter();
+    const angleToMouse = Math.atan2(Game.mouse.y - center.y, Game.mouse.x - center.x);
+    // ✨ 關鍵修正：直接抓取 DOM 元素
+    const pElem = document.getElementById('player');
+
+    // --- 針對第三把武器 (Index 2) 的過載判斷 ---
+    if (currentWeaponIndex === 2) {
+        // 1. 檢查冷卻
+        if (hmg.isCoolingDown) {
+            if (timestamp >= hmg.cooldownEndTime) hmg.isCoolingDown = false;
+            else return; // 冷卻中不執行累加與射擊
+        }
+
+        const timeSinceMove = timestamp - hmg.lastMoveTime;
+        if (timeSinceMove > HMG_OVERLOAD_TRIGGER_MS) {
+            if (!hmg.isOverloading) {
+                hmg.isOverloading = true;
+                hmg.overloadStartTime = timestamp;
+		if (pElem) pElem.classList.add('player-overload');
             }
             
-            if (Game.fireAccumulators[currentWeaponIndex] > fireRate * 1.5) {
-                 Game.fireAccumulators[currentWeaponIndex] = fireRate * 0.99;
+            const overloadDuration = timestamp - hmg.overloadStartTime;
+
+            // --- 觸發 4 秒大招 ---
+            if (overloadDuration >= HMG_MAX_DURATION) {
+                const rampSteps = Math.floor(HMG_MAX_DURATION / HMG_RAMP_INTERVAL);
+                const maxMultiplier = 1 + (rampSteps * HMG_RAMP_RATE);
+                const currentFireRate = weapon.fireRate / maxMultiplier;
+                const bulletCount = Math.floor(HMG_EXPLOSION_BASE_SEC / currentFireRate);
+
+                for (let i = 0; i < bulletCount; i++) {
+                    const angle = (Math.PI * 2 / bulletCount) * i;
+                    createBullet(center.x - 2, center.y - 2, 'orange', weapon.bulletSpeed, angle, weapon.damage);
+                }
+
+                hmg.isCoolingDown = true;
+                hmg.cooldownEndTime = timestamp + HMG_COOLDOWN_MS;
+                hmg.isOverloading = false;
+		if (pElem) pElem.classList.add('player-overload');
+                return;
+            }
+        } else {
+            if (hmg.isOverloading) {
+                hmg.isOverloading = false;
+		if (pElem) pElem.classList.add('player-overload');
             }
         }
+    }
+
+    // --- 射擊累加器處理 ---
+    Game.fireAccumulators[currentWeaponIndex] += dt; 
+
+    // 計算當前實際攻速 (如果是武器2且在過載中，則變快)
+    let fireRate = weapon.fireRate;
+    if (currentWeaponIndex === 2 && hmg.isOverloading) {
+        const overloadDuration = timestamp - hmg.overloadStartTime;
+        const rampSteps = Math.floor(overloadDuration / HMG_RAMP_INTERVAL);
+        const speedMultiplier = 1 + (rampSteps * HMG_RAMP_RATE);
+        fireRate = weapon.fireRate / speedMultiplier;
+    }
+
+    let firedCount = 0;
+    while (Game.fireAccumulators[currentWeaponIndex] >= fireRate) {
+        Game.fireAccumulators[currentWeaponIndex] -= fireRate; 
+        firedCount++;
+
+        const bulletsToFire = [];
+        let speed = weapon.bulletSpeed;
+        const damage = weapon.damage; 
+        
+        if (currentWeaponIndex === 2 && hmg.isOverloading) {
+            // 過載模式：散度縮小至 5 度
+            const spreadRad = HMG_OVERLOAD_SPREAD * (Math.PI / 180);
+            const numBullets = 2;
+	    speed = weapon.bulletSpeed * 1.2;
+            for (let i = 0; i < numBullets; i++) {
+            	const randomOffset = (Math.random() * 2 - 1) * spreadRad;
+            	bulletsToFire.push({ angle: angleToMouse + randomOffset, damage: damage, color: 'orange' });
+	    }
+
+        } else if (weapon.type === "single") {
+            bulletsToFire.push({ angle: angleToMouse, damage: damage, color: weapon.color });
+        } else if (weapon.type === "random_spread_15") { 
+            const numBullets = 15;
+            const spreadRadians = 15 * (Math.PI / 180); 
+            for (let i = 0; i < numBullets; i++) {
+                const randomOffset = (Math.random() * 2 - 1) * spreadRadians; 
+                bulletsToFire.push({ angle: angleToMouse + randomOffset, damage: damage, color: weapon.color }); 
+            }
+        } else if (weapon.type === "random_twin") {
+            const numBullets = 2;
+            const spreadRadians = 7.5 * (Math.PI / 180); 
+            for (let i = 0; i < numBullets; i++) {
+                const randomOffset = (Math.random() * 2 - 1) * spreadRadians; 
+                bulletsToFire.push({ angle: angleToMouse + randomOffset, damage: damage, color: weapon.color }); 
+            }
+        } 
+
+        bulletsToFire.forEach(config => {
+            createBullet(center.x - 2, center.y - 2, config.color, speed, config.angle, config.damage);
+        });
+        
+        if (firedCount > 50) break; 
+    }
+    
+    if (Game.fireAccumulators[currentWeaponIndex] > fireRate * 1.5) {
+         Game.fireAccumulators[currentWeaponIndex] = fireRate * 0.99;
+    }
+}
+
+
+
+
+
+
         
         function createBullet(x, y, color, speed, angle, damage) { 
             const dx = speed * Math.cos(angle);
@@ -1603,7 +2038,7 @@ function fireKineticLaser(damage) {
                         enemy.element.innerHTML = Math.ceil(enemy.hp);
                         recordDamage(damage); 
 
-                        if (enemy.hp <= 0 && enemy.type !== 99 && enemy.type !== 100) {
+                        if (enemy.hp <= 0 && enemy.type < 99) {
                             if (!hitEnemies.includes(eIndex)) {
                                 hitEnemies.push(eIndex);
                                 updateScore(enemy.score); 
@@ -1634,7 +2069,7 @@ function fireKineticLaser(damage) {
                     if (isColliding(enemy, Game.player)) {
                         Game.player.hp -= ENEMY_BULLET_DAMAGE; 
                         playerWasHit = true;
-                         if (enemy.hp <= 0 && enemy.type !== 99 && enemy.type !== 100) { 
+                         if (enemy.hp <= 0 && enemy.type < 99) { 
                             if (!hitEnemies.includes(eIndex)) {
                                 hitEnemies.push(eIndex);
                                 updateScore(enemy.score); 
@@ -1656,7 +2091,7 @@ function fireKineticLaser(damage) {
                 });
                  Game.enemies.forEach((enemy, eIndex) => {
                     if (isColliding(enemy, Game.player)) {
-                        if (enemy.hp <= 0 && enemy.type !== 99 && enemy.type !== 100) {
+                        if (enemy.hp <= 0 && enemy.type < 99) {
                              if (!hitEnemies.includes(eIndex)) {
                                 hitEnemies.push(eIndex);
                                 updateScore(enemy.score); 
@@ -1803,6 +2238,23 @@ function fireKineticLaser(damage) {
             if (keys['ArrowUp'] || keys['w']) { p.y = Math.max(0, p.y - s); isMoving = true;}
             if (keys['ArrowDown'] || keys['s']) { p.y = Math.min(maxY - p.height, p.y + s); isMoving = true;} 
 	    Game.isPlayerMoving = isMoving;
+
+
+	    if (isMoving) {
+        	Game.hmgState.lastMoveTime = timestamp; 
+        	if (Game.hmgState.isOverloading) {
+            	    Game.hmgState.isOverloading = false;
+		    // ✅ 修正：直接使用 player 或是 document.getElementById('player')
+            	    const playerElem = document.getElementById('player');
+            	    if (playerElem) {
+                	playerElem.classList.remove('player-overload');
+            	    }
+        	}
+    	    }
+
+
+
+
             if (keys[' ']) performDash(timestamp);
             updatePlayerPosition();
         }
@@ -1832,7 +2284,18 @@ function fireKineticLaser(damage) {
             } else if (Game.currentWeaponIndex === SWORD_BLADE_WEAPON_INDEX) {
                 const center = getPlayerCenter();
                 Game.currentSwordAngle = Math.atan2(Game.mouse.y - center.y, Game.mouse.x - center.x);
+            }	
+            else if (Game.hmgState) {
+                Game.hmgState.isOverloading = false;
+                Game.hmgState.isCoolingDown = false; 
+                // 這樣換回來的時候會重新計算 0.5 秒
+                Game.hmgState.lastMoveTime = performance.now(); 
             }
+            const playerElem = document.getElementById('player');
+            if (playerElem) playerElem.classList.remove('player-overload');
+
+
+
             updateWeaponStatusDisplay();
         }
 
