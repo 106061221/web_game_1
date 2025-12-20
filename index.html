@@ -47,30 +47,35 @@
 <script>
 
 
-// 1. 每當網頁開啟，檢查版本號
-const CURRENT_VERSION = '1.0.3'; // 每次你上傳 GitHub 前，手動改一下這個數字
-const savedVersion = localStorage.getItem('game_version');
+/** * 終極自動更新邏輯 
+ * 每次上傳 GitHub 前，請修改下方的版本日期（例如 1220.01）
+ */
+const GAME_VERSION = "20251220.02"; 
 
-if (savedVersion && savedVersion !== CURRENT_VERSION) {
-    // 發現版本不符，清除舊快取並強制重新整理
-    localStorage.setItem('game_version', CURRENT_VERSION);
-    window.location.reload(true); // 強制從伺服器抓取
-} else {
-    localStorage.setItem('game_version', CURRENT_VERSION);
-}
-
-// 2. 針對 PWA 的 Service Worker 更新（如果你未來有加 Service Worker）
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for(let registration of registrations) {
-            registration.update(); // 強制檢查背景更新
+function autoUpdate() {
+    const savedVersion = localStorage.getItem('game_version');
+    
+    // 如果偵測到版本不同
+    if (savedVersion && savedVersion !== GAME_VERSION) {
+        console.log("偵測到新版本，正在強制更新...");
+        localStorage.setItem('game_version', GAME_VERSION);
+        
+        // 1. 強制清除當前頁面的快取並重整
+        if ('caches' in window) {
+            caches.keys().then(names => {
+                for (let name of names) caches.delete(name);
+            });
         }
-    });
+        
+        // 2. 加上隨機參數重新導向，徹底騙過系統快取
+        window.location.href = window.location.pathname + '?update=' + GAME_VERSION;
+    } else {
+        localStorage.setItem('game_version', GAME_VERSION);
+    }
 }
 
-
-
-
+// 立即執行更新檢查
+autoUpdate();
 
 
 
