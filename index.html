@@ -3,68 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>模組化武器系統測試</title>
+    <title>模組化射擊 - 獨立換彈版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; background: #000; }
         #ui { position: absolute; top: 20px; left: 20px; color: #fff; pointer-events: none; }
         .weapon-tag { font-weight: bold; font-size: 24px; color: #00ffcc; }
-        #status-bar { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); color: #ff3300; font-size: 18px; font-weight: bold; }
-        .info { font-size: 12px; color: #888; margin-top: 5px; }
+        
+        /* 換武器按鈕樣式 */
+        #weapon-btn {
+            position: absolute;
+            right: 40px;
+            bottom: 220px; /* 位於右搖桿上方 */
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #00ffcc;
+            border-radius: 50%;
+            color: #00ffcc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        #weapon-btn:active {
+            background: rgba(0, 255, 204, 0.4);
+            transform: scale(0.9);
+        }
+
+        #status-bar { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); color: #ff3300; font-size: 18px; font-weight: bold; pointer-events: none;}
     </style>
 </head>
 <body>
     <div id="ui">
         <div class="weapon-tag">武器編號: <span id="weapon-id">1</span></div>
-        <div id="overload-info" style="visibility:hidden">超載攻速: +<span id="speed-bonus">0</span>%</div>
-        <div class="info">右手連點換武器 | 站立觸發武器3特技</div>
+        <div id="overload-info" style="visibility:hidden; color: #ff3300;">超載攻速: +<span id="speed-bonus">0</span>%</div>
     </div>
+    
+    <div id="weapon-btn">換武器</div>
+    
     <div id="status-bar"></div>
     <canvas id="gameCanvas"></canvas>
 
 <script>
 /** * ==========================================
- * 武器參數設定區 (方便日後修改)
- * ==========================================
- */
+ * 武器參數設定區
+ * ========================================== */
 const WEAPON_CONFIG = {
-    1: { // 武器一：單發機槍
-        id: 1,
-        fireInterval: 10,       // 基礎攻擊間隔 (幀)
-        bulletCount: 1,         // 一次發射幾顆
-        spread: 0,              // 散開角度
-        speed: 12,              // 子彈速度
-        color: '#fff'
-    },
-    2: { // 武器二：散彈
-        id: 2,
-        fireInterval: 10 * 15,  // 武器一的 15 倍
-        bulletCount: 15,        // 散彈 15 顆
-        spread: 30,             // 總角度 30 度
-        speed: 10,
-        color: '#ffcc00'
-    },
-    3: { // 武器三：雙發超載
-        id: 3,
-        fireInterval: 10 * 2.2, // 武器一的 2.2 倍
-        bulletCount: 2,         // 雙發
-        speed: 14,
-        color: '#00ccff',
-        // --- 武器三專屬參數 ---
-        overloadTriggerTime: 0.5, // 靜止幾秒進入超載
-        overloadTickRate: 0.2,    // 每隔幾秒提升一次攻速
-        overloadIncrement: 0.1,   // 每次提升 10% 攻速
-        ultimateTriggerTime: 3.0, // 靜止幾秒觸發全方位
-        ultimateBulletScale: 2.0, // 子彈數量公式：(2秒/目前間隔) * 此倍率
-        lockoutDuration: 2.0      // 施放後無法攻擊時間 (秒)
+    1: { id: 1, fireInterval: 10, bulletCount: 1, spread: 0, speed: 12, color: '#fff' },
+    2: { id: 2, fireInterval: 150, bulletCount: 15, spread: 30, speed: 10, color: '#ffcc00' },
+    3: { 
+        id: 3, fireInterval: 22, bulletCount: 2, speed: 14, color: '#00ccff',
+        overloadTriggerTime: 0.5, overloadTickRate: 0.2, overloadIncrement: 0.1,
+        ultimateTriggerTime: 3.0, ultimateBulletScale: 2.0, lockoutDuration: 2.0 
     }
 };
 
 const PLAYER_SPEED = 3.8;
-const DEADZONE_LEFT = 50;
-const DEADZONE_RIGHT = 25;
+const DEADZONE_LEFT = 20;  // 已調小死區
+const DEADZONE_RIGHT = 25; 
 
-// --- 遊戲核心邏輯 ---
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
@@ -80,36 +81,14 @@ let overloadFrames = 0;
 let isLocked = false;
 let idleTriggered = false;
 
-// 搖桿
-let joyL = { active: false, x1: 0, y1: 0, x2: 0, y2: 0 };
-let joyR = { active: false, x1: 0, y1: 0, x2: 0, y2: 0 };
-let lastRTime = 0;
+let joyL = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
+let joyR = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 
-// 事件監聽
-canvas.addEventListener('touchstart', e => {
-    const now = Date.now();
-    for(let t of e.changedTouches) {
-        if(t.clientX < canvas.width/2) {
-            joyL.active = true; joyL.x1 = joyL.x2 = t.clientX; joyL.y1 = joyL.y2 = t.clientY;
-        } else {
-            joyR.active = true; joyR.x1 = joyR.x2 = t.clientX; joyR.y1 = joyR.y2 = t.clientY;
-            if(now - lastRTime < 300) switchWp();
-            lastRTime = now;
-        }
-    }
-});
-
-canvas.addEventListener('touchmove', e => {
-    for(let t of e.changedTouches) {
-        if(joyL.active && t.clientX < canvas.width/2) { joyL.x2 = t.clientX; joyL.y2 = t.clientY; }
-        if(joyR.active && t.clientX >= canvas.width/2) { joyR.x2 = t.clientX; joyR.y2 = t.clientY; }
-    }
-});
-
-canvas.addEventListener('touchend', e => {
-    for(let t of e.changedTouches) {
-        if(t.clientX < canvas.width/2) joyL.active = false; else joyR.active = false;
-    }
+// 換武器按鈕邏輯
+const btn = document.getElementById('weapon-btn');
+btn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    switchWp();
 });
 
 function switchWp() {
@@ -120,30 +99,37 @@ function switchWp() {
     resetOverload();
 }
 
+// 搖桿事件處理
+canvas.addEventListener('touchstart', e => {
+    for(let t of e.changedTouches) {
+        if(t.clientX < canvas.width/2) {
+            joyL.active = true; joyL.x1 = joyL.x2 = t.clientX; joyL.y1 = joyL.y2 = t.clientY;
+            joyL.id = t.identifier;
+        } else {
+            joyR.active = true; joyR.x1 = joyR.x2 = t.clientX; joyR.y1 = joyR.y2 = t.clientY;
+            joyR.id = t.identifier;
+        }
+    }
+});
+
+canvas.addEventListener('touchmove', e => {
+    for(let t of e.changedTouches) {
+        if(joyL.id === t.identifier) { joyL.x2 = t.clientX; joyL.y2 = t.clientY; }
+        if(joyR.id === t.identifier) { joyR.x2 = t.clientX; joyR.y2 = t.clientY; }
+    }
+});
+
+canvas.addEventListener('touchend', e => {
+    for(let t of e.changedTouches) {
+        if(joyL.id === t.identifier) { joyL.active = false; joyL.id = -1; }
+        if(joyR.id === t.identifier) { joyR.active = false; joyR.id = -1; }
+    }
+});
+
 function resetOverload() {
     speedMultiplier = 1.0;
     overloadFrames = 0;
     document.getElementById('overload-info').style.visibility = 'hidden';
-}
-
-function fire(angle) {
-    if(isLocked || fireTimer > 0) return;
-
-    const interval = currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval;
-    
-    if(currentWp.id === 1) {
-        spawnBullet(angle, 0, currentWp.speed);
-    } 
-    else if(currentWp.id === 2) {
-        const start = angle - (currentWp.spread * Math.PI/180)/2;
-        const step = (currentWp.spread * Math.PI/180) / (currentWp.bulletCount - 1);
-        for(let i=0; i<currentWp.bulletCount; i++) spawnBullet(start + i*step, 0, currentWp.speed);
-    } 
-    else if(currentWp.id === 3) {
-        spawnBullet(angle, 12, currentWp.speed);
-        spawnBullet(angle, -12, currentWp.speed);
-    }
-    fireTimer = interval;
 }
 
 function spawnBullet(angle, offset, speed) {
@@ -158,7 +144,7 @@ function spawnBullet(angle, offset, speed) {
 function update() {
     const now = Date.now();
     
-    // 移動
+    // 移動邏輯
     if(joyL.active) {
         const dx = joyL.x2 - joyL.x1, dy = joyL.y2 - joyL.y1, d = Math.hypot(dx, dy);
         if(d > DEADZONE_LEFT) {
@@ -182,16 +168,30 @@ function update() {
             const count = Math.floor((120 / (currentWp.fireInterval/speedMultiplier)) * currentWp.ultimateBulletScale);
             for(let i=0; i<count; i++) spawnBullet((i/count)*Math.PI*2, 0, 8);
             idleTriggered = true; isLocked = true;
-            document.getElementById('status-bar').innerText = "SYSTEM OVERHEAT!";
+            document.getElementById('status-bar').innerText = "系統過熱！冷卻中...";
             setTimeout(() => { isLocked = false; document.getElementById('status-bar').innerText = ""; }, currentWp.lockoutDuration * 1000);
             resetOverload();
         }
     }
 
-    // 射擊
+    // 射擊方向控制
     if(joyR.active) {
         const dx = joyR.x2 - joyR.x1, dy = joyR.y2 - joyR.y1, d = Math.hypot(dx, dy);
-        if(d > DEADZONE_RIGHT) fire(Math.atan2(dy, dx));
+        if(d > DEADZONE_RIGHT && !isLocked && fireTimer <= 0) {
+            const angle = Math.atan2(dy, dx);
+            const interval = currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval;
+            
+            if(currentWp.id === 1) spawnBullet(angle, 0, currentWp.speed);
+            else if(currentWp.id === 2) {
+                const start = angle - (currentWp.spread * Math.PI/180)/2;
+                const step = (currentWp.spread * Math.PI/180) / (currentWp.bulletCount - 1);
+                for(let i=0; i<currentWp.bulletCount; i++) spawnBullet(start + i*step, 0, currentWp.speed);
+            }
+            else if(currentWp.id === 3) {
+                spawnBullet(angle, 12, currentWp.speed); spawnBullet(angle, -12, currentWp.speed);
+            }
+            fireTimer = interval;
+        }
     }
 
     if(fireTimer > 0) fireTimer--;
@@ -206,16 +206,21 @@ function update() {
 function draw() {
     ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
     
-    // 玩家
+    // 繪製格線背景
+    ctx.strokeStyle = '#111';
+    for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
+
+    // 繪製玩家
     ctx.fillStyle = isLocked ? '#444' : currentWp.color;
     ctx.shadowBlur = isLocked ? 0 : 15; ctx.shadowColor = currentWp.color;
     ctx.fillRect(player.x-15, player.y-15, 30, 30);
     ctx.shadowBlur = 0;
 
-    // 子彈
+    // 繪製子彈
     ctx.fillStyle = '#fff';
     bullets.forEach(b => ctx.fillRect(b.x-2, b.y-2, 4, 4));
 
+    // 繪製搖桿視覺
     if(joyL.active) drawJoy(joyL, '#00ccff');
     if(joyR.active) drawJoy(joyR, '#ff3300');
 
