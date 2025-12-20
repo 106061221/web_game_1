@@ -25,9 +25,9 @@
             justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
             backdrop-filter: blur(3px); -webkit-user-select: none;
         }
-        /* 修正：加入 touch-action: none 確保拖曳不被瀏覽器攔截 */
+        /* 修正：將 bottom 從 80px 改為 100px 往上一點點 */
         #tp-btn {
-            position: absolute; right: 130px; bottom: 80px; width: 75px; height: 75px;
+            position: absolute; right: 130px; bottom: 100px; width: 75px; height: 75px;
             background: rgba(0, 255, 0, 0.1); border: 2px solid #00ff00;
             border-radius: 50%; color: #00ff00; display: flex; align-items: center;
             justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
@@ -146,7 +146,6 @@ canvas.addEventListener('touchstart', e => {
     }
 }, {passive: false});
 
-// 修正：將監聽改為 window 確保跨元件追蹤
 window.addEventListener('touchmove', e => {
     for(let t of e.changedTouches) {
         if(joyL.id === t.identifier) { joyL.x2 = t.clientX; joyL.y2 = t.clientY; }
