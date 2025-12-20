@@ -6,7 +6,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>生存射擊 - 核心邏輯還原版</title>
+    <title>生存射擊 - 物理爆發修正版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
@@ -26,7 +26,7 @@
             backdrop-filter: blur(3px); -webkit-user-select: none;
         }
 
-        /* 瞬移按鈕 */
+        /* 瞬移按鈕 - 位於換武器左下角 */
         #tp-btn {
             position: absolute; right: 130px; bottom: 80px; width: 75px; height: 75px;
             background: rgba(0, 255, 0, 0.1); border: 2px solid #00ff00;
@@ -62,9 +62,8 @@
     <canvas id="gameCanvas"></canvas>
 
 <script>
-const GAME_VERSION = "20251221.07"; 
+const GAME_VERSION = "20251221.09"; 
 
-// --- 核心武器參數 (還原至 03 版) ---
 const BASE_FIRE_INTERVAL = 8; 
 const WEAPON_CONFIG = {
     1: { id: 1, intervalMult: 1.0, speed: 15, damage: 1.0, color: '#fff' },
@@ -77,10 +76,10 @@ Object.values(WEAPON_CONFIG).forEach(wp => wp.fireInterval = wp.intervalMult * B
 
 const ENEMY_CONFIG = {
     spawnRateBase: 80, 
-    1: { id: 1, speed: 0.2, hpBase: 2, size: 15, color: '#888888', shootInterval: 0, weight: 68.5, score: 50, dropRate: 0 }, 
-    2: { id: 2, speed: 0.2, hpBase: 4, size: 25, color: '#ff4444', shootInterval: 4, bulletSpeed: 0.6, weight: 15, score: 100, dropRate: 0 }, 
-    3: { id: 3, speed: 0.2, hpBase: 4, size: 25, color: '#aa00ff', shootInterval: 13, bulletSpeed: 0.6, weight: 15, score: 100, dropRate: 0 },
-    4: { id: 4, speed: 0.2, hpBase: 40, size: 40, color: '#FFD700', shootInterval: 10, bulletSpeed: 0.6, weight: 1.5, score: 500, dropRate: 1.0 } 
+    1: { id: 1, speed: 0.2, hpBase: 2, size: 15, color: '#888888', score: 50, dropRate: 0 }, 
+    2: { id: 2, speed: 0.2, hpBase: 4, size: 25, color: '#ff4444', score: 100, dropRate: 0 }, 
+    3: { id: 3, speed: 0.2, hpBase: 4, size: 25, color: '#aa00ff', score: 100, dropRate: 0 },
+    4: { id: 4, speed: 0.2, hpBase: 40, size: 40, color: '#FFD700', score: 500, dropRate: 1.0 } 
 };
 
 const canvas = document.getElementById('gameCanvas');
@@ -93,9 +92,9 @@ let player = { x: canvas.width/2, y: canvas.height/2, hp: 30, maxHp: 30, size: 2
 let bullets = [], enemyBullets = [], enemies = [], medkits = [];
 let currentWp = WEAPON_CONFIG[1];
 let fireTimer = 0, spawnTimer = 0, score = 0, difficultyLevel = 0, lastAngle = 0;
-let wp3IdleStartTime = Date.now(), speedMultiplier = 1.0, overloadFrames = 0, isLocked = false, idleTriggered = false;
+let wp3IdleStartTime = Date.now(), speedMultiplier = 1.0, overloadFrames = 0, isLocked = false;
 
-// 搖桿與瞬移
+// 搖桿與技能狀態
 let joyL = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyR = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyT = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
@@ -119,7 +118,6 @@ function takeDamage() {
     }
 }
 
-// 瞬移按鈕事件
 const tpBtn = document.getElementById('tp-btn');
 tpBtn.addEventListener('touchstart', e => {
     e.preventDefault();
@@ -173,7 +171,6 @@ document.getElementById('weapon-btn').addEventListener('touchstart', e => {
     speedMultiplier = 1.0; wp3IdleStartTime = Date.now();
 });
 
-// --- 還原 spawnBullet (包含偏移量) ---
 function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0, dmg = 1) {
     const b = { 
         x: isEnemy ? ex : (player.x + Math.cos(angle + Math.PI/2) * offset), 
@@ -202,7 +199,7 @@ function update() {
         else { x = -50; y = Math.random() * canvas.height; }
         const rand = Math.random() * 100;
         let type = (rand < 68.5) ? ENEMY_CONFIG[1] : (rand < 83.5) ? ENEMY_CONFIG[2] : (rand < 98.5) ? ENEMY_CONFIG[3] : ENEMY_CONFIG[4];
-        enemies.push({ ...type, x, y, hp: type.hpBase * (1 + difficultyLevel * 0.05), lastShootTime: now, lastHitTime: 0 });
+        enemies.push({ ...type, x, y, hp: type.hpBase * (1 + difficultyLevel * 0.05), lastHitTime: 0 });
         spawnTimer = 0; 
     }
 
@@ -221,40 +218,18 @@ function update() {
             if(++overloadFrames % 12 === 0) { speedMultiplier += 0.1; document.getElementById('speed-bonus').innerText = Math.round((speedMultiplier-1)*100); }
         } else { document.getElementById('overload-info').style.visibility = 'hidden'; }
         
-
-
-
         if(idleSec >= currentWp.ultimateTriggerTime) {
-            // --- 精確物理大招子彈數計算 ---
-            // 1. 計算目前的射擊間隔 (考慮等級加成與攻速倍率)
+            // --- 精確物理公式：(1 / 當前間隔 * 爆發秒數) ---
             const currentInterval = (currentWp.fireInterval / speedMultiplier) / diffBonus;
-            
-            // 2. 子彈數量 = (爆發秒數 * 每秒幀數) / 射擊間隔
-            // 這代表在 ultimateDuration 秒內「原本該射出多少子彈」，現在一次噴發
             const bulletCount = Math.floor((currentWp.ultimateDuration * 60) / currentInterval);
             
             for(let i=0; i < bulletCount; i++) {
                 spawnBullet((i/bulletCount) * Math.PI * 2, 0, 8, false, 0, 0, 1);
             }
-            
-            isLocked = true; 
-            document.getElementById('status-bar').innerText = "系統過熱！";
-            setTimeout(() => { 
-                isLocked = false; 
-                document.getElementById('status-bar').innerText = ""; 
-                speedMultiplier = 1.0; 
-                wp3IdleStartTime = Date.now(); 
-            }, 2000);
+            isLocked = true; document.getElementById('status-bar').innerText = "系統過熱！";
+            setTimeout(() => { isLocked = false; document.getElementById('status-bar').innerText = ""; speedMultiplier = 1.0; wp3IdleStartTime = Date.now(); }, 2000);
         }
-
-
-
-
-
-
-
-
-
+    }
 
     if(joyR.active) lastAngle = Math.atan2(joyR.y2 - joyR.y1, joyR.x2 - joyR.x1);
 
@@ -262,12 +237,10 @@ function update() {
         const interval = (currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval) / diffBonus;
         if(currentWp.id === 1) spawnBullet(lastAngle, 0, currentWp.speed);
         else if(currentWp.id === 2) for(let i=0; i<15; i++) spawnBullet(lastAngle - (15*Math.PI/180) + i*(2*Math.PI/180), 0, currentWp.speed);
-        // --- 還原武器 3 偏移量 ---
         else if(currentWp.id === 3) { spawnBullet(lastAngle, 12, currentWp.speed); spawnBullet(lastAngle, -12, currentWp.speed); }
         fireTimer = interval;
     }
 
-    // 敵人移動與判定 (包含等級加成)
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
         let en = enemies[eIdx]; const dx = player.x - en.x, dy = player.y - en.y, dist = Math.hypot(dx, dy);
         en.x += (dx/dist) * en.speed * (1 + difficultyLevel * 0.05); en.y += (dy/dist) * en.speed * (1 + difficultyLevel * 0.05);
