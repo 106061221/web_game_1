@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生存射擊 - 圓形彈幕版</title>
+    <title>生存射擊 - 傷害參數化版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; background: #000; }
@@ -38,12 +38,14 @@
 
 <script>
 /** * ==========================================
- * 1. 核心參數與成長設定
+ * 1. 核心參數與成長設定 (在這裡修改傷害！)
  * ========================================== */
 const WEAPON_CONFIG = {
-    1: { id: 1, fireInterval: 10, speed: 15, color: '#fff' },
-    2: { id: 2, fireInterval: 150, speed: 15, color: '#ffcc00' },
-    3: { id: 3, fireInterval: 22, speed: 15, color: '#00ccff', overloadTriggerTime: 0.6, overloadIncrement: 0.1, ultimateTriggerTime: 3.6, ultimateBulletScale: 2.0, lockoutDuration: 2.0 }
+    1: { id: 1, fireInterval: 10, speed: 15, damage: 1.0, color: '#fff' },
+    2: { id: 2, fireInterval: 150, speed: 15, damage: 1.0, color: '#ffcc00' },
+    3: { id: 3, fireInterval: 22, speed: 15, damage: 1.2, color: '#00ccff', 
+         overloadTriggerTime: 0.6, overloadIncrement: 0.1, ultimateTriggerTime: 3.6, 
+         ultimateBulletScale: 2.0, lockoutDuration: 2.0 }
 };
 
 const ENEMY_CONFIG = {
@@ -134,19 +136,19 @@ canvas.addEventListener('touchstart', e => {
         if(t.clientX < canvas.width/2) { joyL.active = true; joyL.x1 = joyL.x2 = t.clientX; joyL.y1 = joyL.y2 = t.clientY; joyL.id = t.identifier; }
         else { joyR.active = true; joyR.x1 = joyR.x2 = t.clientX; joyR.y1 = joyR.y2 = t.clientY; joyR.id = t.identifier; }
     }
-});
+}, {passive: false});
 canvas.addEventListener('touchmove', e => {
     for(let t of e.changedTouches) {
         if(joyL.id === t.identifier) { joyL.x2 = t.clientX; joyL.y2 = t.clientY; }
         if(joyR.id === t.identifier) { joyR.x2 = t.clientX; joyR.y2 = t.clientY; }
     }
-});
+}, {passive: false});
 canvas.addEventListener('touchend', e => {
     for(let t of e.changedTouches) {
         if(joyL.id === t.identifier) { joyL.active = false; joyL.id = -1; }
         if(joyR.id === t.identifier) { joyR.active = false; joyR.id = -1; }
     }
-});
+}, {passive: false});
 document.getElementById('weapon-btn').addEventListener('touchstart', e => { e.preventDefault(); switchWp(); });
 
 function spawnEnemy() {
@@ -164,11 +166,14 @@ function spawnEnemy() {
     enemies.push({ ...type, x, y, hp: currentHp, lastShootTime: Date.now() });
 }
 
-function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0) {
+// 修正：增加 dmg 參數
+function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0, dmg = 1) {
     const b = {
         x: isEnemy ? ex : (player.x + Math.cos(angle + Math.PI/2) * offset),
         y: isEnemy ? ey : (player.y + Math.sin(angle + Math.PI/2) * offset),
-        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed
+        vx: Math.cos(angle) * speed, 
+        vy: Math.sin(angle) * speed,
+        dmg: dmg // 記錄子彈傷害
     };
     if(isEnemy) enemyBullets.push(b); else bullets.push(b);
 }
@@ -207,7 +212,8 @@ function update() {
             if(idleSec >= currentWp.ultimateTriggerTime && !idleTriggered) {
                 const limitInterval = (currentWp.fireInterval / speedMultiplier) / diffBonus;
                 const count = Math.floor((120 / limitInterval) * currentWp.ultimateBulletScale);
-                for(let i=0; i<count; i++) spawnBullet((i/count) * Math.PI * 2, 0, 8);
+                // 大招也套用武器傷害
+                for(let i=0; i<count; i++) spawnBullet((i/count) * Math.PI * 2, 0, 8, false, 0, 0, currentWp.damage);
                 
                 idleTriggered = true; isLocked = true;
                 resetOverload();
@@ -230,12 +236,16 @@ function update() {
         const baseInt = currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval;
         const interval = baseInt / diffBonus;
         
-        if(currentWp.id === 1) spawnBullet(lastAngle, 0, currentWp.speed);
+        // 修正：發射子彈時帶入當前武器傷害
+        if(currentWp.id === 1) spawnBullet(lastAngle, 0, currentWp.speed, false, 0, 0, currentWp.damage);
         else if(currentWp.id === 2) {
             const start = lastAngle - (15 * Math.PI/180);
-            for(let i=0; i<15; i++) spawnBullet(start + i*(2*Math.PI/180), 0, currentWp.speed);
+            for(let i=0; i<15; i++) spawnBullet(start + i*(2*Math.PI/180), 0, currentWp.speed, false, 0, 0, currentWp.damage);
         }
-        else if(currentWp.id === 3) { spawnBullet(lastAngle, 12, currentWp.speed); spawnBullet(lastAngle, -12, currentWp.speed); }
+        else if(currentWp.id === 3) { 
+            spawnBullet(lastAngle, 12, currentWp.speed, false, 0, 0, currentWp.damage); 
+            spawnBullet(lastAngle, -12, currentWp.speed, false, 0, 0, currentWp.damage); 
+        }
         fireTimer = interval;
     }
 
@@ -255,7 +265,9 @@ function update() {
         for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
             let b = bullets[bIdx];
             if(Math.hypot(b.x - en.x, b.y - en.y) < en.size + 3.5) {
-                en.hp--; bullets.splice(bIdx, 1);
+                // 修正：扣除子彈攜帶的傷害量
+                en.hp -= b.dmg; 
+                bullets.splice(bIdx, 1);
                 if(en.hp <= 0) {
                     score += en.score; document.getElementById('score-val').innerText = score;
                     updateDifficulty(); enemies.splice(eIdx, 1); break;
@@ -294,21 +306,11 @@ function draw() {
         ctx.shadowBlur = 0;
     }
 
-    // 玩家子彈：圓形
     ctx.fillStyle = '#fff'; 
-    bullets.forEach(b => {
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, 3.5, 0, Math.PI * 2);
-        ctx.fill();
-    });
+    bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, Math.PI * 2); ctx.fill(); });
 
-    // 敵人子彈：圓形
     ctx.fillStyle = '#f00'; 
-    enemyBullets.forEach(b => {
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
-        ctx.fill();
-    });
+    enemyBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI * 2); ctx.fill(); });
 
     if(joyL.active) drawJoy(joyL, '#00ccff');
     if(joyR.active) drawJoy(joyR, '#ff3300');
