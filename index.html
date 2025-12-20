@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>生存射擊 - 射擊間隔修正版</title>
+    <title>生存射擊 - 全功能修復版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
@@ -52,7 +52,7 @@
     <canvas id="gameCanvas"></canvas>
 
 <script>
-const GAME_VERSION = "20251221.11"; 
+const GAME_VERSION = "20251221.12"; 
 
 const BASE_FIRE_INTERVAL = 8; 
 const WEAPON_CONFIG = {
@@ -66,10 +66,10 @@ Object.values(WEAPON_CONFIG).forEach(wp => wp.fireInterval = wp.intervalMult * B
 
 const ENEMY_CONFIG = {
     spawnRateBase: 80, 
-    1: { id: 1, speed: 0.2, hpBase: 2, size: 15, color: '#888888', score: 50, dropRate: 0 }, 
-    2: { id: 2, speed: 0.2, hpBase: 4, size: 25, color: '#ff4444', score: 100, dropRate: 0 }, 
-    3: { id: 3, speed: 0.2, hpBase: 4, size: 25, color: '#aa00ff', score: 100, dropRate: 0 },
-    4: { id: 4, speed: 0.2, hpBase: 40, size: 40, color: '#FFD700', score: 500, dropRate: 1.0 } 
+    1: { id: 1, speed: 0.2, hpBase: 2, size: 15, color: '#888888', shootInterval: 0, weight: 68.5, score: 50, dropRate: 0 }, 
+    2: { id: 2, speed: 0.2, hpBase: 4, size: 25, color: '#ff4444', shootInterval: 4, bulletSpeed: 0.6, weight: 15, score: 100, dropRate: 0 }, 
+    3: { id: 3, speed: 0.2, hpBase: 4, size: 25, color: '#aa00ff', shootInterval: 13, bulletSpeed: 0.6, weight: 15, score: 100, dropRate: 0 },
+    4: { id: 4, speed: 0.2, hpBase: 40, size: 40, color: '#FFD700', shootInterval: 10, bulletSpeed: 0.6, weight: 1.5, score: 500, dropRate: 1.0 } 
 };
 
 const canvas = document.getElementById('gameCanvas');
@@ -79,7 +79,7 @@ window.addEventListener('resize', handleResize);
 handleResize();
 
 let player = { x: canvas.width/2, y: canvas.height/2, hp: 30, maxHp: 30, size: 21, lastHurtTime: 0 };
-let bullets = [], enemies = [], medkits = [];
+let bullets = [], enemyBullets = [], enemies = [], medkits = [];
 let currentWp = WEAPON_CONFIG[1];
 let fireTimer = 0, spawnTimer = 0, score = 0, difficultyLevel = 0, lastAngle = 0;
 let wp3IdleStartTime = Date.now(), speedMultiplier = 1.0, overloadFrames = 0, isLocked = false;
@@ -107,27 +107,21 @@ function takeDamage() {
     }
 }
 
-// 換武器邏輯修正
 document.getElementById('weapon-btn').addEventListener('touchstart', e => { 
     e.preventDefault(); 
     let nextId = currentWp.id + 1;
     if(nextId > 3) nextId = 1;
     currentWp = WEAPON_CONFIG[nextId];
     document.getElementById('weapon-id').innerText = currentWp.id;
-    
-    // 核心修正：換武器後的等待時間為該武器當前的射擊間隔
     const diffBonus = (1 + difficultyLevel * 0.05);
-    fireTimer = (currentWp.fireInterval / 1.0) / diffBonus; // 切換時重置為基礎間隔
-    
-    speedMultiplier = 1.0; 
-    wp3IdleStartTime = Date.now();
+    fireTimer = currentWp.fireInterval / diffBonus; // 換武器延遲
+    speedMultiplier = 1.0; wp3IdleStartTime = Date.now();
 });
 
 const tpBtn = document.getElementById('tp-btn');
 tpBtn.addEventListener('touchstart', e => {
     e.preventDefault(); if(tpCooldown > 0) return;
-    const t = e.changedTouches[0];
-    joyT.active = true; joyT.id = t.identifier;
+    const t = e.changedTouches[0]; joyT.active = true; joyT.id = t.identifier;
     joyT.x1 = joyT.x2 = t.clientX; joyT.y1 = joyT.y2 = t.clientY;
     tpTarget = { x: player.x, y: player.y };
 }, {passive: false});
@@ -165,12 +159,13 @@ window.addEventListener('touchend', e => {
     }
 }, {passive: false});
 
-function spawnBullet(angle, offset, speed, dmg = 1) {
-    bullets.push({ 
-        x: player.x + Math.cos(angle + Math.PI/2) * offset, 
-        y: player.y + Math.sin(angle + Math.PI/2) * offset, 
+function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0, dmg = 1) {
+    const b = { 
+        x: isEnemy ? ex : (player.x + Math.cos(angle + Math.PI/2) * offset), 
+        y: isEnemy ? ey : (player.y + Math.sin(angle + Math.PI/2) * offset), 
         vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, dmg: dmg 
-    });
+    };
+    if(isEnemy) enemyBullets.push(b); else bullets.push(b);
 }
 
 function update() {
@@ -178,10 +173,7 @@ function update() {
     const diffBonus = (1 + difficultyLevel * 0.05);
     updateDifficulty();
 
-    if(tpCooldown > 0) {
-        tpCooldown -= 16;
-        document.getElementById('tp-cd-overlay').style.height = (tpCooldown/TP_COOLDOWN_TIME)*100 + "%";
-    }
+    if(tpCooldown > 0) { tpCooldown -= 16; document.getElementById('tp-cd-overlay').style.height = (tpCooldown/TP_COOLDOWN_TIME)*100 + "%"; }
 
     if(++spawnTimer > (ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * 0.01))) {
         const side = Math.floor(Math.random() * 4);
@@ -192,16 +184,13 @@ function update() {
         else { x = -50; y = Math.random() * canvas.height; }
         const rand = Math.random() * 100;
         let type = (rand < 68.5) ? ENEMY_CONFIG[1] : (rand < 83.5) ? ENEMY_CONFIG[2] : (rand < 98.5) ? ENEMY_CONFIG[3] : ENEMY_CONFIG[4];
-        enemies.push({ ...type, x, y, hp: type.hpBase * (1 + difficultyLevel * 0.05), lastHitTime: 0 });
+        enemies.push({ ...type, x, y, hp: type.hpBase * diffBonus, lastShootTime: now, lastHitTime: 0 });
         spawnTimer = 0; 
     }
 
     if(joyL.active) {
         const dx = joyL.x2 - joyL.x1, dy = joyL.y2 - joyL.y1, d = Math.hypot(dx, dy);
-        if(d > 2) {
-            player.x += (dx/d) * 1.5; player.y += (dy/d) * 1.5;
-            if(currentWp.id === 3 && !isLocked) { speedMultiplier = 1.0; wp3IdleStartTime = now; }
-        }
+        if(d > 2) { player.x += (dx/d) * 1.5; player.y += (dy/d) * 1.5; if(currentWp.id === 3 && !isLocked) { speedMultiplier = 1.0; wp3IdleStartTime = now; } }
     }
 
     if(currentWp.id === 3 && !isLocked) {
@@ -210,11 +199,10 @@ function update() {
             document.getElementById('overload-info').style.visibility = 'visible';
             if(++overloadFrames % 12 === 0) { speedMultiplier += 0.1; document.getElementById('speed-bonus').innerText = Math.round((speedMultiplier-1)*100); }
         } else { document.getElementById('overload-info').style.visibility = 'hidden'; }
-        
         if(idleSec >= currentWp.ultimateTriggerTime) {
             const currentInterval = (currentWp.fireInterval / speedMultiplier) / diffBonus;
             const bulletCount = Math.floor((currentWp.ultimateDuration * 60) / currentInterval);
-            for(let i=0; i < bulletCount; i++) spawnBullet((i/bulletCount) * Math.PI * 2, 0, 8, 1);
+            for(let i=0; i < bulletCount; i++) spawnBullet((i/bulletCount) * Math.PI * 2, 0, 8, false, 0, 0, 1);
             isLocked = true; document.getElementById('status-bar').innerText = "系統過熱！";
             setTimeout(() => { isLocked = false; document.getElementById('status-bar').innerText = ""; speedMultiplier = 1.0; wp3IdleStartTime = Date.now(); }, 2000);
         }
@@ -230,28 +218,42 @@ function update() {
         fireTimer = interval;
     }
 
+    // 敵人邏輯修正：恢復移動與射擊
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
         let en = enemies[eIdx]; const dx = player.x - en.x, dy = player.y - en.y, dist = Math.hypot(dx, dy);
-        en.x += (dx/dist) * en.speed * (1 + difficultyLevel * 0.05); en.y += (dy/dist) * en.speed * (1 + difficultyLevel * 0.05);
+        en.x += (dx/dist) * en.speed * diffBonus; en.y += (dy/dist) * en.speed * diffBonus;
         if (dist < en.size + player.size/2) takeDamage();
+        
+        // 敵人射擊邏輯恢復
+        if (en.shootInterval > 0 && now - en.lastShootTime > (1000 / en.shootInterval) / diffBonus) {
+            const angle = Math.atan2(player.y - en.y, player.x - en.x);
+            if (en.id === 4) { for(let i=-1; i<=1; i++) spawnBullet(angle + i*0.3, 0, en.bulletSpeed, true, en.x, en.y); }
+            else { spawnBullet(angle, 0, en.bulletSpeed, true, en.x, en.y); }
+            en.lastShootTime = now;
+        }
+
         for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
             if(Math.hypot(bullets[bIdx].x - en.x, bullets[bIdx].y - en.y) < en.size + 5) {
                 en.hp -= bullets[bIdx].dmg; en.lastHitTime = now; bullets.splice(bIdx, 1);
                 if(en.hp <= 0) { 
-                    score += en.score; 
-                    if(Math.random() < en.dropRate) medkits.push({x: en.x, y: en.y});
-                    document.getElementById('score-val').innerText = score;
-                    enemies.splice(eIdx, 1); break; 
+                    score += en.score; if(Math.random() < en.dropRate) medkits.push({x: en.x, y: en.y});
+                    document.getElementById('score-val').innerText = score; enemies.splice(eIdx, 1); break; 
                 }
             }
         }
+    }
+
+    // 敵人子彈判定
+    for(let i=enemyBullets.length-1; i>=0; i--) {
+        const eb = enemyBullets[i]; eb.x += eb.vx; eb.y += eb.vy;
+        if(Math.hypot(eb.x - player.x, eb.y - player.y) < player.size/2 + 5) { takeDamage(); enemyBullets.splice(i, 1); continue; }
+        if(eb.x<0 || eb.x>canvas.width || eb.y<0 || eb.y>canvas.height) enemyBullets.splice(i, 1);
     }
     
     for(let i=medkits.length-1; i>=0; i--) {
         if(Math.hypot(medkits[i].x - player.x, medkits[i].y - player.y) < player.size) {
             player.hp = Math.min(player.maxHp, player.hp + 10);
-            document.getElementById('hp-val').innerText = player.hp;
-            medkits.splice(i, 1);
+            document.getElementById('hp-val').innerText = player.hp; medkits.splice(i, 1);
         }
     }
 
@@ -272,6 +274,7 @@ function draw() {
         ctx.setLineDash([5, 5]); ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(tpTarget.x, tpTarget.y); ctx.stroke(); ctx.setLineDash([]);
     }
     ctx.fillStyle = '#fff'; bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, 7); ctx.fill(); });
+    ctx.fillStyle = '#ff4444'; enemyBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, 7); ctx.fill(); });
     if(joyL.active) drawJoy(joyL, '#00ccff');
     if(joyR.active) drawJoy(joyR, '#ff3300');
     update(); requestAnimationFrame(draw);
