@@ -25,13 +25,14 @@
             justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
             backdrop-filter: blur(3px); -webkit-user-select: none;
         }
-        /* 新增瞬移按鈕樣式 */
+        /* 修正：加入 touch-action: none 確保拖曳不被瀏覽器攔截 */
         #tp-btn {
             position: absolute; right: 130px; bottom: 80px; width: 75px; height: 75px;
             background: rgba(0, 255, 0, 0.1); border: 2px solid #00ff00;
             border-radius: 50%; color: #00ff00; display: flex; align-items: center;
             justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
             backdrop-filter: blur(3px); -webkit-user-select: none;
+            touch-action: none; 
         }
         #tp-cd-overlay { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: rgba(0, 0, 0, 0.6); border-radius: 50%; }
         
@@ -92,7 +93,6 @@ let wp3IdleStartTime = Date.now(), speedMultiplier = 1.0, overloadFrames = 0, is
 let joyL = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyR = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 
-// 初始化瞬移變數
 let joyT = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let tpTarget = { x: 0, y: 0 }, tpCooldown = 0;
 const TP_COOLDOWN_TIME = 3000;
@@ -130,7 +130,6 @@ function takeDamage() {
     }
 }
 
-// 瞬移按鈕事件
 const tpBtn = document.getElementById('tp-btn');
 tpBtn.addEventListener('touchstart', e => {
     e.preventDefault(); if(tpCooldown > 0) return;
@@ -147,8 +146,8 @@ canvas.addEventListener('touchstart', e => {
     }
 }, {passive: false});
 
-canvas.addEventListener('touchmove', e => {
-    e.preventDefault();
+// 修正：將監聽改為 window 確保跨元件追蹤
+window.addEventListener('touchmove', e => {
     for(let t of e.changedTouches) {
         if(joyL.id === t.identifier) { joyL.x2 = t.clientX; joyL.y2 = t.clientY; }
         if(joyR.id === t.identifier) { joyR.x2 = t.clientX; joyR.y2 = t.clientY; }
@@ -160,7 +159,7 @@ canvas.addEventListener('touchmove', e => {
     }
 }, {passive: false});
 
-canvas.addEventListener('touchend', e => {
+window.addEventListener('touchend', e => {
     for(let t of e.changedTouches) {
         if(joyL.id === t.identifier) { joyL.active = false; joyL.id = -1; }
         if(joyR.id === t.identifier) { joyR.active = false; joyR.id = -1; }
@@ -195,7 +194,6 @@ function update() {
     const now = Date.now();
     const diffBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
 
-    // 瞬移冷卻邏輯
     if(tpCooldown > 0) { 
         tpCooldown -= 16; 
         document.getElementById('tp-cd-overlay').style.height = (tpCooldown/TP_COOLDOWN_TIME)*100 + "%"; 
@@ -281,7 +279,6 @@ function draw() {
         ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
     });
 
-    // 繪製瞬移預覽
     if(joyT.active) {
         ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tpTarget.x, tpTarget.y, 25, 0, 7); ctx.stroke();
         ctx.setLineDash([5, 5]); ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(tpTarget.x, tpTarget.y); ctx.stroke(); ctx.setLineDash([]);
