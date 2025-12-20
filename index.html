@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生存射擊 - 極限攻速進化版</title>
+    <title>生存射擊 - 敵人強化版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; background: #000; }
@@ -49,15 +49,16 @@ const WEAPON_CONFIG = {
 const ENEMY_CONFIG = {
     spawnRateBase: 80,
     1: { id: 1, speed: 0.15, hpBase: 1, size: 20, color: '#ff5555', shootInterval: 0, weight: 70, score: 50 },
-    2: { id: 2, speed: 0.15, hpBase: 2, size: 25, color: '#ff00ff', shootInterval: 3, bulletSpeed: 0.6, weight: 15, score: 100 },
-    3: { id: 3, speed: 0.15, hpBase: 2, size: 25, color: '#ffff00', shootInterval: 10.0, bulletSpeed: 0.6, weight: 15, score: 100 }
+    // 修正：敵軍 2 與 3 生命值改為 3
+    2: { id: 2, speed: 0.15, hpBase: 3, size: 25, color: '#ff00ff', shootInterval: 3, bulletSpeed: 0.6, weight: 15, score: 100 },
+    3: { id: 3, speed: 0.15, hpBase: 3, size: 25, color: '#ffff00', shootInterval: 10.0, bulletSpeed: 0.6, weight: 15, score: 100 }
 };
 
 const DIFFICULTY_CONFIG = {
     threshold: 1000,
     hpIncrease: 0.05,
-    speedIncrease: 0.05, // 分數每千分加 5% 攻速
-    spawnIncrease: 0.01  // 分數每千分加 1% 數量
+    speedIncrease: 0.05, 
+    spawnIncrease: 0.01  
 };
 
 const PLAYER_SPEED = 1.5; 
@@ -100,7 +101,6 @@ function switchWp() {
     currentWp = WEAPON_CONFIG[nextId];
     document.getElementById('weapon-id').innerText = currentWp.id;
     
-    // 修正點：換武器後冷卻該武器的完整間隔（含難度加成），防止狂按刷彈
     const diffBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
     fireTimer = currentWp.fireInterval / diffBonus;
 
@@ -117,6 +117,7 @@ function resetOverload() {
     speedMultiplier = 1.0; 
     overloadFrames = 0; 
     document.getElementById('overload-info').style.visibility = 'hidden'; 
+    document.getElementById('speed-bonus').innerText = "0";
 }
 
 function takeDamage() {
@@ -129,7 +130,6 @@ function takeDamage() {
     }
 }
 
-// 觸控監聽
 canvas.addEventListener('touchstart', e => {
     for(let t of e.changedTouches) {
         if(t.clientX < canvas.width/2) { joyL.active = true; joyL.x1 = joyL.x2 = t.clientX; joyL.y1 = joyL.y2 = t.clientY; joyL.id = t.identifier; }
@@ -178,11 +178,9 @@ function update() {
     const now = Date.now();
     const diffBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
     
-    // 敵人生成數量提升
     let currentSpawnInterval = ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease);
     if(++spawnTimer > currentSpawnInterval) { spawnEnemy(); spawnTimer = 0; }
 
-    // 移動與武器3判定
     if(joyL.active) {
         const dx = joyL.x2 - joyL.x1, dy = joyL.y2 - joyL.y1, d = Math.hypot(dx, dy);
         if(d > DEADZONE_LEFT) {
@@ -195,7 +193,6 @@ function update() {
         }
     }
 
-    // 武器三特殊邏輯
     if(currentWp.id === 3) {
         if (isLocked) {
             wp3IdleStartTime = now;
@@ -208,7 +205,6 @@ function update() {
                     document.getElementById('speed-bonus').innerText = Math.round((speedMultiplier-1)*100); 
                 }
             }
-            // 大招觸發：計算極限攻速 (分數加成 x 超載加成)
             if(idleSec >= currentWp.ultimateTriggerTime && !idleTriggered) {
                 const limitInterval = (currentWp.fireInterval / speedMultiplier) / diffBonus;
                 const count = Math.floor((120 / limitInterval) * currentWp.ultimateBulletScale);
@@ -231,7 +227,6 @@ function update() {
         if(Math.hypot(dx, dy) > DEADZONE_RIGHT) lastAngle = Math.atan2(dy, dx);
     }
 
-    // 正常射擊頻率判定
     if (!isLocked && --fireTimer <= 0) {
         const baseInt = currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval;
         const interval = baseInt / diffBonus;
@@ -245,7 +240,6 @@ function update() {
         fireTimer = interval;
     }
 
-    // 碰撞與敵人更新
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
         let en = enemies[eIdx];
         const dx = player.x - en.x, dy = player.y - en.y, dist = Math.hypot(dx, dy);
