@@ -1,46 +1,71 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生存射擊 - 攻速倍率版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>生存射擊 - 橫向 PWA 完整版</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: 'Segoe UI', sans-serif; touch-action: none; }
-        canvas { display: block; background: #000; }
-        #ui { position: absolute; top: 20px; left: 20px; color: #fff; pointer-events: none; z-index: 10; }
-        #score-ui { position: absolute; top: 20px; right: 20px; text-align: right; color: #fff; pointer-events: none; z-index: 10; }
-        .weapon-tag { font-weight: bold; font-size: 24px; color: #00ffcc; }
-        #hp-bar { font-size: 20px; color: #ff5555; margin-top: 5px; font-weight: bold; }
-        #overload-info { color: #ff3300; font-weight: bold; margin-top: 5px; visibility: hidden; }
-        .stat-label { font-size: 18px; color: #ffd700; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
+        canvas { display: block; }
+        
+        /* UI 佈局優化 */
+        #ui-left { position: absolute; top: 15px; left: 25px; color: #fff; pointer-events: none; z-index: 10; }
+        #ui-right { position: absolute; top: 15px; right: 25px; text-align: right; color: #fff; pointer-events: none; z-index: 10; }
+        
+        .weapon-tag { font-weight: bold; font-size: 20px; color: #00ffcc; }
+        #hp-bar { font-size: 22px; color: #ff5555; margin-top: 5px; font-weight: bold; text-shadow: 0 0 5px #000; }
+        .stat-label { font-size: 16px; color: #ffd700; text-shadow: 0 0 5px #000; }
+        
+        #overload-info { color: #ff3300; font-weight: bold; font-size: 14px; visibility: hidden; }
+        #status-bar { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); color: #ff3300; font-size: 20px; font-weight: bold; pointer-events: none; }
+
+        /* 換武器按鈕 - 橫向舒適位置 */
         #weapon-btn {
-            position: absolute; right: 40px; bottom: 220px; width: 80px; height: 80px;
+            position: absolute; right: 40px; bottom: 160px; width: 75px; height: 75px;
             background: rgba(255, 255, 255, 0.1); border: 2px solid #00ffcc;
             border-radius: 50%; color: #00ffcc; display: flex; align-items: center;
             justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
+            backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
         }
-        #status-bar { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); color: #ff3300; font-size: 20px; font-weight: bold; pointer-events: none; }
+
+        /* 旋轉提示 */
+        @media screen and (orientation: portrait) { #landscape-hint { display: flex; } }
+        #landscape-hint {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; color: #fff; z-index: 100; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center;
+        }
     </style>
 </head>
 <body>
-    <div id="ui">
-        <div class="weapon-tag">武器編號: <span id="weapon-id">1</span></div>
+    <div id="landscape-hint">
+        <h2>請將手機旋轉至橫向</h2>
+        <p>並關閉旋轉鎖定以進行遊戲</p>
+    </div>
+
+    <div id="ui-left">
         <div id="hp-bar">HP: <span id="hp-val">30</span></div>
         <div id="overload-info">超載攻速: +<span id="speed-bonus">0</span>%</div>
     </div>
-    <div id="score-ui">
-        <div class="stat-label">SCORE: <span id="score-val">0</span></div>
-        <div class="stat-label" style="font-size: 14px;">LV: <span id="level-val">0</span> (Spawn +<span id="spawn-bonus">0</span>%)</div>
-    </div>
-    <div id="weapon-btn">換武器</div>
+
     <div id="status-bar"></div>
+
+    <div id="ui-right">
+        <div class="weapon-tag">武器: <span id="weapon-id">1</span></div>
+        <div class="stat-label">SCORE: <span id="score-val">0</span></div>
+        <div class="stat-label">LV: <span id="level-val">0</span></div>
+    </div>
+
+    <div id="weapon-btn">換武器</div>
     <canvas id="gameCanvas"></canvas>
 
 <script>
 /** * ==========================================
  * 1. 核心參數與成長設定
  * ========================================== */
-const BASE_FIRE_INTERVAL = 8; // 基礎射擊間隔參數
+const BASE_FIRE_INTERVAL = 10; 
 
 const WEAPON_CONFIG = {
     1: { id: 1, intervalMult: 1.0, speed: 15, damage: 1.0, color: '#fff' },
@@ -50,29 +75,21 @@ const WEAPON_CONFIG = {
          ultimateBulletScale: 2.0, lockoutDuration: 2.0 }
 };
 
-// 預先計算各武器的 fireInterval
 Object.values(WEAPON_CONFIG).forEach(wp => {
     wp.fireInterval = wp.intervalMult * BASE_FIRE_INTERVAL;
 });
 
 const ENEMY_CONFIG = {
-    spawnRateBase: 90, 
+    spawnRateBase: 50, 
     1: { id: 1, speed: 0.2, hpBase: 2, size: 20, color: '#888888', shootInterval: 0, weight: 68.5, score: 50 }, 
     2: { id: 2, speed: 0.25, hpBase: 4, size: 30, color: '#ff4444', shootInterval: 3, bulletSpeed: 0.6, weight: 15, score: 100 }, 
     3: { id: 3, speed: 0.25, hpBase: 4, size: 30, color: '#aa00ff', shootInterval: 9, bulletSpeed: 0.6, weight: 15, score: 100 },
     4: { id: 4, speed: 0.2, hpBase: 40, size: 60, color: '#FFD700', shootInterval: 10, bulletSpeed: 0.6, weight: 1.5, score: 500 } 
 };
 
-const DIFFICULTY_CONFIG = {
-    threshold: 1000,
-    hpIncrease: 0.05,
-    speedIncrease: 0.05, 
-    spawnIncrease: 0.01  
-};
-
-const PLAYER_SPEED = 1.5; 
-const DEADZONE_LEFT = 2;  
-const DEADZONE_RIGHT = 2;
+const DIFFICULTY_CONFIG = { threshold: 1000, hpIncrease: 0.05, speedIncrease: 0.05, spawnIncrease: 0.01 };
+const PLAYER_SPEED = 1.8; // 橫向模式稍微調快移動速度
+const DEADZONE = 2;  
 const INVULNERABLE_TIME = 250; 
 const HIT_FLASH_DURATION = 50; 
 
@@ -81,15 +98,20 @@ const HIT_FLASH_DURATION = 50;
  * ========================================== */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
 
 let player = { x: canvas.width/2, y: canvas.height/2, hp: 30, size: 21, lastHurtTime: 0 };
 let bullets = [], enemyBullets = [], enemies = [];
 let currentWp = WEAPON_CONFIG[1];
 let fireTimer = 0, spawnTimer = 0, score = 0, difficultyLevel = 0, lastAngle = 0;
 
-let wp3IdleStartTime = 0, speedMultiplier = 1.0, overloadFrames = 0, isLocked = false, idleTriggered = false;
+let wp3IdleStartTime = Date.now(), speedMultiplier = 1.0, overloadFrames = 0, isLocked = false, idleTriggered = false;
 let joyL = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyR = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 
@@ -101,7 +123,6 @@ function updateDifficulty() {
     if (newLevel > difficultyLevel) {
         difficultyLevel = newLevel;
         document.getElementById('level-val').innerText = difficultyLevel;
-        document.getElementById('spawn-bonus').innerText = (difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease * 100).toFixed(0);
     }
 }
 
@@ -110,15 +131,9 @@ function switchWp() {
     if(nextId > 3) nextId = 1;
     currentWp = WEAPON_CONFIG[nextId];
     document.getElementById('weapon-id').innerText = currentWp.id;
-    const diffBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
-    fireTimer = currentWp.fireInterval / diffBonus;
+    fireTimer = 0;
     resetOverload();
-    if(currentWp.id === 3) {
-        wp3IdleStartTime = Date.now();
-        idleTriggered = false;
-        isLocked = false;
-        document.getElementById('status-bar').innerText = "";
-    }
+    if(currentWp.id === 3) { wp3IdleStartTime = Date.now(); isLocked = false; document.getElementById('status-bar').innerText = ""; }
 }
 
 function resetOverload() { 
@@ -134,37 +149,44 @@ function takeDamage() {
         player.hp--;
         player.lastHurtTime = now;
         document.getElementById('hp-val').innerText = Math.max(0, player.hp);
-        if (player.hp <= 0) { alert("遊戲結束！最終得分: " + score); location.reload(); }
+        if (player.hp <= 0) { alert("Game Over! Score: " + score); location.reload(); }
     }
 }
 
+// 觸控事件
 canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
     for(let t of e.changedTouches) {
         if(t.clientX < canvas.width/2) { joyL.active = true; joyL.x1 = joyL.x2 = t.clientX; joyL.y1 = joyL.y2 = t.clientY; joyL.id = t.identifier; }
         else { joyR.active = true; joyR.x1 = joyR.x2 = t.clientX; joyR.y1 = joyR.y2 = t.clientY; joyR.id = t.identifier; }
     }
 }, {passive: false});
+
 canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
     for(let t of e.changedTouches) {
         if(joyL.id === t.identifier) { joyL.x2 = t.clientX; joyL.y2 = t.clientY; }
         if(joyR.id === t.identifier) { joyR.x2 = t.clientX; joyR.y2 = t.clientY; }
     }
 }, {passive: false});
+
 canvas.addEventListener('touchend', e => {
     for(let t of e.changedTouches) {
         if(joyL.id === t.identifier) { joyL.active = false; joyL.id = -1; }
         if(joyR.id === t.identifier) { joyR.active = false; joyR.id = -1; }
     }
 }, {passive: false});
+
 document.getElementById('weapon-btn').addEventListener('touchstart', e => { e.preventDefault(); switchWp(); });
 
 function spawnEnemy() {
     const side = Math.floor(Math.random() * 4);
     let x, y;
-    if(side === 0) { x = Math.random() * canvas.width; y = -70; }
-    else if(side === 1) { x = canvas.width + 70; y = Math.random() * canvas.height; }
-    else if(side === 2) { x = Math.random() * canvas.width; y = canvas.height + 70; }
-    else { x = -70; y = Math.random() * canvas.height; }
+    const margin = 80;
+    if(side === 0) { x = Math.random() * canvas.width; y = -margin; }
+    else if(side === 1) { x = canvas.width + margin; y = Math.random() * canvas.height; }
+    else if(side === 2) { x = Math.random() * canvas.width; y = canvas.height + margin; }
+    else { x = -margin; y = Math.random() * canvas.height; }
 
     const rand = Math.random() * 100;
     let type;
@@ -173,16 +195,14 @@ function spawnEnemy() {
     else if (rand < ENEMY_CONFIG[1].weight + ENEMY_CONFIG[2].weight + ENEMY_CONFIG[3].weight) type = ENEMY_CONFIG[3];
     else type = ENEMY_CONFIG[4];
 
-    const currentHp = type.hpBase * (1 + difficultyLevel * DIFFICULTY_CONFIG.hpIncrease);
-    enemies.push({ ...type, x, y, hp: currentHp, lastShootTime: Date.now(), lastHitTime: 0 });
+    enemies.push({ ...type, x, y, hp: type.hpBase * (1 + difficultyLevel * DIFFICULTY_CONFIG.hpIncrease), lastShootTime: Date.now(), lastHitTime: 0 });
 }
 
 function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0, dmg = 1) {
     const b = {
         x: isEnemy ? ex : (player.x + Math.cos(angle + Math.PI/2) * offset),
         y: isEnemy ? ey : (player.y + Math.sin(angle + Math.PI/2) * offset),
-        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-        dmg: dmg
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, dmg: dmg
     };
     if(isEnemy) enemyBullets.push(b); else bullets.push(b);
 }
@@ -190,58 +210,51 @@ function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0, dmg 
 function update() {
     const now = Date.now();
     const diffBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
+    
     let currentSpawnInterval = ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease);
     if(++spawnTimer > currentSpawnInterval) { spawnEnemy(); spawnTimer = 0; }
 
     if(joyL.active) {
         const dx = joyL.x2 - joyL.x1, dy = joyL.y2 - joyL.y1, d = Math.hypot(dx, dy);
-        if(d > DEADZONE_LEFT) {
+        if(d > DEADZONE) {
             player.x += (dx/d) * PLAYER_SPEED; player.y += (dy/d) * PLAYER_SPEED;
             if(currentWp.id === 3 && !isLocked) { wp3IdleStartTime = now; idleTriggered = false; resetOverload(); }
         }
     }
 
-    if(currentWp.id === 3) {
-        if (!isLocked) {
-            const idleSec = (now - wp3IdleStartTime) / 1000;
-            if(idleSec >= currentWp.overloadTriggerTime) {
-                document.getElementById('overload-info').style.visibility = 'visible';
-                if(++overloadFrames % 12 === 0) { speedMultiplier += currentWp.overloadIncrement; document.getElementById('speed-bonus').innerText = Math.round((speedMultiplier-1)*100); }
-            }
-            if(idleSec >= currentWp.ultimateTriggerTime && !idleTriggered) {
-                const limitInterval = (currentWp.fireInterval / speedMultiplier) / diffBonus;
-                const count = Math.floor((120 / limitInterval) * currentWp.ultimateBulletScale);
-                for(let i=0; i<count; i++) spawnBullet((i/count) * Math.PI * 2, 0, 8, false, 0, 0, currentWp.damage);
-                idleTriggered = true; isLocked = true; resetOverload();
-                document.getElementById('status-bar').innerText = "系統過熱！";
-                setTimeout(() => { isLocked = false; idleTriggered = false; document.getElementById('status-bar').innerText = ""; wp3IdleStartTime = Date.now(); }, currentWp.lockoutDuration * 1000);
-            }
+    if(currentWp.id === 3 && !isLocked) {
+        const idleSec = (now - wp3IdleStartTime) / 1000;
+        if(idleSec >= currentWp.overloadTriggerTime) {
+            document.getElementById('overload-info').style.visibility = 'visible';
+            if(++overloadFrames % 12 === 0) { speedMultiplier += currentWp.overloadIncrement; document.getElementById('speed-bonus').innerText = Math.round((speedMultiplier-1)*100); }
+        }
+        if(idleSec >= currentWp.ultimateTriggerTime && !idleTriggered) {
+            for(let i=0; i<40; i++) spawnBullet((i/40) * Math.PI * 2, 0, 8, false, 0, 0, currentWp.damage);
+            idleTriggered = true; isLocked = true; resetOverload();
+            document.getElementById('status-bar').innerText = "系統過熱！";
+            setTimeout(() => { isLocked = false; document.getElementById('status-bar').innerText = ""; wp3IdleStartTime = Date.now(); }, currentWp.lockoutDuration * 1000);
         }
     }
 
     if(joyR.active) {
         const dx = joyR.x2 - joyR.x1, dy = joyR.y2 - joyR.y1;
-        if(Math.hypot(dx, dy) > DEADZONE_RIGHT) lastAngle = Math.atan2(dy, dx);
+        if(Math.hypot(dx, dy) > DEADZONE) lastAngle = Math.atan2(dy, dx);
     }
 
     if (!isLocked && --fireTimer <= 0) {
-        const baseInt = currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval;
-        const interval = baseInt / diffBonus;
+        const interval = (currentWp.id === 3 ? (currentWp.fireInterval/speedMultiplier) : currentWp.fireInterval) / diffBonus;
         if(currentWp.id === 1) spawnBullet(lastAngle, 0, currentWp.speed, false, 0, 0, currentWp.damage);
         else if(currentWp.id === 2) {
-            const start = lastAngle - (15 * Math.PI/180);
-            for(let i=0; i<15; i++) spawnBullet(start + i*(2*Math.PI/180), 0, currentWp.speed, false, 0, 0, currentWp.damage);
+            for(let i=0; i<15; i++) spawnBullet(lastAngle - (15*Math.PI/180) + i*(2*Math.PI/180), 0, currentWp.speed, false, 0, 0, currentWp.damage);
         }
         else if(currentWp.id === 3) { spawnBullet(lastAngle, 12, currentWp.speed, false, 0, 0, currentWp.damage); spawnBullet(lastAngle, -12, currentWp.speed, false, 0, 0, currentWp.damage); }
         fireTimer = interval;
     }
 
-    for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
-        let en = enemies[eIdx];
+    enemies.forEach((en, eIdx) => {
         const dx = player.x - en.x, dy = player.y - en.y, dist = Math.hypot(dx, dy);
         en.x += (dx/dist) * en.speed; en.y += (dy/dist) * en.speed;
         if (dist < en.size + player.size/2) takeDamage();
-
         if(en.shootInterval > 0 && now - en.lastShootTime > en.shootInterval * 1000) {
             const ang = Math.atan2(dy, dx);
             if(en.id === 2) spawnBullet(ang, 0, en.bulletSpeed, true, en.x, en.y);
@@ -249,25 +262,13 @@ function update() {
             else if(en.id === 4) for(let i=0; i<5; i++) spawnBullet(ang + (i * 72 * Math.PI/180), 0, en.bulletSpeed, true, en.x, en.y);
             en.lastShootTime = now;
         }
-
-        for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
-            let b = bullets[bIdx];
-            if(Math.hypot(b.x - en.x, b.y - en.y) < en.size + 3.5) {
-                en.hp -= b.dmg;
-                en.lastHitTime = now;
-                bullets.splice(bIdx, 1);
-                if(en.hp <= 0) {
-                    score += en.score; document.getElementById('score-val').innerText = score;
-                    updateDifficulty(); enemies.splice(eIdx, 1); break;
-                }
+        bullets.forEach((b, bIdx) => {
+            if(Math.hypot(b.x - en.x, b.y - en.y) < en.size + 4) {
+                en.hp -= b.dmg; en.lastHitTime = now; bullets.splice(bIdx, 1);
+                if(en.hp <= 0) { score += en.score; document.getElementById('score-val').innerText = score; updateDifficulty(); enemies.splice(eIdx, 1); }
             }
-        }
-    }
-
-    for (let ebIdx = enemyBullets.length - 1; ebIdx >= 0; ebIdx--) {
-        let eb = enemyBullets[ebIdx];
-        if (Math.hypot(eb.x - player.x, eb.y - player.y) < player.size/2 + 4) { takeDamage(); enemyBullets.splice(ebIdx, 1); }
-    }
+        });
+    });
 
     [bullets, enemyBullets].forEach(arr => {
         for(let i=arr.length-1; i>=0; i--) {
@@ -276,6 +277,7 @@ function update() {
         }
     });
 
+    enemyBullets.forEach((eb, ebIdx) => { if(Math.hypot(eb.x - player.x, eb.y - player.y) < player.size/2 + 4) { takeDamage(); enemyBullets.splice(ebIdx, 1); } });
     player.x = Math.max(20, Math.min(canvas.width-20, player.x));
     player.y = Math.max(20, Math.min(canvas.height-20, player.y));
 }
@@ -283,35 +285,26 @@ function update() {
 function draw() {
     const now = Date.now();
     ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
-    
     enemies.forEach(en => {
         ctx.fillStyle = (now - en.lastHitTime < HIT_FLASH_DURATION) ? '#fff' : en.color;
         if(en.id === 4 && now - en.lastHitTime >= HIT_FLASH_DURATION) { ctx.shadowBlur = 15; ctx.shadowColor = '#FFD700'; }
-        ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, Math.PI * 2); ctx.fill();
-        ctx.shadowBlur = 0;
+        ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
     });
-
     const isInvul = (now - player.lastHurtTime < INVULNERABLE_TIME);
     if (!isInvul || Math.floor(now/50) % 2) {
         let pColor = isLocked ? '#444' : (currentWp.id === 3 && speedMultiplier > 1.3 ? '#ff3300' : currentWp.color);
-        ctx.fillStyle = pColor; ctx.shadowBlur = isLocked ? 0 : 15; ctx.shadowColor = pColor;
-        ctx.fillRect(player.x - player.size/2, player.y - player.size/2, player.size, player.size);
-        ctx.shadowBlur = 0;
+        ctx.fillStyle = pColor; ctx.fillRect(player.x - 10, player.y - 10, 20, 20);
     }
-
-    ctx.fillStyle = '#fff'; bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, Math.PI * 2); ctx.fill(); });
-    ctx.fillStyle = '#f00'; enemyBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI * 2); ctx.fill(); });
-
+    ctx.fillStyle = '#fff'; bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, 7); ctx.fill(); });
+    ctx.fillStyle = '#f00'; enemyBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, 7); ctx.fill(); });
     if(joyL.active) drawJoy(joyL, '#00ccff');
     if(joyR.active) drawJoy(joyR, '#ff3300');
-
-    update();
-    requestAnimationFrame(draw);
+    update(); requestAnimationFrame(draw);
 }
 
 function drawJoy(j, c) {
-    ctx.beginPath(); ctx.arc(j.x1, j.y1, 50, 0, 7); ctx.strokeStyle = c+'33'; ctx.lineWidth=2; ctx.stroke();
-    ctx.beginPath(); ctx.arc(j.x2, j.y2, 25, 0, 7); ctx.fillStyle = c+'66'; ctx.fill();
+    ctx.beginPath(); ctx.arc(j.x1, j.y1, 45, 0, 7); ctx.strokeStyle = c+'33'; ctx.lineWidth=3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(j.x2, j.y2, 22, 0, 7); ctx.fillStyle = c+'66'; ctx.fill();
 }
 
 draw();
