@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>生存射擊 - 邏輯鎖定穩定版</title>
+    <title>生存射擊 - 射擊間隔修正版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
@@ -14,7 +14,6 @@
         .stat-label { font-size: 16px; color: #ffd700; }
         #status-bar { position: absolute; top: 25px; left: 50%; transform: translateX(-50%); color: #ff3300; font-size: 18px; font-weight: bold; pointer-events: none; }
         
-        /* UI 按鈕配置 */
         #weapon-btn {
             position: absolute; right: 40px; bottom: 180px; width: 75px; height: 75px;
             background: rgba(255, 255, 255, 0.1); border: 2px solid #00ffcc;
@@ -53,7 +52,7 @@
     <canvas id="gameCanvas"></canvas>
 
 <script>
-const GAME_VERSION = "20251221.10"; 
+const GAME_VERSION = "20251221.11"; 
 
 const BASE_FIRE_INTERVAL = 8; 
 const WEAPON_CONFIG = {
@@ -85,7 +84,6 @@ let currentWp = WEAPON_CONFIG[1];
 let fireTimer = 0, spawnTimer = 0, score = 0, difficultyLevel = 0, lastAngle = 0;
 let wp3IdleStartTime = Date.now(), speedMultiplier = 1.0, overloadFrames = 0, isLocked = false;
 
-// 搖桿與瞬移
 let joyL = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyR = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyT = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
@@ -109,11 +107,25 @@ function takeDamage() {
     }
 }
 
-// 瞬移點擊邏輯
+// 換武器邏輯修正
+document.getElementById('weapon-btn').addEventListener('touchstart', e => { 
+    e.preventDefault(); 
+    let nextId = currentWp.id + 1;
+    if(nextId > 3) nextId = 1;
+    currentWp = WEAPON_CONFIG[nextId];
+    document.getElementById('weapon-id').innerText = currentWp.id;
+    
+    // 核心修正：換武器後的等待時間為該武器當前的射擊間隔
+    const diffBonus = (1 + difficultyLevel * 0.05);
+    fireTimer = (currentWp.fireInterval / 1.0) / diffBonus; // 切換時重置為基礎間隔
+    
+    speedMultiplier = 1.0; 
+    wp3IdleStartTime = Date.now();
+});
+
 const tpBtn = document.getElementById('tp-btn');
 tpBtn.addEventListener('touchstart', e => {
-    e.preventDefault();
-    if(tpCooldown > 0) return;
+    e.preventDefault(); if(tpCooldown > 0) return;
     const t = e.changedTouches[0];
     joyT.active = true; joyT.id = t.identifier;
     joyT.x1 = joyT.x2 = t.clientX; joyT.y1 = joyT.y2 = t.clientY;
@@ -148,20 +160,10 @@ window.addEventListener('touchend', e => {
         if(joyT.id === t.identifier) {
             player.x = Math.max(20, Math.min(canvas.width-20, tpTarget.x));
             player.y = Math.max(20, Math.min(canvas.height-20, tpTarget.y));
-            tpCooldown = TP_COOLDOWN_TIME;
-            joyT.active = false; joyT.id = -1;
+            tpCooldown = TP_COOLDOWN_TIME; joyT.active = false; joyT.id = -1;
         }
     }
 }, {passive: false});
-
-document.getElementById('weapon-btn').addEventListener('touchstart', e => { 
-    e.preventDefault(); 
-    let nextId = currentWp.id + 1;
-    if(nextId > 3) nextId = 1;
-    currentWp = WEAPON_CONFIG[nextId];
-    document.getElementById('weapon-id').innerText = currentWp.id;
-    speedMultiplier = 1.0; wp3IdleStartTime = Date.now();
-});
 
 function spawnBullet(angle, offset, speed, dmg = 1) {
     bullets.push({ 
@@ -202,7 +204,6 @@ function update() {
         }
     }
 
-    // 武器 3 核心蓄力與爆發
     if(currentWp.id === 3 && !isLocked) {
         const idleSec = (now - wp3IdleStartTime) / 1000;
         if(idleSec >= currentWp.overloadTriggerTime) {
@@ -211,7 +212,6 @@ function update() {
         } else { document.getElementById('overload-info').style.visibility = 'hidden'; }
         
         if(idleSec >= currentWp.ultimateTriggerTime) {
-            // 精確物理爆發公式
             const currentInterval = (currentWp.fireInterval / speedMultiplier) / diffBonus;
             const bulletCount = Math.floor((currentWp.ultimateDuration * 60) / currentInterval);
             for(let i=0; i < bulletCount; i++) spawnBullet((i/bulletCount) * Math.PI * 2, 0, 8, 1);
