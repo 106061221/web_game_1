@@ -33,7 +33,7 @@
             backdrop-filter: blur(3px); -webkit-user-select: none;
             touch-action: none; 
         }
-        #tp-cd-overlay { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: rgba(0, 0, 0, 0.6); border-radius: 50%; }
+        #tp-cd-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); border-radius: 50%; pointer-events: none; transform: scaleY(0); transform-origin: bottom; }
         
         @media screen and (orientation: portrait) { #landscape-hint { display: flex; } }
         #landscape-hint { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; color: #fff; z-index: 100; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
@@ -196,7 +196,7 @@ function update() {
 
     if(tpCooldown > 0) { 
         tpCooldown -= 16; 
-        document.getElementById('tp-cd-overlay').style.height = (tpCooldown/TP_COOLDOWN_TIME)*100 + "%"; 
+        document.getElementById('tp-cd-overlay').style.transform = "scaleY(" + (tpCooldown / TP_COOLDOWN_TIME) + ")"; 
     }
 
     if(++spawnTimer > (ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease))) { spawnEnemy(); spawnTimer = 0; }
