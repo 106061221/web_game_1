@@ -219,7 +219,7 @@ function update() {
             }
         }
         if(idleSec >= currentWp.ultimateTriggerTime && !idleTriggered) {
-            for(let i=0; i<40; i++) spawnBullet((i/40) * Math.PI * 2, 0, 8, false, 0, 0, currentWp.damage);
+            for(let i=0; i<10; i++) spawnBullet((i/10) * Math.PI * 2, 0, 8, false, 0, 0, currentWp.damage);
             idleTriggered = true; isLocked = true; 
             document.getElementById('status-bar').innerText = "系統過熱！";
             setTimeout(() => { 
