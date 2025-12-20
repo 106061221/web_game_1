@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>生存射擊 - 全功能修復版</title>
+    <title>生存射擊 - 敵人邏輯全面恢復版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
@@ -11,7 +11,6 @@
         #ui-right { position: absolute; top: 20px; right: 30px; text-align: right; color: #fff; pointer-events: none; z-index: 10; }
         .weapon-tag { font-weight: bold; font-size: 22px; color: #00ffcc; }
         #hp-bar { font-size: 20px; color: #ff5555; margin-top: 5px; font-weight: bold; }
-        .stat-label { font-size: 16px; color: #ffd700; }
         #status-bar { position: absolute; top: 25px; left: 50%; transform: translateX(-50%); color: #ff3300; font-size: 18px; font-weight: bold; pointer-events: none; }
         
         #weapon-btn {
@@ -21,7 +20,6 @@
             justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
             backdrop-filter: blur(3px); -webkit-user-select: none;
         }
-
         #tp-btn {
             position: absolute; right: 130px; bottom: 80px; width: 75px; height: 75px;
             background: rgba(0, 255, 0, 0.1); border: 2px solid #00ff00;
@@ -29,10 +27,7 @@
             justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
             backdrop-filter: blur(3px); -webkit-user-select: none;
         }
-        #tp-cd-overlay {
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 0%;
-            background: rgba(0, 0, 0, 0.6); border-radius: 50%; pointer-events: none;
-        }
+        #tp-cd-overlay { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: rgba(0, 0, 0, 0.6); border-radius: 50%; }
     </style>
 </head>
 <body>
@@ -43,8 +38,8 @@
     <div id="status-bar"></div>
     <div id="ui-right">
         <div class="weapon-tag">武器: <span id="weapon-id">1</span></div>
-        <div class="stat-label">SCORE: <span id="score-val">0</span></div>
-        <div class="stat-label">LV: <span id="level-val">0</span></div>
+        <div class="stat-label" style="color:#ffd700">SCORE: <span id="score-val">0</span></div>
+        <div class="stat-label" style="color:#ffd700">LV: <span id="level-val">0</span></div>
     </div>
 
     <div id="weapon-btn">換武器</div>
@@ -52,24 +47,26 @@
     <canvas id="gameCanvas"></canvas>
 
 <script>
-const GAME_VERSION = "20251221.12"; 
+const GAME_VERSION = "20251221.13";
 
-const BASE_FIRE_INTERVAL = 8; 
+// --- 武器核心參數 ---
+const BASE_FIRE_INTERVAL = 8;
 const WEAPON_CONFIG = {
     1: { id: 1, intervalMult: 1.0, speed: 15, damage: 1.0, color: '#fff' },
     2: { id: 2, intervalMult: 15.0, speed: 15, damage: 1.0, color: '#ffcc00' },
     3: { id: 3, intervalMult: 2.2, speed: 15, damage: 1.0, color: '#00ccff', 
          overloadTriggerTime: 0.6, overloadIncrement: 0.1, ultimateTriggerTime: 3.6, 
-         ultimateDuration: 1.0, lockoutDuration: 2.0 } 
+         ultimateDuration: 1.0, lockoutDuration: 2.0 }
 };
 Object.values(WEAPON_CONFIG).forEach(wp => wp.fireInterval = wp.intervalMult * BASE_FIRE_INTERVAL);
 
+// --- 敵人核心參數 (完全恢復原版數據) ---
 const ENEMY_CONFIG = {
-    spawnRateBase: 80, 
-    1: { id: 1, speed: 0.2, hpBase: 2, size: 15, color: '#888888', shootInterval: 0, weight: 68.5, score: 50, dropRate: 0 }, 
-    2: { id: 2, speed: 0.2, hpBase: 4, size: 25, color: '#ff4444', shootInterval: 4, bulletSpeed: 0.6, weight: 15, score: 100, dropRate: 0 }, 
+    spawnRateBase: 80,
+    1: { id: 1, speed: 0.2, hpBase: 2, size: 15, color: '#888888', shootInterval: 0, weight: 68.5, score: 50, dropRate: 0 },
+    2: { id: 2, speed: 0.2, hpBase: 4, size: 25, color: '#ff4444', shootInterval: 4, bulletSpeed: 0.6, weight: 15, score: 100, dropRate: 0 },
     3: { id: 3, speed: 0.2, hpBase: 4, size: 25, color: '#aa00ff', shootInterval: 13, bulletSpeed: 0.6, weight: 15, score: 100, dropRate: 0 },
-    4: { id: 4, speed: 0.2, hpBase: 40, size: 40, color: '#FFD700', shootInterval: 10, bulletSpeed: 0.6, weight: 1.5, score: 500, dropRate: 1.0 } 
+    4: { id: 4, speed: 0.2, hpBase: 40, size: 40, color: '#FFD700', shootInterval: 10, bulletSpeed: 0.6, weight: 1.5, score: 500, dropRate: 1.0 }
 };
 
 const canvas = document.getElementById('gameCanvas');
@@ -84,19 +81,12 @@ let currentWp = WEAPON_CONFIG[1];
 let fireTimer = 0, spawnTimer = 0, score = 0, difficultyLevel = 0, lastAngle = 0;
 let wp3IdleStartTime = Date.now(), speedMultiplier = 1.0, overloadFrames = 0, isLocked = false;
 
+// 搖桿與瞬移
 let joyL = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyR = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyT = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let tpTarget = { x: 0, y: 0 }, tpCooldown = 0;
 const TP_COOLDOWN_TIME = 3000;
-
-function updateDifficulty() {
-    let newLevel = Math.floor(score / 1000);
-    if (newLevel > difficultyLevel) {
-        difficultyLevel = newLevel;
-        document.getElementById('level-val').innerText = difficultyLevel;
-    }
-}
 
 function takeDamage() {
     const now = Date.now();
@@ -107,17 +97,18 @@ function takeDamage() {
     }
 }
 
-document.getElementById('weapon-btn').addEventListener('touchstart', e => { 
-    e.preventDefault(); 
+// 換武器
+document.getElementById('weapon-btn').addEventListener('touchstart', e => {
+    e.preventDefault();
     let nextId = currentWp.id + 1;
     if(nextId > 3) nextId = 1;
     currentWp = WEAPON_CONFIG[nextId];
     document.getElementById('weapon-id').innerText = currentWp.id;
-    const diffBonus = (1 + difficultyLevel * 0.05);
-    fireTimer = currentWp.fireInterval / diffBonus; // 換武器延遲
+    fireTimer = currentWp.fireInterval / (1 + difficultyLevel * 0.05); // 核心：切換後延遲
     speedMultiplier = 1.0; wp3IdleStartTime = Date.now();
 });
 
+// 瞬移控制
 const tpBtn = document.getElementById('tp-btn');
 tpBtn.addEventListener('touchstart', e => {
     e.preventDefault(); if(tpCooldown > 0) return;
@@ -159,11 +150,11 @@ window.addEventListener('touchend', e => {
     }
 }, {passive: false});
 
-function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0, dmg = 1) {
+function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0) {
     const b = { 
         x: isEnemy ? ex : (player.x + Math.cos(angle + Math.PI/2) * offset), 
         y: isEnemy ? ey : (player.y + Math.sin(angle + Math.PI/2) * offset), 
-        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, dmg: dmg 
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed 
     };
     if(isEnemy) enemyBullets.push(b); else bullets.push(b);
 }
@@ -171,10 +162,12 @@ function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0, dmg 
 function update() {
     const now = Date.now();
     const diffBonus = (1 + difficultyLevel * 0.05);
-    updateDifficulty();
+    difficultyLevel = Math.floor(score / 1000);
+    document.getElementById('level-val').innerText = difficultyLevel;
 
     if(tpCooldown > 0) { tpCooldown -= 16; document.getElementById('tp-cd-overlay').style.height = (tpCooldown/TP_COOLDOWN_TIME)*100 + "%"; }
 
+    // 敵人生成
     if(++spawnTimer > (ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * 0.01))) {
         const side = Math.floor(Math.random() * 4);
         let x, y;
@@ -193,6 +186,7 @@ function update() {
         if(d > 2) { player.x += (dx/d) * 1.5; player.y += (dy/d) * 1.5; if(currentWp.id === 3 && !isLocked) { speedMultiplier = 1.0; wp3IdleStartTime = now; } }
     }
 
+    // 武器 3 邏輯
     if(currentWp.id === 3 && !isLocked) {
         const idleSec = (now - wp3IdleStartTime) / 1000;
         if(idleSec >= currentWp.overloadTriggerTime) {
@@ -202,7 +196,7 @@ function update() {
         if(idleSec >= currentWp.ultimateTriggerTime) {
             const currentInterval = (currentWp.fireInterval / speedMultiplier) / diffBonus;
             const bulletCount = Math.floor((currentWp.ultimateDuration * 60) / currentInterval);
-            for(let i=0; i < bulletCount; i++) spawnBullet((i/bulletCount) * Math.PI * 2, 0, 8, false, 0, 0, 1);
+            for(let i=0; i < bulletCount; i++) spawnBullet((i/bulletCount) * Math.PI * 2, 0, 8);
             isLocked = true; document.getElementById('status-bar').innerText = "系統過熱！";
             setTimeout(() => { isLocked = false; document.getElementById('status-bar').innerText = ""; speedMultiplier = 1.0; wp3IdleStartTime = Date.now(); }, 2000);
         }
@@ -218,13 +212,13 @@ function update() {
         fireTimer = interval;
     }
 
-    // 敵人邏輯修正：恢復移動與射擊
+    // 敵人行為 (恢復移動與射擊)
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
         let en = enemies[eIdx]; const dx = player.x - en.x, dy = player.y - en.y, dist = Math.hypot(dx, dy);
         en.x += (dx/dist) * en.speed * diffBonus; en.y += (dy/dist) * en.speed * diffBonus;
         if (dist < en.size + player.size/2) takeDamage();
         
-        // 敵人射擊邏輯恢復
+        // 敵人發射子彈
         if (en.shootInterval > 0 && now - en.lastShootTime > (1000 / en.shootInterval) / diffBonus) {
             const angle = Math.atan2(player.y - en.y, player.x - en.x);
             if (en.id === 4) { for(let i=-1; i<=1; i++) spawnBullet(angle + i*0.3, 0, en.bulletSpeed, true, en.x, en.y); }
@@ -234,7 +228,7 @@ function update() {
 
         for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
             if(Math.hypot(bullets[bIdx].x - en.x, bullets[bIdx].y - en.y) < en.size + 5) {
-                en.hp -= bullets[bIdx].dmg; en.lastHitTime = now; bullets.splice(bIdx, 1);
+                en.hp -= 1; en.lastHitTime = now; bullets.splice(bIdx, 1);
                 if(en.hp <= 0) { 
                     score += en.score; if(Math.random() < en.dropRate) medkits.push({x: en.x, y: en.y});
                     document.getElementById('score-val').innerText = score; enemies.splice(eIdx, 1); break; 
@@ -243,21 +237,18 @@ function update() {
         }
     }
 
-    // 敵人子彈判定
-    for(let i=enemyBullets.length-1; i>=0; i--) {
-        const eb = enemyBullets[i]; eb.x += eb.vx; eb.y += eb.vy;
-        if(Math.hypot(eb.x - player.x, eb.y - player.y) < player.size/2 + 5) { takeDamage(); enemyBullets.splice(i, 1); continue; }
-        if(eb.x<0 || eb.x>canvas.width || eb.y<0 || eb.y>canvas.height) enemyBullets.splice(i, 1);
-    }
-    
-    for(let i=medkits.length-1; i>=0; i--) {
-        if(Math.hypot(medkits[i].x - player.x, medkits[i].y - player.y) < player.size) {
-            player.hp = Math.min(player.maxHp, player.hp + 10);
-            document.getElementById('hp-val').innerText = player.hp; medkits.splice(i, 1);
+    // 子彈位移與碰撞
+    [bullets, enemyBullets].forEach((arr, isEnemyArr) => {
+        for(let i=arr.length-1; i>=0; i--) {
+            const b = arr[i]; b.x += b.vx; b.y += b.vy;
+            if(isEnemyArr === 1) { // 敵人子彈打玩家
+                if(Math.hypot(b.x - player.x, b.y - player.y) < player.size/2 + 5) { takeDamage(); arr.splice(i, 1); continue; }
+            }
+            if(b.x<0 || b.x>canvas.width || b.y<0 || b.y>canvas.height) arr.splice(i, 1);
         }
-    }
-
-    for(let i=bullets.length-1; i>=0; i--) { bullets[i].x += bullets[i].vx; bullets[i].y += bullets[i].vy; if(bullets[i].x<0 || bullets[i].x>canvas.width || bullets[i].y<0 || bullets[i].y>canvas.height) bullets.splice(i, 1); }
+    });
+    
+    medkits.forEach((m, i) => { if(Math.hypot(m.x - player.x, m.y - player.y) < player.size) { player.hp = Math.min(30, player.hp + 10); document.getElementById('hp-val').innerText = player.hp; medkits.splice(i, 1); } });
     player.x = Math.max(20, Math.min(canvas.width-20, player.x)); player.y = Math.max(20, Math.min(canvas.height-20, player.y));
 }
 
@@ -279,10 +270,7 @@ function draw() {
     if(joyR.active) drawJoy(joyR, '#ff3300');
     update(); requestAnimationFrame(draw);
 }
-function drawJoy(j, c) {
-    ctx.beginPath(); ctx.arc(j.x1, j.y1, 40, 0, 7); ctx.strokeStyle = c+'33'; ctx.lineWidth=3; ctx.stroke();
-    ctx.beginPath(); ctx.arc(j.x2, j.y2, 20, 0, 7); ctx.fillStyle = c+'66'; ctx.fill();
-}
+function drawJoy(j, c) { ctx.beginPath(); ctx.arc(j.x1, j.y1, 40, 0, 7); ctx.strokeStyle = c+'33'; ctx.lineWidth=3; ctx.stroke(); ctx.beginPath(); ctx.arc(j.x2, j.y2, 20, 0, 7); ctx.fillStyle = c+'66'; ctx.fill(); }
 draw();
 </script>
 </body>
