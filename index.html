@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生存射擊 - 玩家生命系統</title>
+    <title>生存射擊 - 穩定偵測版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; background: #000; }
@@ -50,7 +50,7 @@ const ENEMY_CONFIG = {
 const PLAYER_SPEED = 1.5; 
 const DEADZONE_LEFT = 2;  
 const DEADZONE_RIGHT = 2;
-const INVULNERABLE_TIME = 250; // 無敵時間 (ms)
+const INVULNERABLE_TIME = 250; 
 
 /** * ==========================================
  * 2. 遊戲狀態
@@ -104,7 +104,6 @@ function takeDamage() {
     }
 }
 
-// 搖桿監聽
 canvas.addEventListener('touchstart', e => {
     for(let t of e.changedTouches) {
         if(t.clientX < canvas.width/2) { joyL.active = true; joyL.x1 = joyL.x2 = t.clientX; joyL.y1 = joyL.y2 = t.clientY; joyL.id = t.identifier; }
@@ -197,13 +196,19 @@ function update() {
         fireTimer = interval;
     }
 
-    // 敵人與玩家碰撞判定
-    enemies.forEach((en, eIdx) => {
+    // --- 修改後的敵人邏輯 (使用反向迴圈確保刪除安全) ---
+    for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
+        let en = enemies[eIdx];
         const dx = player.x - en.x, dy = player.y - en.y, dist = Math.hypot(dx, dy);
-        en.x += (dx/dist) * en.speed; en.y += (dy/dist) * en.speed;
+        
+        // 敵人移動
+        en.x += (dx/dist) * en.speed; 
+        en.y += (dy/dist) * en.speed;
 
+        // 碰撞玩家
         if (dist < en.size + player.size/2) takeDamage();
 
+        // 敵人射擊
         if(en.shootInterval > 0 && now - en.lastShootTime > en.shootInterval * 1000) {
             const ang = Math.atan2(dy, dx);
             if(en.id === 2) spawnBullet(ang, 0, en.bulletSpeed, true, en.x, en.y);
@@ -213,22 +218,30 @@ function update() {
             en.lastShootTime = now;
         }
 
-        bullets.forEach((b, bIdx) => {
+        // 玩家子彈碰撞敵人 (同樣使用反向迴圈)
+        for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
+            let b = bullets[bIdx];
             if(Math.hypot(b.x - en.x, b.y - en.y) < en.size) {
-                en.hp--; bullets.splice(bIdx, 1);
-                if(en.hp <= 0) enemies.splice(eIdx, 1);
+                en.hp--; 
+                bullets.splice(bIdx, 1);
+                if(en.hp <= 0) {
+                    enemies.splice(eIdx, 1);
+                    break; // 敵人已移除，跳出當前子彈檢查
+                }
             }
-        });
-    });
+        }
+    }
 
-    // 敵人子彈擊中玩家判定
-    enemyBullets.forEach((eb, ebIdx) => {
+    // 敵人子彈擊中玩家
+    for (let ebIdx = enemyBullets.length - 1; ebIdx >= 0; ebIdx--) {
+        let eb = enemyBullets[ebIdx];
         if (Math.hypot(eb.x - player.x, eb.y - player.y) < player.size/2) {
             takeDamage();
             enemyBullets.splice(ebIdx, 1);
         }
-    });
+    }
 
+    // 子彈邊界移除
     [bullets, enemyBullets].forEach(arr => {
         for(let i=arr.length-1; i>=0; i--) {
             arr[i].x += arr[i].vx; arr[i].y += arr[i].vy;
@@ -242,13 +255,12 @@ function update() {
 
 function draw() {
     ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
-    
+
     enemies.forEach(en => {
         ctx.fillStyle = en.color;
         ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, 7); ctx.fill();
     });
 
-    // 繪製玩家 (無敵時間會閃爍)
     const isInvul = (Date.now() - player.lastHurtTime < INVULNERABLE_TIME);
     if (!isInvul || Math.floor(Date.now()/50) % 2) {
         let pColor = isLocked ? '#444' : (currentWp.id === 3 && speedMultiplier > 1.3 ? '#ff3300' : currentWp.color);
