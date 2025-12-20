@@ -50,7 +50,7 @@
 /** * 終極自動更新邏輯 
  * 每次上傳 GitHub 前，請修改下方的版本日期（例如 1220.01）
  */
-const GAME_VERSION = "20251220.03"; 
+const GAME_VERSION = "20251220.04"; 
 
 function autoUpdate() {
     const savedVersion = localStorage.getItem('game_version');
@@ -95,10 +95,10 @@ Object.values(WEAPON_CONFIG).forEach(wp => wp.fireInterval = wp.intervalMult * B
 
 const ENEMY_CONFIG = {
     spawnRateBase: 50, 
-    1: { id: 1, speed: 0.2, hpBase: 2, size: 20, color: '#888888', shootInterval: 0, weight: 68.5, score: 50 }, 
-    2: { id: 2, speed: 0.25, hpBase: 4, size: 30, color: '#ff4444', shootInterval: 3, bulletSpeed: 0.6, weight: 15, score: 100 }, 
-    3: { id: 3, speed: 0.25, hpBase: 4, size: 30, color: '#aa00ff', shootInterval: 9, bulletSpeed: 0.6, weight: 15, score: 100 },
-    4: { id: 4, speed: 0.2, hpBase: 40, size: 60, color: '#FFD700', shootInterval: 10, bulletSpeed: 0.6, weight: 1.5, score: 500 } 
+    1: { id: 1, speed: 0.2, hpBase: 2, size: 15, color: '#888888', shootInterval: 0, weight: 68.5, score: 50 }, 
+    2: { id: 2, speed: 0.2, hpBase: 4, size: 25, color: '#ff4444', shootInterval: 3, bulletSpeed: 0.6, weight: 15, score: 100 }, 
+    3: { id: 3, speed: 0.2, hpBase: 4, size: 25, color: '#aa00ff', shootInterval: 10, bulletSpeed: 0.6, weight: 15, score: 100 },
+    4: { id: 4, speed: 0.2, hpBase: 40, size: 40, color: '#FFD700', shootInterval: 10, bulletSpeed: 0.6, weight: 1.5, score: 500 } 
 };
 
 const DIFFICULTY_CONFIG = { threshold: 1000, hpIncrease: 0.05, speedIncrease: 0.05, spawnIncrease: 0.01 };
