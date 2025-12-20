@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>生存射擊 - 物理公式與敵人邏輯修正版</title>
+    <title>生存射擊 - 邏輯絕對還原版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
@@ -47,7 +47,6 @@
     <canvas id="gameCanvas"></canvas>
 
 <script>
-// --- 核心配置 ---
 const BASE_FIRE_INTERVAL = 8;
 const WEAPON_CONFIG = {
     1: { id: 1, intervalMult: 1.0, speed: 15, color: '#fff' },
@@ -57,6 +56,7 @@ const WEAPON_CONFIG = {
 };
 Object.values(WEAPON_CONFIG).forEach(wp => wp.fireInterval = wp.intervalMult * BASE_FIRE_INTERVAL);
 
+// --- 敵人配置：還原到原本正常的權重數值，不再亂動 ---
 const ENEMY_CONFIG = {
     spawnRateBase: 80,
     1: { id: 1, speed: 0.2, hpBase: 2, size: 15, color: '#888888', shootInterval: 0, weight: 68.5, score: 50 },
@@ -77,7 +77,6 @@ let currentWp = WEAPON_CONFIG[1];
 let fireTimer = 0, spawnTimer = 0, score = 0, difficultyLevel = 0, lastAngle = 0;
 let wp3IdleStartTime = Date.now(), speedMultiplier = 1.0, isLocked = false, overloadFrames = 0;
 
-// 搖桿與瞬移
 let joyL = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyR = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyT = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
@@ -93,13 +92,13 @@ function takeDamage() {
     }
 }
 
-// --- 事件處理 ---
+// 換武器
 document.getElementById('weapon-btn').addEventListener('touchstart', e => {
     e.preventDefault();
     let nextId = currentWp.id + 1; if(nextId > 3) nextId = 1;
     currentWp = WEAPON_CONFIG[nextId];
     document.getElementById('weapon-id').innerText = currentWp.id;
-    // 換武器延遲：設為當前應有的射擊間隔
+    // 核心要求：換武器後冷卻設為該武器當前射擊間隔
     const diffBonus = (1 + difficultyLevel * 0.05);
     fireTimer = currentWp.fireInterval / diffBonus;
     speedMultiplier = 1.0; wp3IdleStartTime = Date.now();
@@ -182,7 +181,7 @@ function update() {
         if(d > 2) { player.x += (dx/d) * 1.5; player.y += (dy/d) * 1.5; if(currentWp.id === 3 && !isLocked) { speedMultiplier = 1.0; wp3IdleStartTime = now; } }
     }
 
-    // 武器 3 物理大招公式
+    // 武器 3 大招公式
     if(currentWp.id === 3 && !isLocked) {
         const idleSec = (now - wp3IdleStartTime) / 1000;
         if(idleSec >= currentWp.overloadTriggerTime) {
@@ -190,7 +189,6 @@ function update() {
             if(++overloadFrames % 12 === 0) { speedMultiplier += 0.1; document.getElementById('speed-bonus').innerText = Math.round((speedMultiplier-1)*100); }
         } else { document.getElementById('overload-info').style.visibility = 'hidden'; }
         if(idleSec >= currentWp.ultimateTriggerTime) {
-            // N = (1 / 當前間隔 * 爆發秒數)
             const currentInterval = (currentWp.fireInterval / speedMultiplier) / diffBonus;
             const bulletCount = Math.floor((currentWp.ultimateDuration * 60) / currentInterval);
             for(let i=0; i < bulletCount; i++) spawnBullet((i/bulletCount) * Math.PI * 2, 0, 8);
@@ -209,12 +207,13 @@ function update() {
         fireTimer = interval;
     }
 
-    // 敵人移動與射擊 (恢復正常)
+    // 敵人行為 (恢復正常頻率)
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
         let en = enemies[eIdx]; const dx = player.x - en.x, dy = player.y - en.y, dist = Math.hypot(dx, dy);
         en.x += (dx/dist) * en.speed * diffBonus; en.y += (dy/dist) * en.speed * diffBonus;
         if (dist < en.size + player.size/2) takeDamage();
         
+        // 敵人發射子彈頻率還原
         if (en.shootInterval > 0 && now - en.lastShootTime > (1000 / en.shootInterval) / diffBonus) {
             const angle = Math.atan2(player.y - en.y, player.x - en.x);
             if (en.id === 4) { for(let i=-1; i<=1; i++) spawnBullet(angle + i*0.3, 0, en.bulletSpeed, true, en.x, en.y); }
@@ -255,7 +254,6 @@ function draw() {
     if(joyT.active) {
         ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tpTarget.x, tpTarget.y, 25, 0, 7); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(tpTarget.x-30, tpTarget.y); ctx.lineTo(tpTarget.x+30, tpTarget.y); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(tpTarget.x, tpTarget.y-30); ctx.lineTo(tpTarget.x, tpTarget.y+30); ctx.stroke();
         ctx.setLineDash([5, 5]); ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(tpTarget.x, tpTarget.y); ctx.stroke(); ctx.setLineDash([]);
     }
     ctx.fillStyle = '#fff'; bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, 7); ctx.fill(); });
