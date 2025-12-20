@@ -41,14 +41,14 @@
  * 1. 核心參數與成長設定
  * ========================================== */
 const WEAPON_CONFIG = {
-    1: { id: 1, fireInterval: 10, speed: 12, color: '#fff' },
-    2: { id: 2, fireInterval: 150, speed: 10, color: '#ffcc00' },
-    3: { id: 3, fireInterval: 22, speed: 14, color: '#00ccff', overloadTriggerTime: 0.5, overloadIncrement: 0.1, ultimateTriggerTime: 3.0, ultimateBulletScale: 2.0, lockoutDuration: 2.0 }
+    1: { id: 1, fireInterval: 10, speed: 15, color: '#fff' },
+    2: { id: 2, fireInterval: 150, speed: 15, color: '#ffcc00' },
+    3: { id: 3, fireInterval: 22, speed: 15, color: '#00ccff', overloadTriggerTime: 0.5, overloadIncrement: 0.1, ultimateTriggerTime: 3.0, ultimateBulletScale: 2.0, lockoutDuration: 2.0 }
 };
 
 const ENEMY_CONFIG = {
     // 修正：生成速度變為原本的 60%，代表間隔拉長 (80 / 0.6 = 133.3)
-    spawnRateBase: 80, 
+    spawnRateBase: 70, 
     1: { id: 1, speed: 0.15, hpBase: 1, size: 20, color: '#888888', shootInterval: 0, weight: 70, score: 50 }, 
     2: { id: 2, speed: 0.15, hpBase: 4, size: 30, color: '#ff4444', shootInterval: 2, bulletSpeed: 0.6, weight: 15, score: 100 }, 
     3: { id: 3, speed: 0.15, hpBase: 4, size: 30, color: '#aa00ff', shootInterval: 7, bulletSpeed: 0.6, weight: 15, score: 100 } 
