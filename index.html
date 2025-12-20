@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生存射擊 - 受擊閃爍版</title>
+    <title>生存射擊 - 金色頭目版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; background: #000; }
@@ -50,9 +50,10 @@ const WEAPON_CONFIG = {
 
 const ENEMY_CONFIG = {
     spawnRateBase: 50, 
-    1: { id: 1, speed: 0.2, hpBase: 1.5, size: 20, color: '#888888', shootInterval: 0, weight: 70, score: 50 }, 
+    1: { id: 1, speed: 0.2, hpBase: 1.5, size: 20, color: '#888888', shootInterval: 0, weight: 68.5, score: 50 }, 
     2: { id: 2, speed: 0.25, hpBase: 4, size: 30, color: '#ff4444', shootInterval: 3, bulletSpeed: 0.6, weight: 15, score: 100 }, 
-    3: { id: 3, speed: 0.25, hpBase: 4, size: 30, color: '#aa00ff', shootInterval: 9, bulletSpeed: 0.6, weight: 15, score: 100 } 
+    3: { id: 3, speed: 0.25, hpBase: 4, size: 30, color: '#aa00ff', shootInterval: 9, bulletSpeed: 0.6, weight: 15, score: 100 },
+    4: { id: 4, speed: 0.2, hpBase: 40, size: 60, color: '#FFD700', shootInterval: 10, bulletSpeed: 0.6, weight: 1.5, score: 500 } 
 };
 
 const DIFFICULTY_CONFIG = {
@@ -66,7 +67,7 @@ const PLAYER_SPEED = 1.5;
 const DEADZONE_LEFT = 2;  
 const DEADZONE_RIGHT = 2;
 const INVULNERABLE_TIME = 250; 
-const HIT_FLASH_DURATION = 50; // 閃爍持續時間 (毫秒)
+const HIT_FLASH_DURATION = 50; 
 
 /** * ==========================================
  * 2. 遊戲狀態
@@ -153,16 +154,20 @@ document.getElementById('weapon-btn').addEventListener('touchstart', e => { e.pr
 function spawnEnemy() {
     const side = Math.floor(Math.random() * 4);
     let x, y;
-    if(side === 0) { x = Math.random() * canvas.width; y = -30; }
-    else if(side === 1) { x = canvas.width + 30; y = Math.random() * canvas.height; }
-    else if(side === 2) { x = Math.random() * canvas.width; y = canvas.height + 30; }
-    else { x = -30; y = Math.random() * canvas.height; }
+    if(side === 0) { x = Math.random() * canvas.width; y = -70; }
+    else if(side === 1) { x = canvas.width + 70; y = Math.random() * canvas.height; }
+    else if(side === 2) { x = Math.random() * canvas.width; y = canvas.height + 70; }
+    else { x = -70; y = Math.random() * canvas.height; }
 
     const rand = Math.random() * 100;
-    let type = (rand < ENEMY_CONFIG[1].weight) ? ENEMY_CONFIG[1] : (rand < ENEMY_CONFIG[1].weight + ENEMY_CONFIG[2].weight ? ENEMY_CONFIG[2] : ENEMY_CONFIG[3]);
+    let type;
+    if (rand < ENEMY_CONFIG[1].weight) type = ENEMY_CONFIG[1];
+    else if (rand < ENEMY_CONFIG[1].weight + ENEMY_CONFIG[2].weight) type = ENEMY_CONFIG[2];
+    else if (rand < ENEMY_CONFIG[1].weight + ENEMY_CONFIG[2].weight + ENEMY_CONFIG[3].weight) type = ENEMY_CONFIG[3];
+    else type = ENEMY_CONFIG[4];
 
     const currentHp = type.hpBase * (1 + difficultyLevel * DIFFICULTY_CONFIG.hpIncrease);
-    enemies.push({ ...type, x, y, hp: currentHp, lastShootTime: Date.now(), lastHitTime: 0 }); // 新增 lastHitTime
+    enemies.push({ ...type, x, y, hp: currentHp, lastShootTime: Date.now(), lastHitTime: 0 });
 }
 
 function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0, dmg = 1) {
@@ -230,10 +235,15 @@ function update() {
         en.x += (dx/dist) * en.speed; en.y += (dy/dist) * en.speed;
         if (dist < en.size + player.size/2) takeDamage();
 
+        // 敵人攻擊邏輯
         if(en.shootInterval > 0 && now - en.lastShootTime > en.shootInterval * 1000) {
             const ang = Math.atan2(dy, dx);
             if(en.id === 2) spawnBullet(ang, 0, en.bulletSpeed, true, en.x, en.y);
             else if(en.id === 3) for(let i=-1; i<=1; i++) spawnBullet(ang + i*15*Math.PI/180, 0, en.bulletSpeed, true, en.x, en.y);
+            else if(en.id === 4) {
+                // 敵人 4：全方位射擊 5 顆
+                for(let i=0; i<5; i++) spawnBullet(ang + (i * 72 * Math.PI/180), 0, en.bulletSpeed, true, en.x, en.y);
+            }
             en.lastShootTime = now;
         }
 
@@ -241,7 +251,7 @@ function update() {
             let b = bullets[bIdx];
             if(Math.hypot(b.x - en.x, b.y - en.y) < en.size + 3.5) {
                 en.hp -= b.dmg;
-                en.lastHitTime = now; // 紀錄命中時間
+                en.lastHitTime = now;
                 bullets.splice(bIdx, 1);
                 if(en.hp <= 0) {
                     score += en.score; document.getElementById('score-val').innerText = score;
@@ -271,11 +281,14 @@ function draw() {
     const now = Date.now();
     ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
     
-    // 繪製敵人 (包含閃爍效果)
     enemies.forEach(en => {
-        // 如果受擊時間在閃爍範圍內，設為白色
         ctx.fillStyle = (now - en.lastHitTime < HIT_FLASH_DURATION) ? '#fff' : en.color;
-        ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, 7); ctx.fill();
+        // 如果是金色頭目，增加一點發光感
+        if(en.id === 4 && now - en.lastHitTime >= HIT_FLASH_DURATION) {
+            ctx.shadowBlur = 15; ctx.shadowColor = '#FFD700';
+        }
+        ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
     });
 
     const isInvul = (now - player.lastHurtTime < INVULNERABLE_TIME);
