@@ -26,7 +26,7 @@
             backdrop-filter: blur(3px); -webkit-user-select: none;
         }
         #tp-btn {
-            position: absolute; right: 120px; bottom: 110px; width: 75px; height: 75px;
+            position: absolute; right: 130px; bottom: 135px; width: 75px; height: 75px;
             background: rgba(0, 255, 0, 0.1); border: 2px solid #00ff00;
             border-radius: 50%; color: #00ff00; display: flex; align-items: center;
             justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
@@ -57,6 +57,7 @@
 
 <script>
 const BASE_FIRE_INTERVAL = 10; 
+// 依照指令更新的武器配置
 const WEAPON_CONFIG = {
     1: { id: 1, intervalMult: 1.0, speed: 15, damage: 1.0, color: '#fff' },
     2: { id: 2, intervalMult: 15.0, speed: 15, damage: 1.0, color: '#ffcc00' },
@@ -65,6 +66,7 @@ const WEAPON_CONFIG = {
 };
 Object.values(WEAPON_CONFIG).forEach(wp => wp.fireInterval = wp.intervalMult * BASE_FIRE_INTERVAL);
 
+// 依照指令更新的敵人配置
 const ENEMY_CONFIG = {
     spawnRateBase: 50, 
     1: { id: 1, speed: 0.2, hpBase: 2, size: 15, color: '#888888', shootInterval: 0, weight: 68.5, score: 50, dropRate: 0 }, 
@@ -262,6 +264,7 @@ function update() {
                     score += en.score; 
                     document.getElementById('score-val').innerText = score; 
                     updateDifficulty(); 
+                    // 掉落補包邏輯
                     if(Math.random() < en.dropRate) drops.push({x: en.x, y: en.y, heal: 10});
                     enemies.splice(eIdx, 1); break; 
                 }
@@ -269,6 +272,7 @@ function update() {
         }
     }
     
+    // 補包碰撞檢測
     drops.forEach((d, i) => {
         if(Math.hypot(d.x - player.x, d.y - player.y) < player.size + 10) {
             player.hp = Math.min(player.maxHp, player.hp + d.heal);
@@ -288,6 +292,7 @@ function draw() {
     const now = Date.now();
     ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
     
+    // 繪製補包
     drops.forEach(d => {
         ctx.fillStyle = '#00ff00';
         ctx.fillRect(d.x-8, d.y-8, 16, 16);
