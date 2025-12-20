@@ -45,6 +45,40 @@
     <canvas id="gameCanvas"></canvas>
 
 <script>
+
+
+// 1. 每當網頁開啟，檢查版本號
+const CURRENT_VERSION = '1.0.3'; // 每次你上傳 GitHub 前，手動改一下這個數字
+const savedVersion = localStorage.getItem('game_version');
+
+if (savedVersion && savedVersion !== CURRENT_VERSION) {
+    // 發現版本不符，清除舊快取並強制重新整理
+    localStorage.setItem('game_version', CURRENT_VERSION);
+    window.location.reload(true); // 強制從伺服器抓取
+} else {
+    localStorage.setItem('game_version', CURRENT_VERSION);
+}
+
+// 2. 針對 PWA 的 Service Worker 更新（如果你未來有加 Service Worker）
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for(let registration of registrations) {
+            registration.update(); // 強制檢查背景更新
+        }
+    });
+}
+
+
+
+
+
+
+
+
+
+
+
+
 const BASE_FIRE_INTERVAL = 10; 
 const WEAPON_CONFIG = {
     1: { id: 1, intervalMult: 1.0, speed: 15, damage: 1.0, color: '#fff' },
