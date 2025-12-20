@@ -50,7 +50,7 @@
 /** * 終極自動更新邏輯 
  * 每次上傳 GitHub 前，請修改下方的版本日期（例如 1220.01）
  */
-const GAME_VERSION = "20251220.02"; 
+const GAME_VERSION = "20251220.03"; 
 
 function autoUpdate() {
     const savedVersion = localStorage.getItem('game_version');
@@ -87,7 +87,7 @@ autoUpdate();
 const BASE_FIRE_INTERVAL = 10; 
 const WEAPON_CONFIG = {
     1: { id: 1, intervalMult: 1.0, speed: 15, damage: 1.0, color: '#fff' },
-    2: { id: 2, intervalMult: 15.0, speed: 15, damage: 1.0, color: '#ffcc00' },
+    2: { id: 2, intervalMult: 1.0, speed: 15, damage: 1.0, color: '#ffcc00' },
     3: { id: 3, intervalMult: 2.2, speed: 15, damage: 1.2, color: '#00ccff', 
          overloadTriggerTime: 0.6, overloadIncrement: 0.1, ultimateTriggerTime: 3.6, lockoutDuration: 2.0 }
 };
