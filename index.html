@@ -1,26 +1,17 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-
-
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#000000">
-
-
-
-
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>生存射擊 - 橫向 App 版</title>
+    <link rel="manifest" href="manifest.json">
+    <title>生存射擊 - 橫向修正版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
         
-        /* UI 分散佈局：適合橫向握持時拇指查看 */
         #ui-left { position: absolute; top: 20px; left: 30px; color: #fff; pointer-events: none; z-index: 10; }
         #ui-right { position: absolute; top: 20px; right: 30px; text-align: right; color: #fff; pointer-events: none; z-index: 10; }
         
@@ -30,28 +21,26 @@
         #overload-info { color: #ff3300; font-weight: bold; font-size: 14px; visibility: hidden; }
         #status-bar { position: absolute; top: 25px; left: 50%; transform: translateX(-50%); color: #ff3300; font-size: 18px; font-weight: bold; pointer-events: none; }
 
-        /* 換武器按鈕：移至右手搖桿上方，方便拇指按壓 */
         #weapon-btn {
-            position: absolute; right: 40px; bottom: 180px; width: 70px; height: 70px;
+            position: absolute; right: 40px; bottom: 180px; width: 75px; height: 75px;
             background: rgba(255, 255, 255, 0.1); border: 2px solid #00ffcc;
             border-radius: 50%; color: #00ffcc; display: flex; align-items: center;
             justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
-            backdrop-filter: blur(3px);
+            backdrop-filter: blur(3px); -webkit-user-select: none;
         }
 
-        /* 旋轉提示視窗 */
         @media screen and (orientation: portrait) { #landscape-hint { display: flex; } }
         #landscape-hint {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #000; color: #fff; z-index: 100; flex-direction: column;
-            justify-content: center; align-items: center; text-align: center; padding: 20px;
+            justify-content: center; align-items: center; text-align: center;
         }
     </style>
 </head>
 <body>
     <div id="landscape-hint">
         <h2>請旋轉手機至橫向</h2>
-        <p>並關閉「直排鎖定」以獲得最佳遊戲體驗</p>
+        <p>並確認關閉直排鎖定</p>
     </div>
 
     <div id="ui-left">
@@ -62,9 +51,9 @@
     <div id="status-bar"></div>
 
     <div id="ui-right">
-        <div class="weapon-tag">武器編號: <span id="weapon-id">1</span></div>
+        <div class="weapon-tag">武器: <span id="weapon-id">1</span></div>
         <div class="stat-label">SCORE: <span id="score-val">0</span></div>
-        <div class="stat-label" style="font-size: 12px;">LV: <span id="level-val">0</span> (Spawn +<span id="spawn-bonus">0</span>%)</div>
+        <div class="stat-label">LV: <span id="level-val">0</span></div>
     </div>
 
     <div id="weapon-btn">換武器</div>
@@ -72,15 +61,14 @@
 
 <script>
 /** * ==========================================
- * 1. 核心參數 (保留你設定的所有數值)
+ * 1. 核心參數
  * ========================================== */
 const BASE_FIRE_INTERVAL = 10; 
 const WEAPON_CONFIG = {
     1: { id: 1, intervalMult: 1.0, speed: 15, damage: 1.0, color: '#fff' },
     2: { id: 2, intervalMult: 15.0, speed: 15, damage: 1.0, color: '#ffcc00' },
     3: { id: 3, intervalMult: 2.2, speed: 15, damage: 1.2, color: '#00ccff', 
-         overloadTriggerTime: 0.6, overloadIncrement: 0.1, ultimateTriggerTime: 3.6, 
-         ultimateBulletScale: 2.0, lockoutDuration: 2.0 }
+         overloadTriggerTime: 0.6, overloadIncrement: 0.1, ultimateTriggerTime: 3.6, lockoutDuration: 2.0 }
 };
 
 Object.values(WEAPON_CONFIG).forEach(wp => wp.fireInterval = wp.intervalMult * BASE_FIRE_INTERVAL);
@@ -94,12 +82,12 @@ const ENEMY_CONFIG = {
 };
 
 const DIFFICULTY_CONFIG = { threshold: 1000, hpIncrease: 0.05, speedIncrease: 0.05, spawnIncrease: 0.01 };
-const PLAYER_SPEED = 1.8; // 橫向版移動速度稍微補償
+const PLAYER_SPEED = 1.8; 
 const INVULNERABLE_TIME = 250; 
 const HIT_FLASH_DURATION = 50; 
 
 /** * ==========================================
- * 2. 遊戲狀態與視窗適應
+ * 2. 遊戲初始化
  * ========================================== */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -127,18 +115,27 @@ function updateDifficulty() {
     if (newLevel > difficultyLevel) {
         difficultyLevel = newLevel;
         document.getElementById('level-val').innerText = difficultyLevel;
-        document.getElementById('spawn-bonus').innerText = (difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease * 100).toFixed(0);
     }
 }
 
+// 【關鍵修正】切換武器後需等待攻擊間隔
 function switchWp() {
     let nextId = currentWp.id + 1;
     if(nextId > 3) nextId = 1;
     currentWp = WEAPON_CONFIG[nextId];
     document.getElementById('weapon-id').innerText = currentWp.id;
-    fireTimer = 0; 
+    
+    // 修正：換武器後立刻設定 fireTimer 為該武器的攻擊間隔
+    const diffBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
+    fireTimer = currentWp.fireInterval / diffBonus; 
+    
     resetOverload();
-    if(currentWp.id === 3) { wp3IdleStartTime = Date.now(); idleTriggered = false; isLocked = false; document.getElementById('status-bar').innerText = ""; }
+    if(currentWp.id === 3) {
+        wp3IdleStartTime = Date.now();
+        idleTriggered = false;
+        isLocked = false;
+        document.getElementById('status-bar').innerText = "";
+    }
 }
 
 function resetOverload() { 
@@ -157,7 +154,7 @@ function takeDamage() {
     }
 }
 
-// 觸控優化：防止縮放與捲動
+// 觸控邏輯
 canvas.addEventListener('touchstart', e => {
     e.preventDefault();
     for(let t of e.changedTouches) {
@@ -186,11 +183,10 @@ document.getElementById('weapon-btn').addEventListener('touchstart', e => { e.pr
 function spawnEnemy() {
     const side = Math.floor(Math.random() * 4);
     let x, y;
-    const margin = 100; // 寬螢幕緩衝
-    if(side === 0) { x = Math.random() * canvas.width; y = -margin; }
-    else if(side === 1) { x = canvas.width + margin; y = Math.random() * canvas.height; }
-    else if(side === 2) { x = Math.random() * canvas.width; y = canvas.height + margin; }
-    else { x = -margin; y = Math.random() * canvas.height; }
+    if(side === 0) { x = Math.random() * canvas.width; y = -80; }
+    else if(side === 1) { x = canvas.width + 80; y = Math.random() * canvas.height; }
+    else if(side === 2) { x = Math.random() * canvas.width; y = canvas.height + 80; }
+    else { x = -80; y = Math.random() * canvas.height; }
 
     const rand = Math.random() * 100;
     let type;
@@ -217,6 +213,7 @@ function update() {
     let currentSpawnInterval = ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease);
     if(++spawnTimer > currentSpawnInterval) { spawnEnemy(); spawnTimer = 0; }
 
+    // 移動
     if(joyL.active) {
         const dx = joyL.x2 - joyL.x1, dy = joyL.y2 - joyL.y1, d = Math.hypot(dx, dy);
         if(d > 2) {
@@ -225,6 +222,7 @@ function update() {
         }
     }
 
+    // 武器 3 邏輯
     if(currentWp.id === 3 && !isLocked) {
         const idleSec = (now - wp3IdleStartTime) / 1000;
         if(idleSec >= currentWp.overloadTriggerTime) {
@@ -239,6 +237,7 @@ function update() {
         }
     }
 
+    // 瞄準與射擊
     if(joyR.active) {
         const dx = joyR.x2 - joyR.x1, dy = joyR.y2 - joyR.y1;
         if(Math.hypot(dx, dy) > 2) lastAngle = Math.atan2(dy, dx);
@@ -254,6 +253,7 @@ function update() {
         fireTimer = interval;
     }
 
+    // 碰撞偵測
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
         let en = enemies[eIdx];
         const dx = player.x - en.x, dy = player.y - en.y, dist = Math.hypot(dx, dy);
