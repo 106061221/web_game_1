@@ -3,20 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>雙搖桿戰機遊戲</title>
+    <title>雙搖桿射擊遊戲 - 更新版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: Arial; touch-action: none; }
         canvas { display: block; background: #000; border: 5px solid #333; box-sizing: border-box; }
         #ui { position: absolute; top: 10px; left: 10px; color: white; pointer-events: none; }
-        .cd-bar { width: 100px; height: 10px; background: #444; margin-top: 5px; }
-        #cd-fill { width: 100%; height: 100%; background: #00ff00; transition: width 0.1s; }
     </style>
 </head>
 <body>
     <div id="ui">
         <div>武器編號: <span id="weapon-id">1</span></div>
-        <div>瞬移 CD: <div class="cd-bar"><div id="cd-fill"></div></div></div>
-        <div style="margin-top:5px; font-size: 12px; color: #aaa;">左邊點擊換槍 | 右邊點擊瞬移</div>
+        <div style="margin-top:5px; font-size: 12px; color: #aaa;">左邊點擊換槍 | 瞬移已移除</div>
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -24,38 +21,33 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const weaponText = document.getElementById('weapon-id');
-const cdFill = document.getElementById('cd-fill');
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 // 遊戲狀態
-const player = { x: canvas.width/2, y: canvas.height/2, size: 20, speed: 4, color: '#00ccff' };
+const player = { x: canvas.width/2, y: canvas.height/2, size: 20, speed: 5, color: '#00ccff' };
 const crosshair = { x: canvas.width/2, y: canvas.height/2, size: 10, color: '#ff0000' };
 let bullets = [];
-let weaponIndex = 0; // 0, 1, 2
-let lastTeleport = 0;
-const teleportCD = 3000;
+let weaponIndex = 0; 
+const deadzone = 10; // 搖桿死區：位移小於 10 像素不移動
 
 // 搖桿控制
 let leftJoystick = { active: false, startX: 0, startY: 0, currX: 0, currY: 0 };
 let rightJoystick = { active: false, startX: 0, startY: 0, currX: 0, currY: 0 };
 
-// 監聽觸摸事件
 canvas.addEventListener('touchstart', (e) => {
     for (let touch of e.changedTouches) {
         if (touch.clientX < canvas.width / 2) {
-            // 左半邊：換武器 + 搖桿
             leftJoystick.active = true;
             leftJoystick.startX = leftJoystick.currX = touch.clientX;
             leftJoystick.startY = leftJoystick.currY = touch.clientY;
             switchWeapon();
         } else {
-            // 右半邊：瞬移 + 搖桿
             rightJoystick.active = true;
             rightJoystick.startX = rightJoystick.currX = touch.clientX;
             rightJoystick.startY = rightJoystick.currY = touch.clientY;
-            teleport();
+            // 移除瞬移呼叫
         }
     }
 });
@@ -85,27 +77,18 @@ function switchWeapon() {
     weaponText.innerText = weaponIndex + 1;
 }
 
-function teleport() {
-    const now = Date.now();
-    if (now - lastTeleport > teleportCD) {
-        player.x = crosshair.x;
-        player.y = crosshair.y;
-        lastTeleport = now;
-    }
-}
-
 function fire() {
     const dx = crosshair.x - player.x;
     const dy = crosshair.y - player.y;
     const angle = Math.atan2(dy, dx);
 
-    if (weaponIndex === 0) { // 單發
+    if (weaponIndex === 0) {
         createBullet(angle);
-    } else if (weaponIndex === 1) { // 散彈
+    } else if (weaponIndex === 1) {
         createBullet(angle - 0.2);
         createBullet(angle);
         createBullet(angle + 0.2);
-    } else if (weaponIndex === 2) { // 雙發
+    } else if (weaponIndex === 2) {
         createBullet(angle, 10);
         createBullet(angle, -10);
     }
@@ -115,19 +98,21 @@ function createBullet(angle, offset = 0) {
     bullets.push({
         x: player.x + Math.cos(angle + Math.PI/2) * offset,
         y: player.y + Math.sin(angle + Math.PI/2) * offset,
-        vx: Math.cos(angle) * 8,
-        vy: Math.sin(angle) * 8
+        vx: Math.cos(angle) * 10,
+        vy: Math.sin(angle) * 10
     });
 }
 
 let frameCount = 0;
 function update() {
-    // 1. 移動玩家 (左搖桿)
+    // 1. 移動玩家 (左搖桿 + 死區邏輯)
     if (leftJoystick.active) {
         const dx = leftJoystick.currX - leftJoystick.startX;
         const dy = leftJoystick.currY - leftJoystick.startY;
         const dist = Math.hypot(dx, dy);
-        if (dist > 5) {
+        
+        // 只有當位移超過 deadzone 時才移動
+        if (dist > deadzone) {
             player.x += (dx / dist) * player.speed;
             player.y += (dy / dist) * player.speed;
         }
@@ -141,10 +126,10 @@ function update() {
         if (dist > 5) {
             crosshair.x = player.x + (dx / dist) * 150;
             crosshair.y = player.y + (dy / dist) * 150;
-            if (frameCount % 10 === 0) fire(); // 自動射擊
+            if (frameCount % 8 === 0) fire(); 
         }
     } else {
-        crosshair.x = player.x; // 不瞄準時跟隨玩家
+        crosshair.x = player.x;
         crosshair.y = player.y;
     }
 
@@ -158,10 +143,6 @@ function update() {
         if (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) bullets.splice(i, 1);
     });
 
-    // 更新 CD 條
-    const elapsed = Date.now() - lastTeleport;
-    cdFill.style.width = Math.min(100, (elapsed / teleportCD) * 100) + "%";
-
     frameCount++;
 }
 
@@ -169,33 +150,37 @@ function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     // 畫準星
-    ctx.strokeStyle = crosshair.color;
-    ctx.strokeRect(crosshair.x - 10, crosshair.y - 10, 20, 20);
+    if (rightJoystick.active) {
+        ctx.strokeStyle = crosshair.color;
+        ctx.beginPath();
+        ctx.arc(crosshair.x, crosshair.y, 10, 0, Math.PI*2);
+        ctx.stroke();
+    }
 
     // 畫玩家
     ctx.fillStyle = player.color;
     ctx.fillRect(player.x - 15, player.y - 15, 30, 30);
 
     // 畫子彈
-    ctx.fillStyle = 'yellow';
-    bullets.forEach(b => ctx.fillRect(b.x - 2, b.y - 2, 4, 4));
+    ctx.fillStyle = '#fff700';
+    bullets.forEach(b => ctx.fillRect(b.x - 3, b.y - 3, 6, 6));
 
-    // 畫搖桿視覺效果
-    if (leftJoystick.active) drawJoystick(leftJoystick);
-    if (rightJoystick.active) drawJoystick(rightJoystick);
+    // 畫搖桿視覺
+    if (leftJoystick.active) drawJoystick(leftJoystick, "#00ccff");
+    if (rightJoystick.active) drawJoystick(rightJoystick, "#ff0000");
 
     update();
     requestAnimationFrame(draw);
 }
 
-function drawJoystick(joy) {
+function drawJoystick(joy, color) {
     ctx.beginPath();
     ctx.arc(joy.startX, joy.startY, 40, 0, Math.PI*2);
     ctx.strokeStyle = "rgba(255,255,255,0.2)";
     ctx.stroke();
     ctx.beginPath();
     ctx.arc(joy.currX, joy.currY, 20, 0, Math.PI*2);
-    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.fillStyle = color + "66"; // 加上透明度
     ctx.fill();
 }
 
