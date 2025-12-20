@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生存射擊 - 敵人屬性平衡版</title>
+    <title>生存射擊 - 子彈強化版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; background: #000; }
@@ -47,7 +47,6 @@ const WEAPON_CONFIG = {
 };
 
 const ENEMY_CONFIG = {
-    // 修正：生成速度變為原本的 60%，代表間隔拉長 (80 / 0.6 = 133.3)
     spawnRateBase: 50, 
     1: { id: 1, speed: 0.2, hpBase: 1.5, size: 20, color: '#888888', shootInterval: 0, weight: 70, score: 50 }, 
     2: { id: 2, speed: 0.25, hpBase: 4, size: 30, color: '#ff4444', shootInterval: 3, bulletSpeed: 0.6, weight: 15, score: 100 }, 
@@ -178,7 +177,6 @@ function update() {
     const now = Date.now();
     const diffBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
     
-    // 生成頻率隨難度增加，但基礎間隔已加長
     let currentSpawnInterval = ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease);
     if(++spawnTimer > currentSpawnInterval) { spawnEnemy(); spawnTimer = 0; }
 
@@ -256,7 +254,8 @@ function update() {
 
         for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
             let b = bullets[bIdx];
-            if(Math.hypot(b.x - en.x, b.y - en.y) < en.size) {
+            // 修正：玩家子彈判定距離增加 3.5 (半徑的一半)
+            if(Math.hypot(b.x - en.x, b.y - en.y) < en.size + 3.5) {
                 en.hp--; bullets.splice(bIdx, 1);
                 if(en.hp <= 0) {
                     score += en.score; document.getElementById('score-val').innerText = score;
@@ -267,7 +266,9 @@ function update() {
     }
 
     for (let ebIdx = enemyBullets.length - 1; ebIdx >= 0; ebIdx--) {
-        if (Math.hypot(enemyBullets[ebIdx].x - player.x, enemyBullets[ebIdx].y - player.y) < player.size/2) {
+        let eb = enemyBullets[ebIdx];
+        // 修正：敵人子彈判定距離增加 4 (半徑的一半)
+        if (Math.hypot(eb.x - player.x, eb.y - player.y) < player.size/2 + 4) {
             takeDamage(); enemyBullets.splice(ebIdx, 1);
         }
     }
@@ -295,8 +296,10 @@ function draw() {
         ctx.shadowBlur = 0;
     }
 
-    ctx.fillStyle = '#fff'; bullets.forEach(b => ctx.fillRect(b.x-2, b.y-2, 4, 4));
-    ctx.fillStyle = '#f00'; enemyBullets.forEach(b => ctx.fillRect(b.x-2, b.y-2, 4, 4));
+    // 玩家子彈：調大至 7x7
+    ctx.fillStyle = '#fff'; bullets.forEach(b => ctx.fillRect(b.x-3.5, b.y-3.5, 7, 7));
+    // 敵人子彈：調大至 8x8
+    ctx.fillStyle = '#f00'; enemyBullets.forEach(b => ctx.fillRect(b.x-4, b.y-4, 8, 8));
 
     if(joyL.active) drawJoy(joyL, '#00ccff');
     if(joyR.active) drawJoy(joyR, '#ff3300');
