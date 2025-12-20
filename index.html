@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <title>生存射擊 - 補包系統版</title>
+    <title>生存射擊 - 攻速連動大招版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
@@ -46,7 +46,7 @@
 
 <script>
 /** * 終極自動更新邏輯 */
-const GAME_VERSION = "20251221.01"; 
+const GAME_VERSION = "20251221.03"; 
 
 function autoUpdate() {
     const savedVersion = localStorage.getItem('game_version');
@@ -62,17 +62,18 @@ function autoUpdate() {
 }
 autoUpdate();
 
-const BASE_FIRE_INTERVAL = 8; // 調成 8
+const BASE_FIRE_INTERVAL = 8; 
 const WEAPON_CONFIG = {
     1: { id: 1, intervalMult: 1.0, speed: 15, damage: 1.0, color: '#fff' },
     2: { id: 2, intervalMult: 15.0, speed: 15, damage: 1.0, color: '#ffcc00' },
     3: { id: 3, intervalMult: 2.2, speed: 15, damage: 1.0, color: '#00ccff', 
-         overloadTriggerTime: 0.6, overloadIncrement: 0.1, ultimateTriggerTime: 3.6, lockoutDuration: 2.0 }
+         overloadTriggerTime: 0.6, overloadIncrement: 0.1, ultimateTriggerTime: 3.6, 
+         ultimateDuration: 2.0, lockoutDuration: 2.0 } // 加入 ultimateDuration
 };
 Object.values(WEAPON_CONFIG).forEach(wp => wp.fireInterval = wp.intervalMult * BASE_FIRE_INTERVAL);
 
 const ENEMY_CONFIG = {
-    spawnRateBase: 80, // 調成 80
+    spawnRateBase: 80, 
     1: { id: 1, speed: 0.2, hpBase: 2, size: 15, color: '#888888', shootInterval: 0, weight: 68.5, score: 50, dropRate: 0 }, 
     2: { id: 2, speed: 0.2, hpBase: 4, size: 25, color: '#ff4444', shootInterval: 4, bulletSpeed: 0.6, weight: 15, score: 100, dropRate: 0 }, 
     3: { id: 3, speed: 0.2, hpBase: 4, size: 25, color: '#aa00ff', shootInterval: 13, bulletSpeed: 0.6, weight: 15, score: 100, dropRate: 0 },
@@ -90,7 +91,7 @@ function handleResize() { canvas.width = window.innerWidth; canvas.height = wind
 window.addEventListener('resize', handleResize);
 handleResize();
 
-let player = { x: canvas.width/2, y: canvas.height/2, hp: 30, size: 21, lastHurtTime: 0 };
+let player = { x: canvas.width/2, y: canvas.height/2, hp: 30, maxHp: 30, size: 21, lastHurtTime: 0 };
 let bullets = [], enemyBullets = [], enemies = [], medkits = [];
 let currentWp = WEAPON_CONFIG[1];
 let fireTimer = 0, spawnTimer = 0, score = 0, difficultyLevel = 0, lastAngle = 0;
@@ -194,7 +195,11 @@ function update() {
             }
         }
         if(idleSec >= currentWp.ultimateTriggerTime && !idleTriggered) {
-            for(let i=0; i<40; i++) spawnBullet((i/40) * Math.PI * 2, 0, 8, false, 0, 0, currentWp.damage);
+            // 新大爆炸邏輯：攻速倍率 * 時間參數 * 10 (調整後的基數，讓視覺效果飽滿)
+            const bulletCount = Math.floor(speedMultiplier * currentWp.ultimateDuration * 10);
+            for(let i=0; i < bulletCount; i++) {
+                spawnBullet((i/bulletCount) * Math.PI * 2, 0, 8, false, 0, 0, currentWp.damage);
+            }
             idleTriggered = true; isLocked = true; 
             document.getElementById('status-bar').innerText = "系統過熱！";
             setTimeout(() => { isLocked = false; idleTriggered = false; document.getElementById('status-bar').innerText = ""; resetOverload(); }, currentWp.lockoutDuration * 1000);
@@ -240,10 +245,9 @@ function update() {
         }
     }
     
-    // 補包拾取判定
     for(let i=medkits.length-1; i>=0; i--) {
         if(Math.hypot(medkits[i].x - player.x, medkits[i].y - player.y) < player.size) {
-            player.hp += 10;
+            player.hp = Math.min(player.maxHp, player.hp + 10);
             document.getElementById('hp-val').innerText = player.hp;
             medkits.splice(i, 1);
         }
@@ -260,7 +264,6 @@ function draw() {
     const now = Date.now();
     ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
     
-    // 繪製補包
     medkits.forEach(m => {
         ctx.fillStyle = (Math.floor(now/200)%2) ? '#00ff00' : '#fff';
         ctx.fillRect(m.x-8, m.y-2, 16, 4); ctx.fillRect(m.x-2, m.y-8, 4, 16);
