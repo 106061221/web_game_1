@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生存射擊 - 敵人強化版</title>
+    <title>生存射擊 - 敵人屬性平衡版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; background: #000; }
@@ -47,11 +47,11 @@ const WEAPON_CONFIG = {
 };
 
 const ENEMY_CONFIG = {
-    spawnRateBase: 50,
-    1: { id: 1, speed: 0.15, hpBase: 2, size: 25, color: '#ff5555', shootInterval: 0, weight: 70, score: 50 },
-    // 修正：敵軍 2 與 3 生命值改為 3
-    2: { id: 2, speed: 0.15, hpBase: 6, size: 30, color: '#ff00ff', shootInterval: 3, bulletSpeed: 0.6, weight: 15, score: 100 },
-    3: { id: 3, speed: 0.15, hpBase: 6, size: 30, color: '#ffff00', shootInterval: 10.0, bulletSpeed: 0.6, weight: 15, score: 100 }
+    // 修正：生成速度變為原本的 60%，代表間隔拉長 (80 / 0.6 = 133.3)
+    spawnRateBase: 133.3, 
+    1: { id: 1, speed: 0.15, hpBase: 2, size: 20, color: '#888888', shootInterval: 0, weight: 70, score: 50 }, 
+    2: { id: 2, speed: 0.15, hpBase: 6, size: 30, color: '#ff4444', shootInterval: 3, bulletSpeed: 0.6, weight: 15, score: 100 }, 
+    3: { id: 3, speed: 0.15, hpBase: 6, size: 30, color: '#aa00ff', shootInterval: 10.0, bulletSpeed: 0.6, weight: 15, score: 100 } 
 };
 
 const DIFFICULTY_CONFIG = {
@@ -178,6 +178,7 @@ function update() {
     const now = Date.now();
     const diffBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
     
+    // 生成頻率隨難度增加，但基礎間隔已加長
     let currentSpawnInterval = ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease);
     if(++spawnTimer > currentSpawnInterval) { spawnEnemy(); spawnTimer = 0; }
 
