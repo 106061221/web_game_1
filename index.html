@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生存射擊 - 穩定過熱修正版</title>
+    <title>生存射擊 - 換彈延遲修正版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; background: #000; }
@@ -43,7 +43,7 @@
 const WEAPON_CONFIG = {
     1: { id: 1, fireInterval: 10, bulletCount: 1, spread: 0, speed: 12, color: '#fff' },
     2: { id: 2, fireInterval: 150, bulletCount: 15, spread: 30, speed: 10, color: '#ffcc00' },
-    3: { id: 3, fireInterval: 22, bulletCount: 2, speed: 14, color: '#00ccff', overloadTriggerTime: 0.5, overloadTickRate: 0.2, overloadIncrement: 0.1, ultimateTriggerTime: 3.6, ultimateBulletScale: 2.0, lockoutDuration: 2.0 }
+    3: { id: 3, fireInterval: 22, bulletCount: 2, speed: 14, color: '#00ccff', overloadTriggerTime: 0.5, overloadTickRate: 0.2, overloadIncrement: 0.1, ultimateTriggerTime: 3.0, ultimateBulletScale: 2.0, lockoutDuration: 2.0 }
 };
 
 const ENEMY_CONFIG = {
@@ -94,12 +94,18 @@ function updateDifficulty() {
     }
 }
 
+// 修正後的換武器邏輯
 function switchWp() {
     let nextId = currentWp.id + 1;
     if(nextId > 3) nextId = 1;
     currentWp = WEAPON_CONFIG[nextId];
     document.getElementById('weapon-id').innerText = currentWp.id;
-    fireTimer = 0; 
+    
+    // 關鍵修正：換武器後 fireTimer 不設為 0，而是設為該武器的射擊間隔
+    // 同時考慮難度對攻速的加成
+    const difficultyBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
+    fireTimer = currentWp.fireInterval / difficultyBonus;
+
     resetOverload();
     if(currentWp.id === 3) {
         wp3IdleStartTime = Date.now();
@@ -126,7 +132,6 @@ function takeDamage() {
     }
 }
 
-// 事件監聽
 canvas.addEventListener('touchstart', e => {
     for(let t of e.changedTouches) {
         if(t.clientX < canvas.width/2) { joyL.active = true; joyL.x1 = joyL.x2 = t.clientX; joyL.y1 = joyL.y2 = t.clientY; joyL.id = t.identifier; }
@@ -177,13 +182,10 @@ function update() {
     let currentSpawnInterval = ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease);
     if(++spawnTimer > currentSpawnInterval) { spawnEnemy(); spawnTimer = 0; }
 
-    // 玩家移動與武器3重置判定
     if(joyL.active) {
         const dx = joyL.x2 - joyL.x1, dy = joyL.y2 - joyL.y1, d = Math.hypot(dx, dy);
         if(d > DEADZONE_LEFT) {
             player.x += (dx/d) * PLAYER_SPEED; player.y += (dy/d) * PLAYER_SPEED;
-            
-            // 重要：修正Bug點，只有在沒鎖定時移動才重置蓄力
             if(currentWp.id === 3 && !isLocked) {
                 wp3IdleStartTime = now;
                 idleTriggered = false; 
@@ -192,10 +194,9 @@ function update() {
         }
     }
 
-    // 武器三核心邏輯修正
     if(currentWp.id === 3) {
         if (isLocked) {
-            wp3IdleStartTime = now; // 鎖定期間不斷推遲開始時間
+            wp3IdleStartTime = now;
         } else {
             const idleSec = (now - wp3IdleStartTime) / 1000;
             if(idleSec >= currentWp.overloadTriggerTime) {
@@ -208,15 +209,11 @@ function update() {
             if(idleSec >= currentWp.ultimateTriggerTime && !idleTriggered) {
                 const count = Math.floor((120 / (currentWp.fireInterval/speedMultiplier)) * currentWp.ultimateBulletScale);
                 for(let i=0; i<count; i++) spawnBullet((i/count)*Math.PI*2, 0, 8);
-                
-                idleTriggered = true; 
-                isLocked = true;
+                idleTriggered = true; isLocked = true;
                 resetOverload();
                 document.getElementById('status-bar').innerText = "系統過熱！";
-                
                 setTimeout(() => { 
-                    isLocked = false; 
-                    idleTriggered = false; 
+                    isLocked = false; idleTriggered = false; 
                     document.getElementById('status-bar').innerText = ""; 
                     wp3IdleStartTime = Date.now(); 
                 }, currentWp.lockoutDuration * 1000);
@@ -229,6 +226,7 @@ function update() {
         if(Math.hypot(dx, dy) > DEADZONE_RIGHT) lastAngle = Math.atan2(dy, dx);
     }
 
+    // 射擊判定
     if (!isLocked && --fireTimer <= 0) {
         let baseInterval = currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval;
         const interval = baseInterval / (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
@@ -242,7 +240,7 @@ function update() {
         fireTimer = interval;
     }
 
-    // 碰撞偵測 (反向迴圈)
+    // 敵人與碰撞 (反向迴圈)
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
         let en = enemies[eIdx];
         const dx = player.x - en.x, dy = player.y - en.y, dist = Math.hypot(dx, dy);
