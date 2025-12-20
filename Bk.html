@@ -1,1 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>AI 戰機彈幕遊戲 (V69.2)</title>
+    <style>
+        /* 樣式保持不變 */
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh; 
+            margin: 0;
+            background-color: #111;
+            color: white;
+            font-family: 'Courier New', monospace;
+        }
+        #top-info { 
+            width: 750px; 
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        #hp-display { font-size: 1.5em; color: lime; }
+        #score-board { font-size: 1.5em; }
+        #dps-display { font-size: 1.5em; color: orange; }
+        #weapon-status {
+            font-size: 1.2em;
+            color: #ccc;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        #game-container {
+            width: 500px;
+            height: 440px;
+	    /* 🎯 關鍵修正 2：確保寬高不會被壓縮，維持剛性 */
+   	    min-width: 500px;
+   	    min-height: 440px;
 
+            background-color: #000;
+            border: 2px solid #555;
+            position: relative;
+            overflow: hidden;
+            outline: none; 
+            cursor: crosshair; 
+        }
+        #player {
+            position: absolute;
+            width: 18px; 
+            height: 18px; 
+            background-color: cyan;
+            border-radius: 50%; 
+            bottom: 291px; 
+            left: 241px; 
+            transition: background-color 0.1s, box-shadow 0.2s; 
+            z-index: 10; 
+        }
+        .player-hit { 
+            opacity: 0.5;
+            transition: opacity 0.05s ease-in-out;
+        }
+        /* Dash ready visual */
+        .player-dash-ready {
+            box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.35), 0 0 14px 4px rgba(0, 180, 255, 0.45);
+            animation: dash-ready-pulse 1.8s infinite ease-in-out;
+        }
+        @keyframes dash-ready-pulse {
+            0% { box-shadow: 0 0 5px 2px rgba(255,255,255,0.25), 0 0 10px 3px rgba(0,180,255,0.35); }
+            50% { box-shadow: 0 0 8px 3px rgba(255,255,255,0.45), 0 0 18px 5px rgba(0,180,255,0.6); }
+            100% { box-shadow: 0 0 5px 2px rgba(255,255,255,0.25), 0 0 10px 3px rgba(0,180,255,0.35); }
+        }
+        
+        #continuous-sword-blade {
+            position: absolute;
+            width: 35px; 
+            height: 130px; 
+            clip-path: polygon(25% 100%, 75% 100%, 50% 0%); 
+            background: linear-gradient(to top, rgba(0, 100, 255, 1) 10%, rgba(50, 200, 255, 1) 50%, rgba(255, 255, 255, 1) 90%);
+            box-shadow: 0 0 10px 5px rgba(0, 191, 255, 0.9), 0 0 25px 10px rgba(0, 50, 200, 0.6), inset 0 0 5px 2px rgba(255, 255, 255, 1);
+            border-radius: 2px; 
+            transform-origin: bottom center; 
+            z-index: 9;
+            pointer-events: none;
+            opacity: 1;
+            transition: left 0.01s linear, top 0.01s linear, transform 0.01s linear; 
+            display: none; 
+            animation: blue-flame-flicker 0.2s infinite alternate; 
+        }
+        @keyframes blue-flame-flicker {
+            from { opacity: 0.9; transform: scaleY(1) rotate(var(--current-rotation)); }
+            to { opacity: 1.0; transform: scaleY(1.02) rotate(var(--current-rotation)); }
+        }
+
+        #static-field-aura {
+            position: absolute;
+            border: 2px solid rgba(138, 43, 226, 0.9); 
+            border-radius: 50%;
+            background-color: rgba(128, 0, 128, 0.05); 
+            pointer-events: none; 
+            z-index: 5;
+            transition: box-shadow 0.15s ease-out, transform 0.15s ease-out;
+            box-shadow: 0 0 10px 5px rgba(138, 43, 226, 0.5), inset 0 0 10px 5px rgba(138, 43, 226, 0.4); 
+            animation: pulse-base 2s infinite alternate; 
+        }
+        .static-field-pulse {
+            box-shadow: 0 0 20px 10px rgba(255, 255, 255, 0.8), 0 0 40px 20px rgba(255, 0, 0, 0.6), inset 0 0 15px 7px rgba(138, 43, 226, 0.8);
+            transform: scale(1.03); 
+        }
+        @keyframes pulse-base { from { opacity: 0.85; } to { opacity: 1.0; } }
+
+         .sword-hit-effect {
+            box-shadow: 0 0 15px 10px rgba(255, 255, 255, 1), 0 0 40px 20px rgba(255, 50, 0, 0.8), inset 0 0 10px 5px rgba(255, 255, 255, 1);
+            transition: all 0.05s ease-out; 
+        }
+
+
+	/* 新增雷射樣式 */
+	.laser-beam {
+    		position: absolute;
+    		height: 14px; /* 雷射寬度 */
+    		background: white;
+    		transform-origin: center left; /* 從左側旋轉 */
+    		opacity: 1;
+    		z-index: 20;
+    		box-shadow: 0 0 10px 4px cyan, 0 0 20px 8px blue;
+    		pointer-events: none;
+    		border-radius: 4px;
+	}
+	/* 蓄力時玩家的發光效果 */
+	//.player-charging {
+    	//	box-shadow: 0 0 15px 5px cyan, inset 0 0 10px white !important;
+    	//	background-color: #00FFFF !important;
+	//}
+	
+	
+	.player-charging {
+    	/* 使用 Electric Violet (#BF00FF) 作為玩家顏色 */
+    		background-color: #E0FFFF !important; 
+
+    	/* 邊框發光使用更深的紫色和洋紅色混合，營造能量感 */
+    		box-shadow: 
+        	0 0 15px 5px #00FFFF,        /* 主要光暈：電光紫 */
+        	0 0 20wpx 8px #00BFFF,        /* 次要光暈：洋紅 */
+        	//inset 0 0 10px white !important; /* 中心亮點 */
+	}
+
+	.laser-charging-alt {
+    		background-color: #E0FFFF !important; /* 很白的藍色 */
+    		//box-shadow: 
+        	//0 0 15px 5px #00FFFF,         /* 青色光暈 */
+       		//0 0 25px 10px #00BFFF,        
+        	//inset 0 0 10px white !important; 
+	}
+	
+	.laser-charging-alt2 {
+    		background-color: #E0FFFF !important; /* 很白的藍色 */
+    		box-shadow: 
+        	0 0 15px 5px #00FFFF,         /* 青色光暈 */
+       		0 0 25px 10px #00BFFF,        
+        	inset 0 0 10px white !important; 
+	}
+	
+	
+	.player-overload {
+    		filter: brightness(1.8) drop-shadow(0 0 10px orange) !important;
+    		box-shadow: 0 0 20px orange !important;
+	}
+	
+	
+	
+	
+
+
+
+        .bullet {
+            position: absolute;
+            width: 4px; height: 4px;
+            background-color: white; 
+            border-radius: 50%;
+            z-index: 9;
+        }
+        .enemy, .griefer-enemy { 
+            position: absolute;
+            width: 30px; height: 30px;
+            background-color: red;
+            border-radius: 5px;
+            box-shadow: 0 0 5px orange;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 10px; font-weight: bold; color: white;
+            z-index: 8;
+        }
+        .griefer-enemy { background-color: gray; box-shadow: 0 0 5px #ccc; }
+        .rare-enemy {
+             position: absolute;
+            width: 50px; height: 50px;
+            background-color: gold;
+            border-radius: 10px;
+            box-shadow: 0 0 10px yellow;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 12px; font-weight: bold; color: black;
+            border: 2px solid white;
+            z-index: 8;
+        }
+        /* Boss 樣式 */
+        .boss-enemy {
+            position: absolute;
+            width: 100px; height: 100px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px 10px rgba(255, 0, 0, 0.8), inset 0 0 15px white;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 16px; font-weight: bold; color: white;
+            z-index: 10; 
+            border: 3px solid red;
+            transition: transform 0.5s ease-out; 
+        }
+
+        .enemy-bullet { 
+            position: absolute;
+            width: 6px; height: 6px;
+            background-color: yellow; 
+            border-radius: 50%;
+            z-index: 7;
+        }
+        .heart-drop {
+            position: absolute;
+            width: 15px; height: 15px;
+            background-color: pink;
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 10px; color: darkred;
+            z-index: 6;
+        }
+        
+        #start-message, #game-over-message, #pause-message { 
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px; color: lime;
+            text-shadow: 0 0 5px lime;
+            z-index: 11;
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+        }
+        #game-over-message { color: red; text-shadow: 0 0 10px red; display: none; }
+        #pause-message { color: yellow; text-shadow: 0 0 5px yellow; display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>太空戰機彈幕 - 競技場模式 </h1>
+    <div id="top-info">
+        <div id="hp-display">HP: <span id="player-hp">30</span></div>
+        <div id="score-board">分數: <span id="score">0</span></div>
+        <div id="dps-display">DPS: <span id="current-dps">0.0</span></div>
+    </div>
+    
+    <div id="weapon-status">武器: <span id="weapon-name">單管機槍</span> (<span id="fire-rate-info">85ms</span>) | 瞬移: **空白鍵** (3s CD)</div>
+    
+    <div id="game-container" tabindex="0"> 
+        <div id="continuous-sword-blade"></div> 
+        <div id="static-field-aura"></div> 
+        <div id="player"></div>
+        <div id="start-message">
+            按 **WASD/方向鍵** 開始遊戲
+            <br>
+            <span style="font-size:14px; color:#aaa;">(E 鍵或滑鼠滾輪切換武器 / 空白鍵瞬移 / ESC 暫停)</span>
+        </div>
+        
+        <div id="pause-message">
+            **遊戲暫停 (PAUSED)**
+            <br>
+            <span style="font-size:14px; color:#ccc;">再次按下 ESC 繼續遊戲</span>
+        </div>
+        
+        <div id="game-over-message">
+            遊戲結束！
+            <div id="final-score"></div>
+            <button onclick="window.location.reload()" style="padding: 10px 20px; margin-top: 15px;">重新開始</button>
+        </div>
+    </div>
+    
+    <p>使用 WASD/方向鍵 移動，滑鼠瞄準。</p>
+
+    <script>
+        // *** 核心參數 ***
+        const MAX_PLAYER_HP = 30.0; 
+        const ENEMY_BULLET_SPEED = 0.3; 
+        const BOSS_BULLET_SPEED = 1.5; // Boss 子彈速度
+        const ENEMY_BULLET_DAMAGE = 1.0; 
+        const INITIAL_FIRE_RATE_MODIFIER = 2.2533; 
+        const BASE_SINGLE_SHOT_RATE = 50 * INITIAL_FIRE_RATE_MODIFIER; 
+        const PLAYER_HIT_COOLDOWN = 250; 
+
+        // DPS 參數
+        const DPS_UPDATE_INTERVAL = 500; 
+        const DPS_WINDOW_SIZE = 3000;    
+
+
+
+
+
+
+
+
+// --- 惡火重機槍 (HMG) 過載專屬參數 ---
+const HMG_OVERLOAD_TRIGGER_MS = 500;   // 0.5秒進入過載
+const HMG_OVERLOAD_SPREAD = 2.5;         // 過載散度 5度
+const HMG_RAMP_INTERVAL = 200;         // 0.2秒成長一次
+const HMG_RAMP_RATE = 0.09;            // 每次快 10%
+const HMG_MAX_DURATION = 3200;         // 4秒大招
+const HMG_EXPLOSION_BASE_SEC = 2000;   // 大招基數
+const HMG_COOLDOWN_MS = 1300;          // 1秒冷卻
+
+
+
+
+
+
+        // 靜電力場參數 
+        const STATIC_FIELD_RATE = BASE_SINGLE_SHOT_RATE * 3; 
+        const STATIC_FIELD_DAMAGE = 1.0; 
+        const BASE_STATIC_RANGE = 75;
+        const STATIC_FIELD_RANGE = BASE_STATIC_RANGE * 1.035; 
+
+        // 脈衝火焰參數 
+        const SWORD_BLADE_RATE = BASE_SINGLE_SHOT_RATE * 1.3; 
+        const SWORD_BLADE_DAMAGE = 1.0; 
+        const SWORD_BLADE_WIDTH = 35; 
+        const SWORD_BLADE_HEIGHT = 130; 
+        const SWORD_DAMAGE_POINTS = 10; 
+        const SWORD_ROTATION_SPEED = 0.5; 
+        const SWORD_OFFSET_DISTANCE = 0; 
+        
+        // 遊戲中心點坐標
+        const GAME_CENTER = { x: 250, y: 300 };
+        const PLAYER_MAX_Y_BOUND = 440; 
+
+        // 敵人配置
+        const BASE_ENEMY_CONFIGS = [
+            { type: 1, baseHp: 6.0, score: 100, color: 'red', className: 'enemy' },
+            { type: 2, baseHp: 6.0, score: 100, color: 'purple', className: 'enemy' },
+            { type: 3, baseHp: 60.0, score: 500, color: 'gold', className: 'rare-enemy' },
+            { type: 4, baseHp: 3.0, score: 100, color: 'gray', className: 'griefer-enemy' }
+        ];
+        
+        // --- Boss 觸發參數 ---
+        const BOSS_PREP_DURATION = 5000; 
+        
+        // Boss 1 參數
+        const BOSS1_COOLDOWN_INTERVAL = 2000; 
+        const BOSS1_BURST_COUNT = 5; 
+        const BOSS1_BURST_INTERVAL = 500; 
+        const BOSS1_SPREAD_SHOTS = 6; 
+        
+        // Boss 2 參數
+        const BOSS2_PHASE_A_WAVES = 10;
+        const BOSS2_PHASE_A_INTERVAL = 200;
+        const BOSS2_PHASE_B_SHOTS = 30;
+        const BOSS2_PHASE_B_INTERVAL = 50;
+        const BOSS2_REST_TIME = 100; // 1秒休息
+        
+
+
+	// ==========================================
+        // *** 新增：Boss 3 (Type 101) 參數設定 ***
+        // ==========================================
+        const BOSS3_TRIGGER_SCORE = 80000;      // 出現分數
+        const BOSS3_Y_POS = 60;                 // 停留在 Y=60
+
+        // --- 模式 1: 全方位旋轉彈幕 (Spin) ---
+        const BOSS3_P1_INTERVAL = 10;           // 發射間隔 (ms)
+        const BOSS3_P1_ROTATION_SEC = 0.45;      // 轉一圈需要幾秒
+        const BOSS3_P1_TOTAL_LOOPS = 1.5;         // 總共轉幾圈
+        const BOSS3_P1_REST = 1400;             // 休息時間 (ms)
+        const BOSS3_P1_SPEED = 1.2;             // 子彈速度
+        const BOSS3_P1_COLOR = 'lime';          // 子彈顏色
+
+        // --- 模式 2: 紫色慢速散彈 (Shotgun) ---
+        const BOSS3_P2_BURST_COUNT = 3;         // 連續發射幾波
+        const BOSS3_P2_INTERVAL = 500;          // 每波間隔 (ms)
+        const BOSS3_P2_SPREAD_ANGLE = 35;       // 散彈角度範圍
+        const BOSS3_P2_BULLETS_NUM = 3;         // 每次發射幾顆
+        const BOSS3_P2_SPEED = 0.5;             // 速度很慢
+        //const BOSS3_P2_COLOR = '#9932CC';       // 紫色 (DarkOrchid)
+        const BOSS3_P2_COLOR = 'lime';       // 紫色 (DarkOrchid)
+        const BOSS3_P2_REST = 500;             // 休息時間 (ms)
+
+        // --- 模式 3: 紅色超快狙擊 (Sniper) ---
+        const BOSS3_P3_SPEED = 1.5;             // 速度超快
+        //const BOSS3_P3_COLOR = 'red';           // 紅色
+        const BOSS3_P3_COLOR = 'lime';           // 紅色
+        const BOSS3_P3_REST = 300;             // 休息時間 (ms)
+	const BOSS3_P3_SMEAR_ANGLE = 40;        // 狙擊彈的隨機誤差範圍 (度)
+
+
+
+// --- 模式 4: 三段式連招 (Phase 4) ---
+const BOSS3_P4_OFFSET_ANGLE = 30;    
+const BOSS3_P4_OFFSET_COLOR = 'orange'; 
+const BOSS3_P4_WAIT_TIME = 2500;     // 第一段與第二段間隔
+
+const BOSS3_P4_SPREAD_COUNT = 20;    
+const BOSS3_P4_SPREAD_RANGE = 40;    
+const BOSS3_P4_SPREAD_COLOR = 'orange'; 
+
+// ✨ 新增：第三段隨機連發參數
+const BOSS3_P4_RAPID_COUNT = 40;     // 連發 20 顆
+const BOSS3_P4_RAPID_RANGE = 20;     // 20 度內隨機
+const BOSS3_P4_RAPID_INTERVAL = 25;  // 每顆間隔 50ms
+const BOSS3_P4_RAPID_COLOR = 'cyan'; // 連發子彈顏色
+const BOSS3_P4_RAPID_SPEED = 2.8;      // 連發速度稍微快一點
+
+const BOSS3_P4_REST = 13000;         // 最終休息 10 秒
+const BOSS3_P4_BULLET_SPEED = 3;
+        // ==========================================
+
+
+
+
+
+
+        const BOSS_BASE_CONFIG = { 
+            type: 99, 
+            baseHp: 600.0, 
+            score: 100, 
+            color: 'darkred', 
+            className: 'boss-enemy' 
+        };
+
+
+        // 武器基礎配置
+        const BASE_WEAPONS = [
+            { name: "單管機槍", baseFireRate: BASE_SINGLE_SHOT_RATE, color: "white", bulletSpeed: 4.5, type: "single", baseDamage: 1.0 },        
+            { name: "廣域霰彈", baseFireRate: 1200 * INITIAL_FIRE_RATE_MODIFIER, color: "yellow", bulletSpeed: 6, type: "random_spread_15", baseDamage: 2.0 },  
+            { name: "惡火重機槍", baseFireRate: 215 * INITIAL_FIRE_RATE_MODIFIER, color: "lime", bulletSpeed: 4.5, type: "random_twin", baseDamage: 2.0 }, 
+            { name: "靜電力場", baseFireRate: STATIC_FIELD_RATE, color: "red", bulletSpeed: 0, type: "static_field", baseDamage: STATIC_FIELD_DAMAGE },
+            { name: "脈衝火焰", baseFireRate: SWORD_BLADE_RATE, color: "blue", bulletSpeed: 0, type: "continuous_sword", baseDamage: SWORD_BLADE_DAMAGE }, 
+	    { name: "充能雷射", baseFireRate: 65 * INITIAL_FIRE_RATE_MODIFIER, color: "cyan", bulletSpeed: 0, type: "kinetic_laser", baseDamage: 1.0 }
+        ];
+
+        const STATIC_FIELD_WEAPON_INDEX = 3; 
+        const SWORD_BLADE_WEAPON_INDEX = 4;
+	const KINETIC_LASER_WEAPON_INDEX = 5; // 新增索引
+
+        const container = document.getElementById('game-container');
+        const player = document.getElementById('player');
+        const scoreElement = document.getElementById('score');
+        const hpElement = document.getElementById('player-hp'); 
+        const weaponNameElement = document.getElementById('weapon-name');
+        const fireRateInfoElement = document.getElementById('fire-rate-info');
+        const startMessageElement = document.getElementById('start-message'); 
+        const gameOverMessageElement = document.getElementById('game-over-message');
+        const finalScoreElement = document.getElementById('final-score');
+        const staticFieldAura = document.getElementById('static-field-aura'); 
+        const continuousSwordBlade = document.getElementById('continuous-sword-blade');
+        const dpsDisplayElement = document.getElementById('current-dps');
+        const pauseMessageElement = document.getElementById('pause-message');
+
+        const Game = {
+            width: 500,
+            height: 600, 
+            score: 0,
+            scoreLevel: 0, 
+            fireRateMultiplier: 1.0, 
+            bullets: [],          
+            enemies: [],          
+            enemyBullets: [],     
+            drops: [],
+            lastEnemyTime: 0,
+            enemyInterval: 800, 
+            spawnRateMultiplier: 1.0,           
+            spawnAccumulator: 0,                
+            isRunning: true,
+            isGameActive: false,
+            isPaused: false,
+            
+            // Boss 相關狀態
+            gameState: 'NORMAL', 
+            boss: null, 
+            bossSpawnTime: 0, 
+            bossPrepDuration: BOSS_PREP_DURATION, 
+            bossCount: 0, // 擊敗過幾次 Boss
+            
+            // Boss 射擊狀態 (通用)
+            bossShotState: {
+                isCoolingDown: false,
+                lastBurstTime: 0,
+                burstCounter: 0,
+                lastShotTime: 0, 
+                // Boss 2 專用狀態
+                phase: 0, // 0: Shotgun, 1: Rest, 2: Rapid, 3: Rest
+                phaseStartTime: 0
+            },
+
+            player: {
+                x: 241, 
+                y: 291, 
+                speed: 0.6, 
+                width: 18, 
+                height: 18, 
+                hp: MAX_PLAYER_HP,            
+            },
+            mouse: { x: 0, y: 0, isFiring: false }, 
+            
+            weapons: JSON.parse(JSON.stringify(BASE_WEAPONS)), 
+            currentWeaponIndex: 0,
+            
+            fireAccumulators: [0, 0, 0], 
+            
+            lastStaticDamageTime: 0, 
+            lastSwordDamageTime: 0, 
+            currentSwordAngle: 0, 
+            
+            lastDashTime: 0,
+            dashCooldown: 3000, 
+            
+            lastPlayerHitTime: 0, 
+            isInvincible: false, 
+            
+            lastFrameTime: 0,
+            
+            damageRecords: [], 
+            lastDPSTime: 0,
+
+	    // --- 新增：充能雷射專用變數 ---
+    	    kineticChargeTime: 0, // 當前累積的毫秒數
+    	    isPlayerMoving: false, // 追蹤玩家是否移動
+	    // --- 新增：靜止計時器 ---
+    	    timeStopped: 0, // 追蹤玩家停止移動累積的毫秒數
+
+
+    hmgState: {
+        lastMoveTime: 0,
+        isOverloading: false,
+        overloadStartTime: 0,
+        isCoolingDown: false,
+        cooldownEndTime: 0
+    }
+
+
+
+        };
+        
+        let isWeaponKeyHeld = false;
+
+        function getPlayerCenter() {
+            return {
+                x: Game.player.x + Game.player.width / 2,
+                y: Game.player.y + Game.player.height / 2
+            };
+        }
+
+        function normalizeAngle(angle) {
+            const TWO_PI = 2 * Math.PI;
+            let result = angle % TWO_PI;
+            if (result < 0) result += TWO_PI;
+            return result;
+        }
+        
+        function getShortestAngleDiff(current, target) {
+            let diff = target - current;
+            const TWO_PI = 2 * Math.PI;
+            if (diff > Math.PI) diff -= TWO_PI;
+            else if (diff < -Math.PI) diff += TWO_PI;
+            return diff;
+        }
+
+        function getEnemyHP(baseConfig) {
+            const multiplier = 1.0 + Game.scoreLevel * 0.1; 
+            return baseConfig.baseHp * multiplier; 
+        }
+
+        function getEnemyScore(ba
