@@ -3,35 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>武器三特化版</title>
+    <title>雙搖桿全自動射擊遊戲</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: sans-serif; touch-action: none; }
-        canvas { display: block; }
-        #ui { position: absolute; top: 20px; left: 20px; color: #fff; pointer-events: none; }
+        body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: 'Segoe UI', sans-serif; touch-action: none; }
+        canvas { display: block; background: #000; }
+        
+        /* UI 顯示 */
+        #ui { position: absolute; top: 20px; left: 20px; color: #fff; pointer-events: none; z-index: 10; }
         .weapon-tag { font-weight: bold; font-size: 24px; color: #00ffcc; }
+        #overload-info { color: #ff3300; font-weight: bold; margin-top: 5px; visibility: hidden; }
+
+        /* 換武器按鈕 */
         #weapon-btn {
-            position: absolute; right: 40px; bottom: 220px; width: 80px; height: 80px;
-            background: rgba(255, 255, 255, 0.1); border: 2px solid #00ffcc;
-            border-radius: 50%; color: #00ffcc; display: flex; align-items: center;
-            justify-content: center; font-weight: bold; user-select: none;
+            position: absolute;
+            right: 40px;
+            bottom: 220px;
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #00ffcc;
+            border-radius: 50%;
+            color: #00ffcc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            user-select: none;
+            touch-action: manipulation;
+            z-index: 20;
         }
-        #weapon-btn:active { background: rgba(0, 255, 204, 0.4); }
-        #overload-info { color: #ff3300; font-weight: bold; margin-top: 5px; }
-        #status-bar { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); color: #ff3300; font-size: 18px; font-weight: bold; pointer-events: none;}
+        #weapon-btn:active { background: rgba(0, 255, 204, 0.4); transform: scale(0.9); }
+
+        /* 狀態提示 (系統過熱等) */
+        #status-bar { 
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); 
+            color: #ff3300; font-size: 20px; font-weight: bold; pointer-events: none; text-shadow: 0 0 10px #000;
+        }
     </style>
 </head>
 <body>
     <div id="ui">
         <div class="weapon-tag">武器編號: <span id="weapon-id">1</span></div>
-        <div id="overload-info" style="visibility:hidden">超載攻速: +<span id="speed-bonus">0</span>%</div>
+        <div id="overload-info">超載攻速: +<span id="speed-bonus">0</span>%</div>
     </div>
-    <div id="weapon-btn">切換</div>
+    
+    <div id="weapon-btn">換武器</div>
     <div id="status-bar"></div>
+    
     <canvas id="gameCanvas"></canvas>
 
 <script>
 /** * ==========================================
- * 核心參數設定
+ * 1. 武器與平衡參數設定 (可自行修改)
  * ========================================== */
 const WEAPON_CONFIG = {
     1: { id: 1, fireInterval: 10, bulletCount: 1, spread: 0, speed: 12, color: '#fff' },
@@ -43,10 +67,13 @@ const WEAPON_CONFIG = {
     }
 };
 
-const PLAYER_SPEED = 3.0; // 玩家移動速度改為 3.0
-const DEADZONE_LEFT = 20; 
-const DEADZONE_RIGHT = 12; // 右手死區調小至 12
+const PLAYER_SPEED = 3.0; 
+const DEADZONE_LEFT = 20;  
+const DEADZONE_RIGHT = 12; 
 
+/** * ==========================================
+ * 2. 遊戲核心變數
+ * ========================================== */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
@@ -56,17 +83,24 @@ let player = { x: canvas.width/2, y: canvas.height/2 };
 let bullets = [];
 let currentWp = WEAPON_CONFIG[1];
 let fireTimer = 0;
-let wp3IdleStartTime = 0; // 武器三專用的靜止起始時間
+let lastAngle = 0; // 當前射擊方向
+
+// 武器三邏輯計時
+let wp3IdleStartTime = 0; 
 let speedMultiplier = 1.0;
 let overloadFrames = 0;
 let isLocked = false;
 let idleTriggered = false;
 
+// 搖桿物件
 let joyL = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyR = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 
-// 按鈕邏輯
-document.getElementById('weapon-btn').addEventListener('touchstart', (e) => {
+/** * ==========================================
+ * 3. 輸入偵測處理
+ * ========================================== */
+const btn = document.getElementById('weapon-btn');
+btn.addEventListener('touchstart', (e) => {
     e.preventDefault();
     switchWp();
 });
@@ -77,9 +111,11 @@ function switchWp() {
     currentWp = WEAPON_CONFIG[nextId];
     document.getElementById('weapon-id').innerText = currentWp.id;
     
-    // 如果切換到武器三，重置靜止計時器
+    // 進入武器三開始計時靜止時間
     if(currentWp.id === 3) {
         wp3IdleStartTime = Date.now();
+    } else {
+        document.getElementById('overload-info').style.visibility = 'hidden';
     }
     resetOverload();
 }
@@ -88,13 +124,8 @@ function resetOverload() {
     speedMultiplier = 1.0;
     overloadFrames = 0;
     document.getElementById('overload-info').style.visibility = 'hidden';
-    // 只有在移動時才需要重置起始時間，如果是切換武器則在 switchWp 處理
-    if (joyL.active && currentWp.id === 3) {
-        wp3IdleStartTime = Date.now();
-    }
 }
 
-// 事件監聽
 canvas.addEventListener('touchstart', e => {
     for(let t of e.changedTouches) {
         if(t.clientX < canvas.width/2) {
@@ -119,6 +150,9 @@ canvas.addEventListener('touchend', e => {
     }
 });
 
+/** * ==========================================
+ * 4. 戰鬥與物理邏輯
+ * ========================================== */
 function spawnBullet(angle, offset, speed) {
     bullets.push({
         x: player.x + Math.cos(angle + Math.PI/2) * offset,
@@ -131,21 +165,24 @@ function spawnBullet(angle, offset, speed) {
 function update() {
     const now = Date.now();
     
-    // 移動邏輯
+    // 左手移動邏輯
     if(joyL.active) {
         const dx = joyL.x2 - joyL.x1, dy = joyL.y2 - joyL.y1, d = Math.hypot(dx, dy);
         if(d > DEADZONE_LEFT) {
-            player.x += (dx/d) * PLAYER_SPEED; player.y += (dy/d) * PLAYER_SPEED;
-            if(currentWp.id === 3) wp3IdleStartTime = now; // 移動就重置武器三計時
+            player.x += (dx/d) * PLAYER_SPEED;
+            player.y += (dy/d) * PLAYER_SPEED;
+            // 只要移動，武器三的靜止時間就重置
+            if(currentWp.id === 3) wp3IdleStartTime = now;
             idleTriggered = false; 
             resetOverload();
         }
     }
 
-    // 武器三特殊邏輯
+    // 武器三專屬靜止/超載邏輯
     if(currentWp.id === 3 && !isLocked) {
         const idleSec = (now - wp3IdleStartTime)/1000;
         
+        // 進入超載模式 (0.5s)
         if(idleSec >= currentWp.overloadTriggerTime) {
             document.getElementById('overload-info').style.visibility = 'visible';
             overloadFrames++;
@@ -155,37 +192,49 @@ function update() {
             }
         }
         
+        // 觸發全方位大絕 (3s)
         if(idleSec >= currentWp.ultimateTriggerTime && !idleTriggered) {
             const count = Math.floor((120 / (currentWp.fireInterval/speedMultiplier)) * currentWp.ultimateBulletScale);
             for(let i=0; i<count; i++) spawnBullet((i/count)*Math.PI*2, 0, 8);
-            idleTriggered = true; isLocked = true;
-            document.getElementById('status-bar').innerText = "系統過熱！";
-            setTimeout(() => { isLocked = false; document.getElementById('status-bar').innerText = ""; wp3IdleStartTime = Date.now(); }, currentWp.lockoutDuration * 1000);
+            idleTriggered = true; 
+            isLocked = true;
+            document.getElementById('status-bar').innerText = "系統過熱！禁封中...";
+            setTimeout(() => { 
+                isLocked = false; 
+                document.getElementById('status-bar').innerText = ""; 
+                wp3IdleStartTime = Date.now(); 
+            }, currentWp.lockoutDuration * 1000);
             resetOverload();
         }
     }
 
-    // 射擊邏輯
+    // 右手搖桿僅更新方向
     if(joyR.active) {
         const dx = joyR.x2 - joyR.x1, dy = joyR.y2 - joyR.y1, d = Math.hypot(dx, dy);
-        if(d > DEADZONE_RIGHT && !isLocked && fireTimer <= 0) {
-            const angle = Math.atan2(dy, dx);
-            const interval = currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval;
-            
-            if(currentWp.id === 1) spawnBullet(angle, 0, currentWp.speed);
-            else if(currentWp.id === 2) {
-                const start = angle - (currentWp.spread * Math.PI/180)/2;
-                const step = (currentWp.spread * Math.PI/180) / (currentWp.bulletCount - 1);
-                for(let i=0; i<currentWp.bulletCount; i++) spawnBullet(start + i*step, 0, currentWp.speed);
-            }
-            else if(currentWp.id === 3) {
-                spawnBullet(angle, 12, currentWp.speed); spawnBullet(angle, -12, currentWp.speed);
-            }
-            fireTimer = interval;
+        if(d > DEADZONE_RIGHT) {
+            lastAngle = Math.atan2(dy, dx);
         }
     }
 
+    // 全自動射擊 (只要未禁封就根據間隔發射)
+    if (!isLocked && fireTimer <= 0) {
+        const interval = currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval;
+        
+        if(currentWp.id === 1) spawnBullet(lastAngle, 0, currentWp.speed);
+        else if(currentWp.id === 2) {
+            const start = lastAngle - (currentWp.spread * Math.PI/180)/2;
+            const step = (currentWp.spread * Math.PI/180) / (currentWp.bulletCount - 1);
+            for(let i=0; i<currentWp.bulletCount; i++) spawnBullet(start + i*step, 0, currentWp.speed);
+        }
+        else if(currentWp.id === 3) {
+            spawnBullet(lastAngle, 12, currentWp.speed); spawnBullet(lastAngle, -12, currentWp.speed);
+        }
+        fireTimer = interval;
+    }
+
     if(fireTimer > 0) fireTimer--;
+
+    // 邊界與子彈物理
     player.x = Math.max(20, Math.min(canvas.width-20, player.x));
     player.y = Math.max(20, Math.min(canvas.height-20, player.y));
     bullets = bullets.filter(b => {
@@ -194,23 +243,36 @@ function update() {
     });
 }
 
+/** * ==========================================
+ * 5. 繪圖渲染
+ * ========================================== */
 function draw() {
-    ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    // 背景
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
     
-    // 背景裝飾
+    // 背景格線
     ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 1;
     for(let i=0; i<canvas.width; i+=50) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
+    for(let i=0; i<canvas.height; i+=50) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
 
-    // 玩家
-    ctx.fillStyle = isLocked ? '#444' : (currentWp.id === 3 && speedMultiplier > 1.2 ? '#f00' : currentWp.color);
-    ctx.shadowBlur = isLocked ? 0 : 15; ctx.shadowColor = ctx.fillStyle;
+    // 繪製玩家 (武器三超載會有顏色變化)
+    let pColor = currentWp.color;
+    if (isLocked) pColor = '#444';
+    else if (currentWp.id === 3 && speedMultiplier > 1.3) pColor = '#ff3300';
+    
+    ctx.fillStyle = pColor;
+    ctx.shadowBlur = isLocked ? 0 : 15; 
+    ctx.shadowColor = pColor;
     ctx.fillRect(player.x-15, player.y-15, 30, 30);
     ctx.shadowBlur = 0;
 
-    // 子彈
+    // 繪製子彈
     ctx.fillStyle = '#fff';
     bullets.forEach(b => ctx.fillRect(b.x-2, b.y-2, 4, 4));
 
+    // 繪製搖桿視覺
     if(joyL.active) drawJoy(joyL, '#00ccff');
     if(joyR.active) drawJoy(joyR, '#ff3300');
 
@@ -223,6 +285,7 @@ function drawJoy(j, c) {
     ctx.beginPath(); ctx.arc(j.x2, j.y2, 25, 0, 7); ctx.fillStyle = c+'66'; ctx.fill();
 }
 
+// 啟動遊戲
 draw();
 </script>
 </body>
