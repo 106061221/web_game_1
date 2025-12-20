@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <title>生存射擊 - 數值平衡版</title>
+    <title>生存射擊 - 補包系統版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
@@ -46,16 +46,14 @@
 
 <script>
 /** * 終極自動更新邏輯 */
-const GAME_VERSION = "20251220.09"; 
+const GAME_VERSION = "20251221.01"; 
 
 function autoUpdate() {
     const savedVersion = localStorage.getItem('game_version');
     if (savedVersion && savedVersion !== GAME_VERSION) {
         localStorage.setItem('game_version', GAME_VERSION);
         if ('caches' in window) {
-            caches.keys().then(names => {
-                for (let name of names) caches.delete(name);
-            });
+            caches.keys().then(names => { for (let name of names) caches.delete(name); });
         }
         window.location.href = window.location.pathname + '?update=' + GAME_VERSION;
     } else {
@@ -64,7 +62,7 @@ function autoUpdate() {
 }
 autoUpdate();
 
-const BASE_FIRE_INTERVAL = 10; 
+const BASE_FIRE_INTERVAL = 8; // 調成 8
 const WEAPON_CONFIG = {
     1: { id: 1, intervalMult: 1.0, speed: 15, damage: 1.0, color: '#fff' },
     2: { id: 2, intervalMult: 15.0, speed: 15, damage: 1.0, color: '#ffcc00' },
@@ -74,11 +72,11 @@ const WEAPON_CONFIG = {
 Object.values(WEAPON_CONFIG).forEach(wp => wp.fireInterval = wp.intervalMult * BASE_FIRE_INTERVAL);
 
 const ENEMY_CONFIG = {
-    spawnRateBase: 50, 
-    1: { id: 1, speed: 0.2, hpBase: 2, size: 15, color: '#888888', shootInterval: 0, weight: 68.5, score: 50 }, 
-    2: { id: 2, speed: 0.2, hpBase: 4, size: 25, color: '#ff4444', shootInterval: 4, bulletSpeed: 0.6, weight: 15, score: 100 }, 
-    3: { id: 3, speed: 0.2, hpBase: 4, size: 25, color: '#aa00ff', shootInterval: 13, bulletSpeed: 0.6, weight: 15, score: 100 },
-    4: { id: 4, speed: 0.2, hpBase: 40, size: 40, color: '#FFD700', shootInterval: 10, bulletSpeed: 0.6, weight: 1.5, score: 500 } 
+    spawnRateBase: 80, // 調成 80
+    1: { id: 1, speed: 0.2, hpBase: 2, size: 15, color: '#888888', shootInterval: 0, weight: 68.5, score: 50, dropRate: 0 }, 
+    2: { id: 2, speed: 0.2, hpBase: 4, size: 25, color: '#ff4444', shootInterval: 4, bulletSpeed: 0.6, weight: 15, score: 100, dropRate: 0 }, 
+    3: { id: 3, speed: 0.2, hpBase: 4, size: 25, color: '#aa00ff', shootInterval: 13, bulletSpeed: 0.6, weight: 15, score: 100, dropRate: 0 },
+    4: { id: 4, speed: 0.2, hpBase: 40, size: 40, color: '#FFD700', shootInterval: 10, bulletSpeed: 0.6, weight: 1.5, score: 500, dropRate: 1.0 } 
 };
 
 const DIFFICULTY_CONFIG = { threshold: 1000, hpIncrease: 0.05, speedIncrease: 0.05, spawnIncrease: 0.01 };
@@ -93,7 +91,7 @@ window.addEventListener('resize', handleResize);
 handleResize();
 
 let player = { x: canvas.width/2, y: canvas.height/2, hp: 30, size: 21, lastHurtTime: 0 };
-let bullets = [], enemyBullets = [], enemies = [];
+let bullets = [], enemyBullets = [], enemies = [], medkits = [];
 let currentWp = WEAPON_CONFIG[1];
 let fireTimer = 0, spawnTimer = 0, score = 0, difficultyLevel = 0, lastAngle = 0;
 let wp3IdleStartTime = Date.now(), speedMultiplier = 1.0, overloadFrames = 0, isLocked = false, idleTriggered = false;
@@ -231,10 +229,26 @@ function update() {
             let b = bullets[bIdx];
             if(Math.hypot(b.x - en.x, b.y - en.y) < en.size + 4) {
                 en.hp -= b.dmg; en.lastHitTime = now; bullets.splice(bIdx, 1);
-                if(en.hp <= 0) { score += en.score; document.getElementById('score-val').innerText = score; updateDifficulty(); enemies.splice(eIdx, 1); break; }
+                if(en.hp <= 0) { 
+                    score += en.score; 
+                    if(Math.random() < en.dropRate) medkits.push({x: en.x, y: en.y});
+                    document.getElementById('score-val').innerText = score; 
+                    updateDifficulty(); 
+                    enemies.splice(eIdx, 1); break; 
+                }
             }
         }
     }
+    
+    // 補包拾取判定
+    for(let i=medkits.length-1; i>=0; i--) {
+        if(Math.hypot(medkits[i].x - player.x, medkits[i].y - player.y) < player.size) {
+            player.hp += 10;
+            document.getElementById('hp-val').innerText = player.hp;
+            medkits.splice(i, 1);
+        }
+    }
+
     enemyBullets.forEach((eb, i) => { if(Math.hypot(eb.x - player.x, eb.y - player.y) < player.size/2 + 3.6) { takeDamage(); enemyBullets.splice(i, 1); } });
     [bullets, enemyBullets].forEach(arr => {
         for(let i=arr.length-1; i>=0; i--) { arr[i].x += arr[i].vx; arr[i].y += arr[i].vy; if(arr[i].x<0 || arr[i].x>canvas.width || arr[i].y<0 || arr[i].y>canvas.height) arr.splice(i, 1); }
@@ -245,6 +259,13 @@ function update() {
 function draw() {
     const now = Date.now();
     ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    
+    // 繪製補包
+    medkits.forEach(m => {
+        ctx.fillStyle = (Math.floor(now/200)%2) ? '#00ff00' : '#fff';
+        ctx.fillRect(m.x-8, m.y-2, 16, 4); ctx.fillRect(m.x-2, m.y-8, 4, 16);
+    });
+
     enemies.forEach(en => {
         ctx.fillStyle = (now - en.lastHitTime < HIT_FLASH_DURATION) ? '#fff' : en.color;
         if(en.id === 4 && now - en.lastHitTime >= HIT_FLASH_DURATION) { ctx.shadowBlur = 15; ctx.shadowColor = '#FFD700'; }
