@@ -217,7 +217,8 @@ function update() {
             }
         }
         if(idleSec >= currentWp.ultimateTriggerTime && !idleTriggered) {
-            for(let i=0; i<40; i++) spawnBullet((i/40) * Math.PI * 2, 0, 8, false, 0, 0, currentWp.damage);
+            // 已依照指令修改為 10 顆子彈
+            for(let i=0; i<10; i++) spawnBullet((i/10) * Math.PI * 2, 0, 8, false, 0, 0, currentWp.damage);
             idleTriggered = true; isLocked = true; 
             document.getElementById('status-bar').innerText = "系統過熱！";
             setTimeout(() => { 
@@ -261,7 +262,6 @@ function update() {
                     score += en.score; 
                     document.getElementById('score-val').innerText = score; 
                     updateDifficulty(); 
-                    // 掉落補包邏輯
                     if(Math.random() < en.dropRate) drops.push({x: en.x, y: en.y, heal: 10});
                     enemies.splice(eIdx, 1); break; 
                 }
@@ -269,7 +269,6 @@ function update() {
         }
     }
     
-    // 補包碰撞檢測
     drops.forEach((d, i) => {
         if(Math.hypot(d.x - player.x, d.y - player.y) < player.size + 10) {
             player.hp = Math.min(player.maxHp, player.hp + d.heal);
@@ -289,7 +288,6 @@ function draw() {
     const now = Date.now();
     ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
     
-    // 繪製補包
     drops.forEach(d => {
         ctx.fillStyle = '#00ff00';
         ctx.fillRect(d.x-8, d.y-8, 16, 16);
