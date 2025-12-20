@@ -6,7 +6,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>生存射擊 - 瞬移特化版</title>
+    <title>生存射擊 - 瞬移按鈕精調版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
@@ -17,26 +17,24 @@
         .stat-label { font-size: 16px; color: #ffd700; }
         #status-bar { position: absolute; top: 25px; left: 50%; transform: translateX(-50%); color: #ff3300; font-size: 18px; font-weight: bold; pointer-events: none; }
         
-        /* 換武器按鈕 */
+        /* 換武器按鈕 - 保持原樣 */
         #weapon-btn {
-            position: absolute; right: 50px; bottom: 180px; width: 70px; height: 70px;
+            position: absolute; right: 40px; bottom: 180px; width: 75px; height: 75px;
             background: rgba(255, 255, 255, 0.1); border: 2px solid #00ffcc;
             border-radius: 50%; color: #00ffcc; display: flex; align-items: center;
             justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
             backdrop-filter: blur(3px); -webkit-user-select: none;
         }
 
-        /* 瞬移搖桿容器 */
-        #tp-joy-container {
-            position: absolute; right: 40px; bottom: 50px; width: 100px; height: 100px;
-            background: rgba(0, 255, 0, 0.05); border: 1px dashed rgba(0, 255, 0, 0.3);
-            border-radius: 50%; z-index: 20;
+        /* 瞬移按鈕 - 位於換武器的左下角 */
+        #tp-btn {
+            position: absolute; right: 130px; bottom: 80px; width: 75px; height: 75px;
+            background: rgba(0, 255, 0, 0.1); border: 2px solid #00ff00;
+            border-radius: 50%; color: #00ff00; display: flex; align-items: center;
+            justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
+            backdrop-filter: blur(3px); -webkit-user-select: none;
         }
-        #tp-joy-label {
-            position: absolute; top: -25px; width: 100%; text-align: center;
-            color: #00ff00; font-size: 12px; font-weight: bold;
-        }
-        #tp-cooldown-mask {
+        #tp-cd-overlay {
             position: absolute; bottom: 0; left: 0; width: 100%; height: 0%;
             background: rgba(0, 0, 0, 0.6); border-radius: 50%; pointer-events: none;
         }
@@ -59,16 +57,12 @@
     </div>
 
     <div id="weapon-btn">換武器</div>
-    
-    <div id="tp-joy-container">
-        <div id="tp-joy-label">瞬移冷卻中</div>
-        <div id="tp-cooldown-mask"></div>
-    </div>
+    <div id="tp-btn">瞬移<div id="tp-cd-overlay"></div></div>
 
     <canvas id="gameCanvas"></canvas>
 
 <script>
-const GAME_VERSION = "20251221.04"; 
+const GAME_VERSION = "20251221.05"; 
 
 const BASE_FIRE_INTERVAL = 8; 
 const WEAPON_CONFIG = {
@@ -76,7 +70,7 @@ const WEAPON_CONFIG = {
     2: { id: 2, intervalMult: 15.0, speed: 15, damage: 1.0, color: '#ffcc00' },
     3: { id: 3, intervalMult: 2.2, speed: 15, damage: 1.0, color: '#00ccff', 
          overloadTriggerTime: 0.6, overloadIncrement: 0.1, ultimateTriggerTime: 3.6, 
-         ultimateDuration: 1.0, lockoutDuration: 2.0 } // 爆發參數改成 1 秒
+         ultimateDuration: 1.0, lockoutDuration: 2.0 } 
 };
 Object.values(WEAPON_CONFIG).forEach(wp => wp.fireInterval = wp.intervalMult * BASE_FIRE_INTERVAL);
 
@@ -100,22 +94,12 @@ let currentWp = WEAPON_CONFIG[1];
 let fireTimer = 0, spawnTimer = 0, score = 0, difficultyLevel = 0, lastAngle = 0;
 let wp3IdleStartTime = Date.now(), speedMultiplier = 1.0, overloadFrames = 0, isLocked = false, idleTriggered = false;
 
-// 搖桿狀態
+// 搖桿系統
 let joyL = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyR = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
-let joyT = { active: false, cx: 0, cy: 0, currX: 0, currY: 0, id: -1 }; // 瞬移搖桿
-let tpTarget = { x: 0, y: 0 }; 
-let tpCooldown = 0; // 毫秒
-const TP_COOLDOWN_MAX = 3000;
-
-// 初始化瞬移搖桿中心點
-const tpContainer = document.getElementById('tp-joy-container');
-function updateTpJoyPos() {
-    const rect = tpContainer.getBoundingClientRect();
-    joyT.cx = rect.left + rect.width / 2;
-    joyT.cy = rect.top + rect.height / 2;
-}
-updateTpJoyPos();
+let joyT = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 }; // 瞬移操控
+let tpTarget = { x: 0, y: 0 }, tpCooldown = 0;
+const TP_COOLDOWN_TIME = 3000;
 
 function takeDamage() {
     const now = Date.now();
@@ -126,49 +110,47 @@ function takeDamage() {
     }
 }
 
+// 監聽瞬移按鈕觸控
+const tpBtn = document.getElementById('tp-btn');
+tpBtn.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if(tpCooldown > 0) return;
+    const t = e.changedTouches[0];
+    joyT.active = true; joyT.id = t.identifier;
+    joyT.x1 = joyT.x2 = t.clientX; joyT.y1 = joyT.y2 = t.clientY;
+    tpTarget.x = player.x; tpTarget.y = player.y;
+}, {passive: false});
+
 canvas.addEventListener('touchstart', e => {
     e.preventDefault();
     for(let t of e.changedTouches) {
-        const tx = t.clientX, ty = t.clientY;
-        // 判定是否點擊在瞬移搖桿區域
-        const distToTp = Math.hypot(tx - joyT.cx, ty - joyT.cy);
-        if(distToTp < 60 && tpCooldown <= 0) {
-            joyT.active = true; joyT.id = t.identifier; joyT.currX = tx; joyT.currY = ty;
-            tpTarget.x = player.x; tpTarget.y = player.y;
-        } else if(tx < canvas.width/2) { 
-            joyL.active = true; joyL.x1 = joyL.x2 = tx; joyL.y1 = joyL.y2 = ty; joyL.id = t.identifier; 
-        } else { 
-            joyR.active = true; joyR.x1 = joyR.x2 = tx; joyR.y1 = joyR.y2 = ty; joyR.id = t.identifier; 
-        }
+        if(t.clientX < canvas.width/2) { joyL.active = true; joyL.x1 = joyL.x2 = t.clientX; joyL.y1 = joyL.y2 = t.clientY; joyL.id = t.identifier; }
+        else { joyR.active = true; joyR.x1 = joyR.x2 = t.clientX; joyR.y1 = joyR.y2 = t.clientY; joyR.id = t.identifier; }
     }
 }, {passive: false});
 
-canvas.addEventListener('touchmove', e => {
+window.addEventListener('touchmove', e => {
     e.preventDefault();
     for(let t of e.changedTouches) {
         if(joyL.id === t.identifier) { joyL.x2 = t.clientX; joyL.y2 = t.clientY; }
         if(joyR.id === t.identifier) { joyR.x2 = t.clientX; joyR.y2 = t.clientY; }
         if(joyT.id === t.identifier) {
-            joyT.currX = t.clientX; joyT.currY = t.clientY;
-            const dx = joyT.currX - joyT.cx, dy = joyT.currY - joyT.cy;
-            const dist = Math.hypot(dx, dy);
-            // 準星位移量 (最大範圍 300 像素)
-            const moveScale = 4.0;
-            tpTarget.x = player.x + (dx * moveScale);
-            tpTarget.y = player.y + (dy * moveScale);
+            joyT.x2 = t.clientX; joyT.y2 = t.clientY;
+            const dx = joyT.x2 - joyT.x1, dy = joyT.y2 - joyT.y1;
+            tpTarget.x = player.x + dx * 3.5;
+            tpTarget.y = player.y + dy * 3.5;
         }
     }
 }, {passive: false});
 
-canvas.addEventListener('touchend', e => {
+window.addEventListener('touchend', e => {
     for(let t of e.changedTouches) {
         if(joyL.id === t.identifier) { joyL.active = false; joyL.id = -1; }
         if(joyR.id === t.identifier) { joyR.active = false; joyR.id = -1; }
         if(joyT.id === t.identifier) {
-            // 執行瞬移
             player.x = Math.max(20, Math.min(canvas.width-20, tpTarget.x));
             player.y = Math.max(20, Math.min(canvas.height-20, tpTarget.y));
-            tpCooldown = TP_COOLDOWN_MAX;
+            tpCooldown = TP_COOLDOWN_TIME;
             joyT.active = false; joyT.id = -1;
         }
     }
@@ -180,12 +162,15 @@ document.getElementById('weapon-btn').addEventListener('touchstart', e => {
     if(nextId > 3) nextId = 1;
     currentWp = WEAPON_CONFIG[nextId];
     document.getElementById('weapon-id').innerText = currentWp.id;
-    speedMultiplier = 1.0; 
-    wp3IdleStartTime = Date.now();
+    speedMultiplier = 1.0; wp3IdleStartTime = Date.now();
 });
 
-function spawnBullet(angle, speed, isEnemy = false, ex = 0, ey = 0, dmg = 1) {
-    const b = { x: isEnemy ? ex : player.x, y: isEnemy ? ey : player.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, dmg: dmg };
+function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0, dmg = 1) {
+    const b = { 
+        x: isEnemy ? ex : (player.x + Math.cos(angle + Math.PI/2) * offset), 
+        y: isEnemy ? ey : (player.y + Math.sin(angle + Math.PI/2) * offset), 
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, dmg: dmg 
+    };
     if(isEnemy) enemyBullets.push(b); else bullets.push(b);
 }
 
@@ -193,17 +178,12 @@ function update() {
     const now = Date.now();
     const diffBonus = (1 + difficultyLevel * 0.05);
     
-    // 冷卻更新
     if(tpCooldown > 0) {
         tpCooldown -= 16;
-        const percent = (tpCooldown / TP_COOLDOWN_MAX) * 100;
-        document.getElementById('tp-cooldown-mask').style.height = percent + "%";
-        document.getElementById('tp-joy-label').innerText = "冷卻中";
-    } else {
-        document.getElementById('tp-joy-label').innerText = "瞬移可用";
+        document.getElementById('tp-cd-overlay').style.height = (tpCooldown/TP_COOLDOWN_TIME)*100 + "%";
     }
 
-    if(++spawnTimer > (ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * 0.01))) { 
+    if(++spawnTimer > (ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * 0.01))) {
         const side = Math.floor(Math.random() * 4);
         let x, y;
         if(side === 0) { x = Math.random() * canvas.width; y = -50; }
@@ -216,7 +196,6 @@ function update() {
         spawnTimer = 0; 
     }
 
-    // 左搖桿移動
     if(joyL.active) {
         const dx = joyL.x2 - joyL.x1, dy = joyL.y2 - joyL.y1, d = Math.hypot(dx, dy);
         if(d > 2) {
@@ -225,7 +204,6 @@ function update() {
         }
     }
 
-    // 武器 3 特色邏輯
     if(currentWp.id === 3 && !isLocked) {
         const idleSec = (now - wp3IdleStartTime) / 1000;
         if(idleSec >= currentWp.overloadTriggerTime) {
@@ -234,24 +212,23 @@ function update() {
         } else { document.getElementById('overload-info').style.visibility = 'hidden'; }
         
         if(idleSec >= currentWp.ultimateTriggerTime) {
-            const bulletCount = Math.floor(speedMultiplier * currentWp.ultimateDuration * 40); // 縮短至 1 秒但密度增加
-            for(let i=0; i < bulletCount; i++) spawnBullet((i/bulletCount) * Math.PI * 2, 8, false, 0, 0, 1);
+            const bulletCount = Math.floor(speedMultiplier * currentWp.ultimateDuration * 40);
+            for(let i=0; i < bulletCount; i++) spawnBullet((i/bulletCount) * Math.PI * 2, 0, 8, false, 0, 0, 1);
             isLocked = true; document.getElementById('status-bar').innerText = "系統過熱！";
             setTimeout(() => { isLocked = false; document.getElementById('status-bar').innerText = ""; speedMultiplier = 1.0; wp3IdleStartTime = Date.now(); }, 2000);
         }
     }
 
-    if(joyR.active) { lastAngle = Math.atan2(joyR.y2 - joyR.y1, joyR.x2 - joyR.x1); }
+    if(joyR.active) lastAngle = Math.atan2(joyR.y2 - joyR.y1, joyR.x2 - joyR.x1);
 
     if (!isLocked && --fireTimer <= 0) {
         const interval = (currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval) / diffBonus;
-        if(currentWp.id === 1) spawnBullet(lastAngle, currentWp.speed);
-        else if(currentWp.id === 2) for(let i=0; i<15; i++) spawnBullet(lastAngle - (15*Math.PI/180) + i*(2*Math.PI/180), currentWp.speed);
-        else if(currentWp.id === 3) { spawnBullet(lastAngle, currentWp.speed); }
+        if(currentWp.id === 1) spawnBullet(lastAngle, 0, currentWp.speed);
+        else if(currentWp.id === 2) for(let i=0; i<15; i++) spawnBullet(lastAngle - (15*Math.PI/180) + i*(2*Math.PI/180), 0, currentWp.speed);
+        else if(currentWp.id === 3) { spawnBullet(lastAngle, 12, currentWp.speed); spawnBullet(lastAngle, -12, currentWp.speed); }
         fireTimer = interval;
     }
 
-    // 敵我判定
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
         let en = enemies[eIdx]; const dx = player.x - en.x, dy = player.y - en.y, dist = Math.hypot(dx, dy);
         en.x += (dx/dist) * en.speed; en.y += (dy/dist) * en.speed;
@@ -297,30 +274,22 @@ function draw() {
         ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, 7); ctx.fill();
     });
     
-    // 玩家與瞬移準星
     if (!(now - player.lastHurtTime < 250) || Math.floor(now/50) % 2) {
         ctx.fillStyle = isLocked ? '#444' : currentWp.color;
         ctx.fillRect(player.x - 10, player.y - 10, 20, 20);
     }
 
     if(joyT.active) {
-        // 繪製目標準星
         ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(tpTarget.x, tpTarget.y, 25, 0, 7); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(tpTarget.x-30, tpTarget.y); ctx.lineTo(tpTarget.x+30, tpTarget.y); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(tpTarget.x, tpTarget.y-30); ctx.lineTo(tpTarget.x, tpTarget.y+30); ctx.stroke();
-        // 繪製玩家到目標的連線
         ctx.setLineDash([5, 5]); ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(tpTarget.x, tpTarget.y); ctx.stroke(); ctx.setLineDash([]);
     }
 
-    ctx.fillStyle = '#fff'; bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, 7); ctx.fill(); });
-    
+    ctx.fillStyle = '#fff'; bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, 7); ctx.fill(); });
     if(joyL.active) drawJoy(joyL, '#00ccff');
     if(joyR.active) drawJoy(joyR, '#ff3300');
-    if(joyT.active) {
-        // 繪製瞬移搖桿內部按鈕
-        ctx.fillStyle = '#00ff0066'; ctx.beginPath(); ctx.arc(joyT.currX, joyT.currY, 20, 0, 7); ctx.fill();
-    }
 
     update(); requestAnimationFrame(draw);
 }
