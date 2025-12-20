@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生存射擊 - 子彈強化版</title>
+    <title>生存射擊 - 圓形彈幕版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; background: #000; }
@@ -254,7 +254,6 @@ function update() {
 
         for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
             let b = bullets[bIdx];
-            // 修正：玩家子彈判定距離增加 3.5 (半徑的一半)
             if(Math.hypot(b.x - en.x, b.y - en.y) < en.size + 3.5) {
                 en.hp--; bullets.splice(bIdx, 1);
                 if(en.hp <= 0) {
@@ -267,7 +266,6 @@ function update() {
 
     for (let ebIdx = enemyBullets.length - 1; ebIdx >= 0; ebIdx--) {
         let eb = enemyBullets[ebIdx];
-        // 修正：敵人子彈判定距離增加 4 (半徑的一半)
         if (Math.hypot(eb.x - player.x, eb.y - player.y) < player.size/2 + 4) {
             takeDamage(); enemyBullets.splice(ebIdx, 1);
         }
@@ -296,10 +294,21 @@ function draw() {
         ctx.shadowBlur = 0;
     }
 
-    // 玩家子彈：調大至 7x7
-    ctx.fillStyle = '#fff'; bullets.forEach(b => ctx.fillRect(b.x-3.5, b.y-3.5, 7, 7));
-    // 敵人子彈：調大至 8x8
-    ctx.fillStyle = '#f00'; enemyBullets.forEach(b => ctx.fillRect(b.x-4, b.y-4, 8, 8));
+    // 玩家子彈：圓形
+    ctx.fillStyle = '#fff'; 
+    bullets.forEach(b => {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // 敵人子彈：圓形
+    ctx.fillStyle = '#f00'; 
+    enemyBullets.forEach(b => {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+    });
 
     if(joyL.active) drawJoy(joyL, '#00ccff');
     if(joyR.active) drawJoy(joyR, '#ff3300');
