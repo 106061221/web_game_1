@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>生存射擊 - 敵人邏輯全面恢復版</title>
+    <title>生存射擊 - 物理公式與敵人邏輯修正版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
@@ -47,25 +47,21 @@
     <canvas id="gameCanvas"></canvas>
 
 <script>
-const GAME_VERSION = "20251221.13";
-
-// --- 武器核心參數 ---
+// --- 核心配置 ---
 const BASE_FIRE_INTERVAL = 8;
 const WEAPON_CONFIG = {
-    1: { id: 1, intervalMult: 1.0, speed: 15, damage: 1.0, color: '#fff' },
-    2: { id: 2, intervalMult: 15.0, speed: 15, damage: 1.0, color: '#ffcc00' },
-    3: { id: 3, intervalMult: 2.2, speed: 15, damage: 1.0, color: '#00ccff', 
-         overloadTriggerTime: 0.6, overloadIncrement: 0.1, ultimateTriggerTime: 3.6, 
-         ultimateDuration: 1.0, lockoutDuration: 2.0 }
+    1: { id: 1, intervalMult: 1.0, speed: 15, color: '#fff' },
+    2: { id: 2, intervalMult: 15.0, speed: 15, color: '#ffcc00' },
+    3: { id: 3, intervalMult: 2.2, speed: 15, color: '#00ccff', 
+         overloadTriggerTime: 0.6, ultimateTriggerTime: 3.6, ultimateDuration: 1.0 }
 };
 Object.values(WEAPON_CONFIG).forEach(wp => wp.fireInterval = wp.intervalMult * BASE_FIRE_INTERVAL);
 
-// --- 敵人核心參數 (完全恢復原版數據) ---
 const ENEMY_CONFIG = {
     spawnRateBase: 80,
-    1: { id: 1, speed: 0.2, hpBase: 2, size: 15, color: '#888888', shootInterval: 0, weight: 68.5, score: 50, dropRate: 0 },
-    2: { id: 2, speed: 0.2, hpBase: 4, size: 25, color: '#ff4444', shootInterval: 4, bulletSpeed: 0.6, weight: 15, score: 100, dropRate: 0 },
-    3: { id: 3, speed: 0.2, hpBase: 4, size: 25, color: '#aa00ff', shootInterval: 13, bulletSpeed: 0.6, weight: 15, score: 100, dropRate: 0 },
+    1: { id: 1, speed: 0.2, hpBase: 2, size: 15, color: '#888888', shootInterval: 0, weight: 68.5, score: 50 },
+    2: { id: 2, speed: 0.2, hpBase: 4, size: 25, color: '#ff4444', shootInterval: 4, bulletSpeed: 0.6, weight: 15, score: 100 },
+    3: { id: 3, speed: 0.2, hpBase: 4, size: 25, color: '#aa00ff', shootInterval: 13, bulletSpeed: 0.6, weight: 15, score: 100 },
     4: { id: 4, speed: 0.2, hpBase: 40, size: 40, color: '#FFD700', shootInterval: 10, bulletSpeed: 0.6, weight: 1.5, score: 500, dropRate: 1.0 }
 };
 
@@ -79,7 +75,7 @@ let player = { x: canvas.width/2, y: canvas.height/2, hp: 30, maxHp: 30, size: 2
 let bullets = [], enemyBullets = [], enemies = [], medkits = [];
 let currentWp = WEAPON_CONFIG[1];
 let fireTimer = 0, spawnTimer = 0, score = 0, difficultyLevel = 0, lastAngle = 0;
-let wp3IdleStartTime = Date.now(), speedMultiplier = 1.0, overloadFrames = 0, isLocked = false;
+let wp3IdleStartTime = Date.now(), speedMultiplier = 1.0, isLocked = false, overloadFrames = 0;
 
 // 搖桿與瞬移
 let joyL = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
@@ -93,22 +89,22 @@ function takeDamage() {
     if (now - player.lastHurtTime > 250) {
         player.hp--; player.lastHurtTime = now;
         document.getElementById('hp-val').innerText = Math.max(0, player.hp);
-        if (player.hp <= 0) { alert("遊戲結束！分數: " + score); location.reload(); }
+        if (player.hp <= 0) { alert("遊戲結束！"); location.reload(); }
     }
 }
 
-// 換武器
+// --- 事件處理 ---
 document.getElementById('weapon-btn').addEventListener('touchstart', e => {
     e.preventDefault();
-    let nextId = currentWp.id + 1;
-    if(nextId > 3) nextId = 1;
+    let nextId = currentWp.id + 1; if(nextId > 3) nextId = 1;
     currentWp = WEAPON_CONFIG[nextId];
     document.getElementById('weapon-id').innerText = currentWp.id;
-    fireTimer = currentWp.fireInterval / (1 + difficultyLevel * 0.05); // 核心：切換後延遲
+    // 換武器延遲：設為當前應有的射擊間隔
+    const diffBonus = (1 + difficultyLevel * 0.05);
+    fireTimer = currentWp.fireInterval / diffBonus;
     speedMultiplier = 1.0; wp3IdleStartTime = Date.now();
 });
 
-// 瞬移控制
 const tpBtn = document.getElementById('tp-btn');
 tpBtn.addEventListener('touchstart', e => {
     e.preventDefault(); if(tpCooldown > 0) return;
@@ -186,7 +182,7 @@ function update() {
         if(d > 2) { player.x += (dx/d) * 1.5; player.y += (dy/d) * 1.5; if(currentWp.id === 3 && !isLocked) { speedMultiplier = 1.0; wp3IdleStartTime = now; } }
     }
 
-    // 武器 3 邏輯
+    // 武器 3 物理大招公式
     if(currentWp.id === 3 && !isLocked) {
         const idleSec = (now - wp3IdleStartTime) / 1000;
         if(idleSec >= currentWp.overloadTriggerTime) {
@@ -194,6 +190,7 @@ function update() {
             if(++overloadFrames % 12 === 0) { speedMultiplier += 0.1; document.getElementById('speed-bonus').innerText = Math.round((speedMultiplier-1)*100); }
         } else { document.getElementById('overload-info').style.visibility = 'hidden'; }
         if(idleSec >= currentWp.ultimateTriggerTime) {
+            // N = (1 / 當前間隔 * 爆發秒數)
             const currentInterval = (currentWp.fireInterval / speedMultiplier) / diffBonus;
             const bulletCount = Math.floor((currentWp.ultimateDuration * 60) / currentInterval);
             for(let i=0; i < bulletCount; i++) spawnBullet((i/bulletCount) * Math.PI * 2, 0, 8);
@@ -212,13 +209,12 @@ function update() {
         fireTimer = interval;
     }
 
-    // 敵人行為 (恢復移動與射擊)
+    // 敵人移動與射擊 (恢復正常)
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
         let en = enemies[eIdx]; const dx = player.x - en.x, dy = player.y - en.y, dist = Math.hypot(dx, dy);
         en.x += (dx/dist) * en.speed * diffBonus; en.y += (dy/dist) * en.speed * diffBonus;
         if (dist < en.size + player.size/2) takeDamage();
         
-        // 敵人發射子彈
         if (en.shootInterval > 0 && now - en.lastShootTime > (1000 / en.shootInterval) / diffBonus) {
             const angle = Math.atan2(player.y - en.y, player.x - en.x);
             if (en.id === 4) { for(let i=-1; i<=1; i++) spawnBullet(angle + i*0.3, 0, en.bulletSpeed, true, en.x, en.y); }
@@ -230,20 +226,18 @@ function update() {
             if(Math.hypot(bullets[bIdx].x - en.x, bullets[bIdx].y - en.y) < en.size + 5) {
                 en.hp -= 1; en.lastHitTime = now; bullets.splice(bIdx, 1);
                 if(en.hp <= 0) { 
-                    score += en.score; if(Math.random() < en.dropRate) medkits.push({x: en.x, y: en.y});
+                    score += en.score; if(en.dropRate && Math.random() < en.dropRate) medkits.push({x: en.x, y: en.y});
                     document.getElementById('score-val').innerText = score; enemies.splice(eIdx, 1); break; 
                 }
             }
         }
     }
 
-    // 子彈位移與碰撞
+    // 子彈位移
     [bullets, enemyBullets].forEach((arr, isEnemyArr) => {
         for(let i=arr.length-1; i>=0; i--) {
             const b = arr[i]; b.x += b.vx; b.y += b.vy;
-            if(isEnemyArr === 1) { // 敵人子彈打玩家
-                if(Math.hypot(b.x - player.x, b.y - player.y) < player.size/2 + 5) { takeDamage(); arr.splice(i, 1); continue; }
-            }
+            if(isEnemyArr === 1 && Math.hypot(b.x - player.x, b.y - player.y) < player.size/2 + 5) { takeDamage(); arr.splice(i, 1); continue; }
             if(b.x<0 || b.x>canvas.width || b.y<0 || b.y>canvas.height) arr.splice(i, 1);
         }
     });
@@ -256,22 +250,4 @@ function draw() {
     const now = Date.now();
     ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
     medkits.forEach(m => { ctx.fillStyle = (Math.floor(now/200)%2) ? '#00ff00' : '#fff'; ctx.fillRect(m.x-8, m.y-2, 16, 4); ctx.fillRect(m.x-2, m.y-8, 4, 16); });
-    enemies.forEach(en => { ctx.fillStyle = (now - en.lastHitTime < 50) ? '#fff' : en.color; ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, 7); ctx.fill(); });
-    if (!(now - player.lastHurtTime < 250) || Math.floor(now/50) % 2) { ctx.fillStyle = isLocked ? '#444' : currentWp.color; ctx.fillRect(player.x - 10, player.y - 10, 20, 20); }
-    if(joyT.active) {
-        ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tpTarget.x, tpTarget.y, 25, 0, 7); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(tpTarget.x-30, tpTarget.y); ctx.lineTo(tpTarget.x+30, tpTarget.y); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(tpTarget.x, tpTarget.y-30); ctx.lineTo(tpTarget.x, tpTarget.y+30); ctx.stroke();
-        ctx.setLineDash([5, 5]); ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(tpTarget.x, tpTarget.y); ctx.stroke(); ctx.setLineDash([]);
-    }
-    ctx.fillStyle = '#fff'; bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, 7); ctx.fill(); });
-    ctx.fillStyle = '#ff4444'; enemyBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, 7); ctx.fill(); });
-    if(joyL.active) drawJoy(joyL, '#00ccff');
-    if(joyR.active) drawJoy(joyR, '#ff3300');
-    update(); requestAnimationFrame(draw);
-}
-function drawJoy(j, c) { ctx.beginPath(); ctx.arc(j.x1, j.y1, 40, 0, 7); ctx.strokeStyle = c+'33'; ctx.lineWidth=3; ctx.stroke(); ctx.beginPath(); ctx.arc(j.x2, j.y2, 20, 0, 7); ctx.fillStyle = c+'66'; ctx.fill(); }
-draw();
-</script>
-</body>
-</html>
+    enemies.forEach(en => { ctx.fillStyle = (now - en.lastHitTime < 50) ? '#fff' : en.color
