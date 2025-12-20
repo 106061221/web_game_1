@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生存射擊 - 換彈延遲修正版</title>
+    <title>生存射擊 - 極限攻速進化版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; background: #000; }
@@ -38,12 +38,12 @@
 
 <script>
 /** * ==========================================
- * 1. 核心參數設定
+ * 1. 核心參數與成長設定
  * ========================================== */
 const WEAPON_CONFIG = {
-    1: { id: 1, fireInterval: 10, bulletCount: 1, spread: 0, speed: 12, color: '#fff' },
-    2: { id: 2, fireInterval: 150, bulletCount: 15, spread: 30, speed: 10, color: '#ffcc00' },
-    3: { id: 3, fireInterval: 22, bulletCount: 2, speed: 14, color: '#00ccff', overloadTriggerTime: 0.5, overloadTickRate: 0.2, overloadIncrement: 0.1, ultimateTriggerTime: 3.0, ultimateBulletScale: 2.0, lockoutDuration: 2.0 }
+    1: { id: 1, fireInterval: 10, speed: 12, color: '#fff' },
+    2: { id: 2, fireInterval: 150, speed: 10, color: '#ffcc00' },
+    3: { id: 3, fireInterval: 22, speed: 14, color: '#00ccff', overloadTriggerTime: 0.5, overloadIncrement: 0.1, ultimateTriggerTime: 3.0, ultimateBulletScale: 2.0, lockoutDuration: 2.0 }
 };
 
 const ENEMY_CONFIG = {
@@ -56,8 +56,8 @@ const ENEMY_CONFIG = {
 const DIFFICULTY_CONFIG = {
     threshold: 1000,
     hpIncrease: 0.05,
-    speedIncrease: 0.05,
-    spawnIncrease: 0.01
+    speedIncrease: 0.05, // 分數每千分加 5% 攻速
+    spawnIncrease: 0.01  // 分數每千分加 1% 數量
 };
 
 const PLAYER_SPEED = 1.5; 
@@ -66,7 +66,7 @@ const DEADZONE_RIGHT = 2;
 const INVULNERABLE_TIME = 250; 
 
 /** * ==========================================
- * 2. 遊戲核心變數
+ * 2. 遊戲狀態
  * ========================================== */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -83,7 +83,7 @@ let joyL = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyR = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 
 /** * ==========================================
- * 3. 邏輯處理
+ * 3. 核心邏輯
  * ========================================== */
 function updateDifficulty() {
     let newLevel = Math.floor(score / DIFFICULTY_CONFIG.threshold);
@@ -94,17 +94,15 @@ function updateDifficulty() {
     }
 }
 
-// 修正後的換武器邏輯
 function switchWp() {
     let nextId = currentWp.id + 1;
     if(nextId > 3) nextId = 1;
     currentWp = WEAPON_CONFIG[nextId];
     document.getElementById('weapon-id').innerText = currentWp.id;
     
-    // 關鍵修正：換武器後 fireTimer 不設為 0，而是設為該武器的射擊間隔
-    // 同時考慮難度對攻速的加成
-    const difficultyBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
-    fireTimer = currentWp.fireInterval / difficultyBonus;
+    // 修正點：換武器後冷卻該武器的完整間隔（含難度加成），防止狂按刷彈
+    const diffBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
+    fireTimer = currentWp.fireInterval / diffBonus;
 
     resetOverload();
     if(currentWp.id === 3) {
@@ -119,7 +117,6 @@ function resetOverload() {
     speedMultiplier = 1.0; 
     overloadFrames = 0; 
     document.getElementById('overload-info').style.visibility = 'hidden'; 
-    document.getElementById('speed-bonus').innerText = "0";
 }
 
 function takeDamage() {
@@ -132,6 +129,7 @@ function takeDamage() {
     }
 }
 
+// 觸控監聽
 canvas.addEventListener('touchstart', e => {
     for(let t of e.changedTouches) {
         if(t.clientX < canvas.width/2) { joyL.active = true; joyL.x1 = joyL.x2 = t.clientX; joyL.y1 = joyL.y2 = t.clientY; joyL.id = t.identifier; }
@@ -178,10 +176,13 @@ function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0) {
 
 function update() {
     const now = Date.now();
+    const diffBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
     
+    // 敵人生成數量提升
     let currentSpawnInterval = ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease);
     if(++spawnTimer > currentSpawnInterval) { spawnEnemy(); spawnTimer = 0; }
 
+    // 移動與武器3判定
     if(joyL.active) {
         const dx = joyL.x2 - joyL.x1, dy = joyL.y2 - joyL.y1, d = Math.hypot(dx, dy);
         if(d > DEADZONE_LEFT) {
@@ -194,6 +195,7 @@ function update() {
         }
     }
 
+    // 武器三特殊邏輯
     if(currentWp.id === 3) {
         if (isLocked) {
             wp3IdleStartTime = now;
@@ -206,9 +208,12 @@ function update() {
                     document.getElementById('speed-bonus').innerText = Math.round((speedMultiplier-1)*100); 
                 }
             }
+            // 大招觸發：計算極限攻速 (分數加成 x 超載加成)
             if(idleSec >= currentWp.ultimateTriggerTime && !idleTriggered) {
-                const count = Math.floor((120 / (currentWp.fireInterval/speedMultiplier)) * currentWp.ultimateBulletScale);
-                for(let i=0; i<count; i++) spawnBullet((i/count)*Math.PI*2, 0, 8);
+                const limitInterval = (currentWp.fireInterval / speedMultiplier) / diffBonus;
+                const count = Math.floor((120 / limitInterval) * currentWp.ultimateBulletScale);
+                for(let i=0; i<count; i++) spawnBullet((i/count) * Math.PI * 2, 0, 8);
+                
                 idleTriggered = true; isLocked = true;
                 resetOverload();
                 document.getElementById('status-bar').innerText = "系統過熱！";
@@ -226,10 +231,10 @@ function update() {
         if(Math.hypot(dx, dy) > DEADZONE_RIGHT) lastAngle = Math.atan2(dy, dx);
     }
 
-    // 射擊判定
+    // 正常射擊頻率判定
     if (!isLocked && --fireTimer <= 0) {
-        let baseInterval = currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval;
-        const interval = baseInterval / (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
+        const baseInt = currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval;
+        const interval = baseInt / diffBonus;
         
         if(currentWp.id === 1) spawnBullet(lastAngle, 0, currentWp.speed);
         else if(currentWp.id === 2) {
@@ -240,7 +245,7 @@ function update() {
         fireTimer = interval;
     }
 
-    // 敵人與碰撞 (反向迴圈)
+    // 碰撞與敵人更新
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
         let en = enemies[eIdx];
         const dx = player.x - en.x, dy = player.y - en.y, dist = Math.hypot(dx, dy);
@@ -250,9 +255,7 @@ function update() {
         if(en.shootInterval > 0 && now - en.lastShootTime > en.shootInterval * 1000) {
             const ang = Math.atan2(dy, dx);
             if(en.id === 2) spawnBullet(ang, 0, en.bulletSpeed, true, en.x, en.y);
-            else if(en.id === 3) {
-                for(let i=-1; i<=1; i++) spawnBullet(ang + i*15*Math.PI/180, 0, en.bulletSpeed, true, en.x, en.y);
-            }
+            else if(en.id === 3) for(let i=-1; i<=1; i++) spawnBullet(ang + i*15*Math.PI/180, 0, en.bulletSpeed, true, en.x, en.y);
             en.lastShootTime = now;
         }
 
@@ -261,19 +264,15 @@ function update() {
             if(Math.hypot(b.x - en.x, b.y - en.y) < en.size) {
                 en.hp--; bullets.splice(bIdx, 1);
                 if(en.hp <= 0) {
-                    score += en.score;
-                    document.getElementById('score-val').innerText = score;
-                    updateDifficulty();
-                    enemies.splice(eIdx, 1);
-                    break;
+                    score += en.score; document.getElementById('score-val').innerText = score;
+                    updateDifficulty(); enemies.splice(eIdx, 1); break;
                 }
             }
         }
     }
 
     for (let ebIdx = enemyBullets.length - 1; ebIdx >= 0; ebIdx--) {
-        let eb = enemyBullets[ebIdx];
-        if (Math.hypot(eb.x - player.x, eb.y - player.y) < player.size/2) {
+        if (Math.hypot(enemyBullets[ebIdx].x - player.x, enemyBullets[ebIdx].y - player.y) < player.size/2) {
             takeDamage(); enemyBullets.splice(ebIdx, 1);
         }
     }
@@ -291,9 +290,7 @@ function update() {
 
 function draw() {
     ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
-    enemies.forEach(en => {
-        ctx.fillStyle = en.color; ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, 7); ctx.fill();
-    });
+    enemies.forEach(en => { ctx.fillStyle = en.color; ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, 7); ctx.fill(); });
 
     const isInvul = (Date.now() - player.lastHurtTime < INVULNERABLE_TIME);
     if (!isInvul || Math.floor(Date.now()/50) % 2) {
