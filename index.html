@@ -6,7 +6,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>生存射擊 - 等級修正版</title>
+    <title>生存射擊 - 核心邏輯還原版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
@@ -17,6 +17,7 @@
         .stat-label { font-size: 16px; color: #ffd700; }
         #status-bar { position: absolute; top: 25px; left: 50%; transform: translateX(-50%); color: #ff3300; font-size: 18px; font-weight: bold; pointer-events: none; }
         
+        /* 換武器按鈕 */
         #weapon-btn {
             position: absolute; right: 40px; bottom: 180px; width: 75px; height: 75px;
             background: rgba(255, 255, 255, 0.1); border: 2px solid #00ffcc;
@@ -25,6 +26,7 @@
             backdrop-filter: blur(3px); -webkit-user-select: none;
         }
 
+        /* 瞬移按鈕 */
         #tp-btn {
             position: absolute; right: 130px; bottom: 80px; width: 75px; height: 75px;
             background: rgba(0, 255, 0, 0.1); border: 2px solid #00ff00;
@@ -60,8 +62,9 @@
     <canvas id="gameCanvas"></canvas>
 
 <script>
-const GAME_VERSION = "20251221.06"; 
+const GAME_VERSION = "20251221.07"; 
 
+// --- 核心武器參數 (還原至 03 版) ---
 const BASE_FIRE_INTERVAL = 8; 
 const WEAPON_CONFIG = {
     1: { id: 1, intervalMult: 1.0, speed: 15, damage: 1.0, color: '#fff' },
@@ -92,6 +95,7 @@ let currentWp = WEAPON_CONFIG[1];
 let fireTimer = 0, spawnTimer = 0, score = 0, difficultyLevel = 0, lastAngle = 0;
 let wp3IdleStartTime = Date.now(), speedMultiplier = 1.0, overloadFrames = 0, isLocked = false, idleTriggered = false;
 
+// 搖桿與瞬移
 let joyL = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyR = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyT = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
@@ -115,6 +119,7 @@ function takeDamage() {
     }
 }
 
+// 瞬移按鈕事件
 const tpBtn = document.getElementById('tp-btn');
 tpBtn.addEventListener('touchstart', e => {
     e.preventDefault();
@@ -168,6 +173,7 @@ document.getElementById('weapon-btn').addEventListener('touchstart', e => {
     speedMultiplier = 1.0; wp3IdleStartTime = Date.now();
 });
 
+// --- 還原 spawnBullet (包含偏移量) ---
 function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0, dmg = 1) {
     const b = { 
         x: isEnemy ? ex : (player.x + Math.cos(angle + Math.PI/2) * offset), 
@@ -180,8 +186,7 @@ function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0, dmg 
 function update() {
     const now = Date.now();
     const diffBonus = (1 + difficultyLevel * 0.05);
-    
-    updateDifficulty(); // 修正：恢復等級更新檢測
+    updateDifficulty();
 
     if(tpCooldown > 0) {
         tpCooldown -= 16;
@@ -217,7 +222,8 @@ function update() {
         } else { document.getElementById('overload-info').style.visibility = 'hidden'; }
         
         if(idleSec >= currentWp.ultimateTriggerTime) {
-            const bulletCount = Math.floor(speedMultiplier * currentWp.ultimateDuration * 40);
+            // --- 還原大爆炸邏輯 ---
+            const bulletCount = Math.floor(speedMultiplier * currentWp.ultimateDuration * 10);
             for(let i=0; i < bulletCount; i++) spawnBullet((i/bulletCount) * Math.PI * 2, 0, 8, false, 0, 0, 1);
             isLocked = true; document.getElementById('status-bar').innerText = "系統過熱！";
             setTimeout(() => { isLocked = false; document.getElementById('status-bar').innerText = ""; speedMultiplier = 1.0; wp3IdleStartTime = Date.now(); }, 2000);
@@ -230,10 +236,12 @@ function update() {
         const interval = (currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval) / diffBonus;
         if(currentWp.id === 1) spawnBullet(lastAngle, 0, currentWp.speed);
         else if(currentWp.id === 2) for(let i=0; i<15; i++) spawnBullet(lastAngle - (15*Math.PI/180) + i*(2*Math.PI/180), 0, currentWp.speed);
+        // --- 還原武器 3 偏移量 ---
         else if(currentWp.id === 3) { spawnBullet(lastAngle, 12, currentWp.speed); spawnBullet(lastAngle, -12, currentWp.speed); }
         fireTimer = interval;
     }
 
+    // 敵人移動與判定 (包含等級加成)
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
         let en = enemies[eIdx]; const dx = player.x - en.x, dy = player.y - en.y, dist = Math.hypot(dx, dy);
         en.x += (dx/dist) * en.speed * (1 + difficultyLevel * 0.05); en.y += (dy/dist) * en.speed * (1 + difficultyLevel * 0.05);
