@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>雙搖桿射擊遊戲 - 最終微調版</title>
+    <title>雙搖桿射擊遊戲 - 簡約版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: Arial; touch-action: none; }
         canvas { display: block; background: #000; border: 5px solid #333; box-sizing: border-box; }
@@ -13,7 +13,7 @@
 <body>
     <div id="ui">
         <div>武器編號: <span id="weapon-id">1</span></div>
-        <div style="margin-top:5px; font-size: 12px; color: #aaa;">左手連點兩下：換武器<br>移動死區：已加大</div>
+        <div style="margin-top:5px; font-size: 12px; color: #aaa;">右手連點兩下：換武器<br>右手搖桿：控制射擊方向</div>
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -26,36 +26,34 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 // 遊戲狀態
-const player = { x: canvas.width/2, y: canvas.height/2, size: 20, speed: 2.5, color: '#00ccff' }; // 速度調慢
-const crosshair = { x: canvas.width/2, y: canvas.height/2, size: 10, color: '#ff0000' };
+const player = { x: canvas.width/2, y: canvas.height/2, size: 20, speed: 3.5, color: '#00ccff' };
 let bullets = [];
 let weaponIndex = 0; 
-const deadzone = 40; // 不反應位移量加大
+const deadzone = 40; 
 
 // 搖桿與點擊狀態
 let leftJoystick = { active: false, startX: 0, startY: 0, currX: 0, currY: 0 };
 let rightJoystick = { active: false, startX: 0, startY: 0, currX: 0, currY: 0 };
-let lastLeftTouchTime = 0; // 用於偵測連點
+let lastRightTouchTime = 0; // 用於偵測右手連點
 
 canvas.addEventListener('touchstart', (e) => {
     const now = Date.now();
     for (let touch of e.changedTouches) {
         if (touch.clientX < canvas.width / 2) {
-            // 左半邊處理
+            // 左半邊：移動
             leftJoystick.active = true;
             leftJoystick.startX = leftJoystick.currX = touch.clientX;
             leftJoystick.startY = leftJoystick.currY = touch.clientY;
-            
-            // 偵測連點兩下 (300ms 內)
-            if (now - lastLeftTouchTime < 300) {
-                switchWeapon();
-            }
-            lastLeftTouchTime = now;
         } else {
-            // 右半邊處理
+            // 右半邊：射擊方向 + 連點換武器
             rightJoystick.active = true;
             rightJoystick.startX = rightJoystick.currX = touch.clientX;
             rightJoystick.startY = rightJoystick.currY = touch.clientY;
+            
+            if (now - lastRightTouchTime < 300) {
+                switchWeapon();
+            }
+            lastRightTouchTime = now;
         }
     }
 });
@@ -85,11 +83,7 @@ function switchWeapon() {
     weaponText.innerText = weaponIndex + 1;
 }
 
-function fire() {
-    const dx = crosshair.x - player.x;
-    const dy = crosshair.y - player.y;
-    const angle = Math.atan2(dy, dx);
-
+function fire(angle) {
     if (weaponIndex === 0) {
         createBullet(angle);
     } else if (weaponIndex === 1) {
@@ -113,38 +107,31 @@ function createBullet(angle, offset = 0) {
 
 let frameCount = 0;
 function update() {
-    // 1. 移動玩家 (左搖桿 + 加大死區)
+    // 1. 移動玩家
     if (leftJoystick.active) {
         const dx = leftJoystick.currX - leftJoystick.startX;
         const dy = leftJoystick.currY - leftJoystick.startY;
         const dist = Math.hypot(dx, dy);
-        
         if (dist > deadzone) {
-            // 從死區邊緣開始計算移動量，讓動作更平滑
-            const moveDist = dist - deadzone;
             player.x += (dx / dist) * player.speed;
             player.y += (dy / dist) * player.speed;
         }
     }
 
-    // 2. 移動準星 (右搖桿)
+    // 2. 射擊方向控制 (右搖桿)
     if (rightJoystick.active) {
         const dx = rightJoystick.currX - rightJoystick.startX;
         const dy = rightJoystick.currY - rightJoystick.startY;
         const dist = Math.hypot(dx, dy);
-        if (dist > 5) {
-            crosshair.x = player.x + (dx / dist) * 180;
-            crosshair.y = player.y + (dy / dist) * 180;
-            if (frameCount % 10 === 0) fire(); 
+        if (dist > 10) {
+            const angle = Math.atan2(dy, dx);
+            if (frameCount % 8 === 0) fire(angle); 
         }
-    } else {
-        crosshair.x = player.x;
-        crosshair.y = player.y;
     }
 
     // 邊界限制
-    player.x = Math.max(30, Math.min(canvas.width - 30, player.x));
-    player.y = Math.max(30, Math.min(canvas.height - 30, player.y));
+    player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
+    player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
 
     // 更新子彈
     for (let i = bullets.length - 1; i >= 0; i--) {
@@ -161,20 +148,6 @@ function update() {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // 畫準星
-    if (rightJoystick.active) {
-        ctx.strokeStyle = "rgba(255, 0, 0, 0.8)";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(crosshair.x, crosshair.y, 12, 0, Math.PI*2);
-        ctx.stroke();
-        // 畫準星準心
-        ctx.beginPath();
-        ctx.moveTo(crosshair.x - 5, crosshair.y); ctx.lineTo(crosshair.x + 5, crosshair.y);
-        ctx.moveTo(crosshair.x, crosshair.y - 5); ctx.lineTo(crosshair.x, crosshair.y + 5);
-        ctx.stroke();
-    }
-
     // 畫玩家
     ctx.fillStyle = player.color;
     ctx.shadowBlur = 10;
@@ -183,18 +156,11 @@ function draw() {
     ctx.shadowBlur = 0;
 
     // 畫子彈
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = '#ff0';
     bullets.forEach(b => ctx.fillRect(b.x - 3, b.y - 3, 6, 6));
 
-    // 畫搖桿視覺 (死區視覺提示)
-    if (leftJoystick.active) {
-        drawJoystick(leftJoystick, "#00ccff");
-        // 額外畫出死區範圍
-        ctx.beginPath();
-        ctx.arc(leftJoystick.startX, leftJoystick.startY, deadzone, 0, Math.PI*2);
-        ctx.strokeStyle = "rgba(255,255,255,0.05)";
-        ctx.stroke();
-    }
+    // 畫搖桿提示
+    if (leftJoystick.active) drawJoystick(leftJoystick, "#00ccff");
     if (rightJoystick.active) drawJoystick(rightJoystick, "#ff0000");
 
     update();
@@ -212,8 +178,6 @@ function drawJoystick(joy, color) {
     ctx.arc(joy.currX, joy.currY, 25, 0, Math.PI*2);
     ctx.fillStyle = color + "44";
     ctx.fill();
-    ctx.strokeStyle = color;
-    ctx.stroke();
 }
 
 draw();
