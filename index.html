@@ -250,4 +250,22 @@ function draw() {
     const now = Date.now();
     ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
     medkits.forEach(m => { ctx.fillStyle = (Math.floor(now/200)%2) ? '#00ff00' : '#fff'; ctx.fillRect(m.x-8, m.y-2, 16, 4); ctx.fillRect(m.x-2, m.y-8, 4, 16); });
-    enemies.forEach(en => { ctx.fillStyle = (now - en.lastHitTime < 50) ? '#fff' : en.color
+    enemies.forEach(en => { ctx.fillStyle = (now - en.lastHitTime < 50) ? '#fff' : en.color; ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, 7); ctx.fill(); });
+    if (!(now - player.lastHurtTime < 250) || Math.floor(now/50) % 2) { ctx.fillStyle = isLocked ? '#444' : currentWp.color; ctx.fillRect(player.x - 10, player.y - 10, 20, 20); }
+    if(joyT.active) {
+        ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tpTarget.x, tpTarget.y, 25, 0, 7); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(tpTarget.x-30, tpTarget.y); ctx.lineTo(tpTarget.x+30, tpTarget.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(tpTarget.x, tpTarget.y-30); ctx.lineTo(tpTarget.x, tpTarget.y+30); ctx.stroke();
+        ctx.setLineDash([5, 5]); ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(tpTarget.x, tpTarget.y); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.fillStyle = '#fff'; bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, 7); ctx.fill(); });
+    ctx.fillStyle = '#ff4444'; enemyBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, 7); ctx.fill(); });
+    if(joyL.active) drawJoy(joyL, '#00ccff');
+    if(joyR.active) drawJoy(joyR, '#ff3300');
+    update(); requestAnimationFrame(draw);
+}
+function drawJoy(j, c) { ctx.beginPath(); ctx.arc(j.x1, j.y1, 40, 0, 7); ctx.strokeStyle = c+'33'; ctx.lineWidth=3; ctx.stroke(); ctx.beginPath(); ctx.arc(j.x2, j.y2, 20, 0, 7); ctx.fillStyle = c+'66'; ctx.fill(); }
+draw();
+</script>
+</body>
+</html>
