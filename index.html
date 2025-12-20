@@ -6,7 +6,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>生存射擊 - 瞬移按鈕精調版</title>
+    <title>生存射擊 - 等級修正版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
@@ -17,7 +17,6 @@
         .stat-label { font-size: 16px; color: #ffd700; }
         #status-bar { position: absolute; top: 25px; left: 50%; transform: translateX(-50%); color: #ff3300; font-size: 18px; font-weight: bold; pointer-events: none; }
         
-        /* 換武器按鈕 - 保持原樣 */
         #weapon-btn {
             position: absolute; right: 40px; bottom: 180px; width: 75px; height: 75px;
             background: rgba(255, 255, 255, 0.1); border: 2px solid #00ffcc;
@@ -26,7 +25,6 @@
             backdrop-filter: blur(3px); -webkit-user-select: none;
         }
 
-        /* 瞬移按鈕 - 位於換武器的左下角 */
         #tp-btn {
             position: absolute; right: 130px; bottom: 80px; width: 75px; height: 75px;
             background: rgba(0, 255, 0, 0.1); border: 2px solid #00ff00;
@@ -62,7 +60,7 @@
     <canvas id="gameCanvas"></canvas>
 
 <script>
-const GAME_VERSION = "20251221.05"; 
+const GAME_VERSION = "20251221.06"; 
 
 const BASE_FIRE_INTERVAL = 8; 
 const WEAPON_CONFIG = {
@@ -94,12 +92,19 @@ let currentWp = WEAPON_CONFIG[1];
 let fireTimer = 0, spawnTimer = 0, score = 0, difficultyLevel = 0, lastAngle = 0;
 let wp3IdleStartTime = Date.now(), speedMultiplier = 1.0, overloadFrames = 0, isLocked = false, idleTriggered = false;
 
-// 搖桿系統
 let joyL = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyR = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
-let joyT = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 }; // 瞬移操控
+let joyT = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let tpTarget = { x: 0, y: 0 }, tpCooldown = 0;
 const TP_COOLDOWN_TIME = 3000;
+
+function updateDifficulty() {
+    let newLevel = Math.floor(score / 1000);
+    if (newLevel > difficultyLevel) {
+        difficultyLevel = newLevel;
+        document.getElementById('level-val').innerText = difficultyLevel;
+    }
+}
 
 function takeDamage() {
     const now = Date.now();
@@ -110,7 +115,6 @@ function takeDamage() {
     }
 }
 
-// 監聽瞬移按鈕觸控
 const tpBtn = document.getElementById('tp-btn');
 tpBtn.addEventListener('touchstart', e => {
     e.preventDefault();
@@ -136,9 +140,8 @@ window.addEventListener('touchmove', e => {
         if(joyR.id === t.identifier) { joyR.x2 = t.clientX; joyR.y2 = t.clientY; }
         if(joyT.id === t.identifier) {
             joyT.x2 = t.clientX; joyT.y2 = t.clientY;
-            const dx = joyT.x2 - joyT.x1, dy = joyT.y2 - joyT.y1;
-            tpTarget.x = player.x + dx * 3.5;
-            tpTarget.y = player.y + dy * 3.5;
+            tpTarget.x = player.x + (joyT.x2 - joyT.x1) * 3.5;
+            tpTarget.y = player.y + (joyT.y2 - joyT.y1) * 3.5;
         }
     }
 }, {passive: false});
@@ -178,6 +181,8 @@ function update() {
     const now = Date.now();
     const diffBonus = (1 + difficultyLevel * 0.05);
     
+    updateDifficulty(); // 修正：恢復等級更新檢測
+
     if(tpCooldown > 0) {
         tpCooldown -= 16;
         document.getElementById('tp-cd-overlay').style.height = (tpCooldown/TP_COOLDOWN_TIME)*100 + "%";
@@ -231,7 +236,7 @@ function update() {
 
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
         let en = enemies[eIdx]; const dx = player.x - en.x, dy = player.y - en.y, dist = Math.hypot(dx, dy);
-        en.x += (dx/dist) * en.speed; en.y += (dy/dist) * en.speed;
+        en.x += (dx/dist) * en.speed * (1 + difficultyLevel * 0.05); en.y += (dy/dist) * en.speed * (1 + difficultyLevel * 0.05);
         if (dist < en.size + player.size/2) takeDamage();
         for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
             if(Math.hypot(bullets[bIdx].x - en.x, bullets[bIdx].y - en.y) < en.size + 5) {
