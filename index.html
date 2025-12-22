@@ -76,7 +76,7 @@ const ENEMY_CONFIG = {
 };
 
 const DIFFICULTY_CONFIG = { threshold: 1000, hpIncrease: 0.05, speedIncrease: 0.05, spawnIncrease: 0.01 };
-const PLAYER_SPEED = 1.5; 
+const PLAYER_SPEED = 1.2; 
 const INVULNERABLE_TIME = 250; 
 const HIT_FLASH_DURATION = 50; 
 
@@ -86,7 +86,7 @@ function handleResize() { canvas.width = window.innerWidth; canvas.height = wind
 window.addEventListener('resize', handleResize);
 handleResize();
 
-let player = { x: canvas.width/2, y: canvas.height/2, hp: 30, maxHp: 30, size: 21, lastHurtTime: 0 };
+let player = { x: canvas.width/2, y: canvas.height/2, hp: 30, maxHp: 30, size: 17, lastHurtTime: 0 };
 let bullets = [], enemyBullets = [], enemies = [], drops = [];
 let currentWp = WEAPON_CONFIG[1];
 let fireTimer = 0, spawnTimer = 0, score = 0, difficultyLevel = 0, lastAngle = 0;
@@ -314,7 +314,7 @@ function draw() {
 
     if (!(Date.now() - player.lastHurtTime < INVULNERABLE_TIME) || Math.floor(now/50) % 2) {
         let pColor = isLocked ? '#444' : (currentWp.id === 3 && document.getElementById('overload-info').style.visibility === 'visible' ? '#ff3300' : currentWp.color);
-        ctx.fillStyle = pColor; ctx.fillRect(player.x - 10, player.y - 10, 20, 20);
+        ctx.fillStyle = pColor; ctx.fillRect(player.x - 8, player.y - 8, 16, 16);
     }
     ctx.fillStyle = '#fff'; bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, 7); ctx.fill(); });
     ctx.fillStyle = '#f00'; enemyBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, 7); ctx.fill(); });
