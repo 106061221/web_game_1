@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <title>生存射擊 - 橫向 碰撞修正版</title>
+    <title>生存射擊 - 橫向 碰撞與字體優化版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
@@ -20,7 +20,7 @@
         #status-bar { 
             position: absolute; 
             top: 40%; left: 50%; transform: translate(-50%, -50%); 
-            color: #ff3300; font-size: 16px; font-weight: bold; pointer-events: none; 
+            color: #ff3300; font-size: 18px; font-weight: bold; pointer-events: none; 
             text-align: center; white-space: pre-wrap; line-height: 1.2;
             text-shadow: 2px 2px 4px #000;
         }
@@ -386,7 +386,7 @@ function update() {
     if(boss) {
         for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
             let b = bullets[bIdx];
-            if(Math.abs(b.x - boss.x) < boss.size && Math.abs(b.y - boss.y) < boss.size) {
+            if(Math.abs(b.x - boss.x) < boss.size + 3 && Math.abs(b.y - boss.y) < boss.size + 3) {
                 boss.hp -= b.dmg;
                 boss.lastHitTime = now;
                 bullets.splice(bIdx, 1);
@@ -423,7 +423,7 @@ function update() {
         
         for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
             let b = bullets[bIdx];
-            if(Math.hypot(b.x - en.x, b.y - en.y) < en.size + 4) {
+            if(Math.hypot(b.x - en.x, b.y - en.y) < en.size + 3) {
                 en.hp -= b.dmg;
                 en.lastHitTime = now;
                 bullets.splice(bIdx, 1);
@@ -448,7 +448,7 @@ function update() {
     });
 
     enemyBullets.forEach((eb, i) => {
-        if(Math.hypot(eb.x - player.x, eb.y - player.y) < player.size/2 + 4) {
+        if(Math.hypot(eb.x - player.x, eb.y - player.y) < player.size/2 + 3) {
             takeDamage();
             enemyBullets.splice(i, 1);
         }
@@ -527,9 +527,9 @@ function draw() {
     }
     
     ctx.fillStyle = '#fff';
-    bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, 7); ctx.fill(); });
+    bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, 7); ctx.fill(); });
     ctx.fillStyle = '#f00';
-    enemyBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, 7); ctx.fill(); });
+    enemyBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, 7); ctx.fill(); });
     
     if(joyL.active) drawJoy(joyL, '#00ccff');
     if(joyR.active) drawJoy(joyR, '#ff3300');
