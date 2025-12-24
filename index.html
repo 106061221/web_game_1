@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <title>生存射擊 - 橫向 補包更新版</title>
+    <title>生存射擊 - 橫向 碰撞修正版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
@@ -20,7 +20,7 @@
         #status-bar { 
             position: absolute; 
             top: 40%; left: 50%; transform: translate(-50%, -50%); 
-            color: #ff3300; font-size: 26px; font-weight: bold; pointer-events: none; 
+            color: #ff3300; font-size: 16px; font-weight: bold; pointer-events: none; 
             text-align: center; white-space: pre-wrap; line-height: 1.2;
             text-shadow: 2px 2px 4px #000;
         }
@@ -132,12 +132,12 @@ function triggerBossTransition(id) {
     
     let countdown = 5;
     const bar = document.getElementById('status-bar');
-    bar.innerText = "WARNING!!!\nBOSS ARRIVING IN " + countdown + " sec";
+    bar.innerText = "WARNING!!!\nBOSS ARRIVING IN " + countdown + " SEC";
     
     const timer = setInterval(() => {
         countdown--;
         if(countdown > 0) {
-            bar.innerText = "WARNING!!!\nBOSS ARRIVING IN " + countdown + " sec";
+            bar.innerText = "WARNING!!!\nBOSS ARRIVING IN " + countdown + " SEC";
         } else {
             clearInterval(timer);
             bar.innerText = "";
@@ -386,7 +386,7 @@ function update() {
     if(boss) {
         for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
             let b = bullets[bIdx];
-            if(Math.hypot(b.x - boss.x, b.y - boss.y) < boss.size) {
+            if(Math.abs(b.x - boss.x) < boss.size && Math.abs(b.y - boss.y) < boss.size) {
                 boss.hp -= b.dmg;
                 boss.lastHitTime = now;
                 bullets.splice(bIdx, 1);
