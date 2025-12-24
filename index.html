@@ -95,7 +95,7 @@ const BOSS_CONFIG = {
 const DIFFICULTY_CONFIG = { threshold: 1000, hpIncrease: 0.05, speedIncrease: 0.05, spawnIncrease: 0.01 };
 const PLAYER_SPEED = 1.5; 
 const INVULNERABLE_TIME = 250; 
-const HIT_FLASH_DURATION = 35; 
+const HIT_FLASH_DURATION = 20; 
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -494,7 +494,9 @@ function draw() {
         ctx.fillStyle = (now - boss.lastHitTime < HIT_FLASH_DURATION) ? 'rgba(255, 255, 255, 0.45)' : boss.color;
         ctx.shadowBlur = 15;
         ctx.shadowColor = '#fff';
-        ctx.fillRect(boss.x - boss.size, boss.y - boss.size, boss.size * 2, boss.size * 2);
+        ctx.beginPath();
+        ctx.roundRect(boss.x - boss.size, boss.y - boss.size, boss.size * 2, boss.size * 2, 12);
+        ctx.fill();
         ctx.shadowBlur = 0;
         
         ctx.fillStyle = '#444';
