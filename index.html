@@ -7,10 +7,27 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <title>生存射擊 - 雙端兼容版</title>
+    <title>生存射擊 - UI 完整版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
+        
+        /* UI 面板樣式 */
+        .ui-panel {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); z-index: 100;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: #fff; text-align: center; backdrop-filter: blur(5px);
+        }
+        .ui-panel h1 { font-size: 42px; color: #00ffcc; margin-bottom: 10px; text-shadow: 0 0 15px rgba(0,255,204,0.5); }
+        .ui-panel p { font-size: 20px; margin-bottom: 30px; color: #ffd700; }
+        .ui-panel button {
+            padding: 15px 50px; font-size: 22px; background: #00ffcc; border: none;
+            border-radius: 40px; color: #000; font-weight: bold; cursor: pointer;
+            transition: transform 0.2s; box-shadow: 0 5px 15px rgba(0,255,204,0.3);
+        }
+        .ui-panel button:active { transform: scale(0.95); }
+
         #ui-left { position: absolute; top: 20px; left: 30px; color: #fff; pointer-events: none; z-index: 10; }
         #ui-right { position: absolute; top: 20px; right: 30px; text-align: right; color: #fff; pointer-events: none; z-index: 10; }
         .weapon-tag { font-weight: bold; font-size: 22px; color: #00ffcc; }
@@ -42,11 +59,24 @@
         #tp-cd-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); pointer-events: none; transform: scaleY(0); transform-origin: bottom; }
         
         @media screen and (orientation: portrait) { #landscape-hint { display: flex; } }
-        #landscape-hint { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; color: #fff; z-index: 100; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        #landscape-hint { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; color: #fff; z-index: 200; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
     </style>
 </head>
 <body>
     <div id="landscape-hint"><h2>請旋轉手機至橫向</h2><p>並關閉直排鎖定</p></div>
+
+    <div id="start-screen" class="ui-panel">
+        <h1>生存射擊</h1>
+        <p>滑動左側移動 / 右側瞄準射擊</p>
+        <button onclick="startGame()">開始遊戲</button>
+    </div>
+
+    <div id="end-screen" class="ui-panel" style="display: none;">
+        <h1>遊戲結束</h1>
+        <p>最終分數: <span id="final-score">0</span></p>
+        <button onclick="location.reload()">重新開始</button>
+    </div>
+
     <div id="ui-left">
         <div id="hp-bar">HP: <span id="hp-val">30</span></div>
         <div id="overload-info">超載攻速: +<span id="speed-bonus">0</span>%</div>
@@ -57,7 +87,7 @@
         <div class="stat-label">SCORE: <span id="score-val">0</span></div>
         <div class="stat-label">LV: <span id="level-val">0</span></div>
     </div>
-    <div id="weapon-btn">換武器 (E)</div>
+    <div id="weapon-btn">換武器</div>
     <div id="tp-btn">瞬移<div id="tp-cd-overlay"></div></div>
     <canvas id="gameCanvas"></canvas>
 
@@ -84,12 +114,7 @@ const BOSS_CONFIG = {
     101: { 
         id: 101, hpBase: 200, size: 50, color: '#8B0000', score: 5000, triggerScore: 100,
         behavior: {
-            targetY: 120,          
-            entrySpeed: 1.5,       
-            swingRange: 0.3,       
-            swingSpeed: 0.01,      
-            shootDelay: 1000,      
-            bulletSpeed: 1.2       
+            targetY: 120, entrySpeed: 1.5, swingRange: 0.3, swingSpeed: 0.01, shootDelay: 1000, bulletSpeed: 1.2       
         }
     }
 };
@@ -105,6 +130,7 @@ function handleResize() { canvas.width = window.innerWidth; canvas.height = wind
 window.addEventListener('resize', handleResize);
 handleResize();
 
+let isGameRunning = false; // 遊戲運行狀態
 let lastTime = 0;
 let boss = null, isTransitioning = false, b101Triggered = false;
 let player = { x: canvas.width/2, y: canvas.height/2, hp: 30, maxHp: 30, size: 17, lastHurtTime: 0 };
@@ -118,17 +144,26 @@ let joyT = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let tpTarget = { x: 0, y: 0 }, tpCooldown = 0;
 const TP_COOLDOWN_TIME = 3000;
 
+function startGame() {
+    document.getElementById('start-screen').style.display = 'none';
+    isGameRunning = true;
+    lastTime = performance.now();
+    wp3IdleStartTime = Date.now();
+}
+
+function showEndScreen() {
+    isGameRunning = false;
+    document.getElementById('final-score').innerText = score;
+    document.getElementById('end-screen').style.display = 'flex';
+}
+
 function updateDifficulty() {
     let newLevel = Math.floor(score / DIFFICULTY_CONFIG.threshold);
-    if (newLevel > difficultyLevel) {
-        difficultyLevel = newLevel;
-        document.getElementById('level-val').innerText = difficultyLevel;
-    }
+    if (newLevel > difficultyLevel) { difficultyLevel = newLevel; document.getElementById('level-val').innerText = difficultyLevel; }
 }
 
 function triggerBossTransition(id) {
-    isTransitioning = true;
-    enemies = []; enemyBullets = [];
+    isTransitioning = true; enemies = []; enemyBullets = [];
     drops.push({x: canvas.width / 2, y: canvas.height / 2, heal: 10});
     let countdown = 5;
     const bar = document.getElementById('status-bar');
@@ -157,21 +192,18 @@ function switchWp() {
     if(currentWp.id === 3) { wp3IdleStartTime = Date.now(); idleTriggered = false; isLocked = false; document.getElementById('status-bar').innerText = ""; }
 }
 
-function resetOverload() { 
-    speedMultiplier = 1.0; overloadFrames = 0; wp3IdleStartTime = Date.now();
-    document.getElementById('overload-info').style.visibility = 'hidden'; 
-    document.getElementById('speed-bonus').innerText = "0";
-}
+function resetOverload() { speedMultiplier = 1.0; overloadFrames = 0; wp3IdleStartTime = Date.now(); document.getElementById('overload-info').style.visibility = 'hidden'; document.getElementById('speed-bonus').innerText = "0"; }
 
 function takeDamage() {
     const now = Date.now();
     if (now - player.lastHurtTime > INVULNERABLE_TIME) {
         player.hp--; player.lastHurtTime = now;
         document.getElementById('hp-val').innerText = Math.max(0, player.hp);
-        if (player.hp <= 0) { alert("遊戲結束！分數: " + score); location.reload(); }
+        if (player.hp <= 0) { showEndScreen(); }
     }
 }
 
+// 事件監聽 (維持原樣)
 const tpBtn = document.getElementById('tp-btn');
 tpBtn.addEventListener('touchstart', e => {
     e.preventDefault(); if(tpCooldown > 0) return;
@@ -204,8 +236,7 @@ window.addEventListener('touchend', e => {
         if(joyL.id === t.identifier) { joyL.active = false; joyL.id = -1; }
         if(joyR.id === t.identifier) { joyR.active = false; joyR.id = -1; }
         if(joyT.id === t.identifier) {
-            player.x = Math.max(20, Math.min(canvas.width-20, tpTarget.x));
-            player.y = Math.max(20, Math.min(canvas.height-20, tpTarget.y));
+            player.x = Math.max(20, Math.min(canvas.width-20, tpTarget.x)); player.y = Math.max(20, Math.min(canvas.height-20, tpTarget.y));
             tpCooldown = TP_COOLDOWN_TIME; joyT.active = false; joyT.id = -1;
         }
     }
@@ -242,9 +273,7 @@ function update(dt) {
         const dx = joyL.x2 - joyL.x1, dy = joyL.y2 - joyL.y1, d = Math.hypot(dx, dy);
         if(d > 2) { player.x += (dx/d) * PLAYER_SPEED * dt; player.y += (dy/d) * PLAYER_SPEED * dt; if(currentWp.id === 3 && !isLocked) resetOverload(); }
     }
-    // --- 注入區：電腦版鍵盤移動判斷 ---
     if(typeof handleKeyboardInput === 'function') handleKeyboardInput(dt);
-
     if(score >= BOSS_CONFIG[101].triggerScore && !b101Triggered) { b101Triggered = true; triggerBossTransition(101); }
     if(boss && boss.id === 101) {
         const bh = boss.behavior;
@@ -322,6 +351,8 @@ function draw(timestamp) {
     if (!lastTime) lastTime = timestamp;
     const dt = (timestamp - lastTime) / TARGET_MS; lastTime = timestamp;
     const now = Date.now(); ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    
+    // 繪製順序保持不變
     drops.forEach(d => { ctx.fillStyle = '#00ff00'; ctx.fillRect(d.x-8, d.y-8, 16, 16); ctx.fillStyle = '#fff'; ctx.fillRect(d.x-2, d.y-6, 4, 12); ctx.fillRect(d.x-6, d.y-2, 12, 4); });
     enemies.forEach(en => {
         ctx.fillStyle = (now - en.lastHitTime < HIT_FLASH_DURATION) ? 'rgba(255, 255, 255, 0.45)' : en.color;
@@ -342,69 +373,48 @@ function draw(timestamp) {
     ctx.fillStyle = '#f00'; enemyBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, 7); ctx.fill(); });
     if(joyL.active) drawJoy(joyL, '#00ccff');
     if(joyR.active) drawJoy(joyR, '#ff3300');
-    update(dt);
+    
+    // 只有運行中才更新邏輯
+    if(isGameRunning) update(dt);
     requestAnimationFrame(draw);
 }
 
 function drawJoy(j, c) { ctx.beginPath(); ctx.arc(j.x1, j.y1, 45, 0, 7); ctx.strokeStyle = c+'33'; ctx.lineWidth=3; ctx.stroke(); ctx.beginPath(); ctx.arc(j.x2, j.y2, 22, 0, 7); ctx.fillStyle = c+'66'; ctx.fill(); }
 
 // ==========================================
-// 獨立電腦版支援區塊 (注入功能)
+// 獨立電腦版支援區塊
 // ==========================================
 const keys = {};
-window.addEventListener('keydown', e => { 
-    keys[e.code] = true; 
-    if(e.code === 'KeyE') switchWp(); // 按 E 換武器
-});
+window.addEventListener('keydown', e => { keys[e.code] = true; if(e.code === 'KeyE') switchWp(); });
 window.addEventListener('keyup', e => keys[e.code] = false);
-
-// 滑鼠控制：瞄準與射擊
 canvas.addEventListener('mousemove', e => {
     const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    const mouseX = e.clientX - rect.left; const mouseY = e.clientY - rect.top;
     lastAngle = Math.atan2(mouseY - player.y, mouseX - player.x);
 });
 canvas.addEventListener('mousedown', (e) => { if(e.button === 0) joyR.active = true; }); 
 window.addEventListener('mouseup', () => joyR.active = false);
 
-// 電腦版按鍵換算為移動向量
 function handleKeyboardInput(dt) {
+    if(!isGameRunning) return;
     let dx = 0, dy = 0;
-    if(keys['KeyW'] || keys['ArrowUp']) dy -= 1;
-    if(keys['KeyS'] || keys['ArrowDown']) dy += 1;
-    if(keys['KeyA'] || keys['ArrowLeft']) dx -= 1;
-    if(keys['KeyD'] || keys['ArrowRight']) dx += 1;
-    
+    if(keys['KeyW'] || keys['ArrowUp']) dy -= 1; if(keys['KeyS'] || keys['ArrowDown']) dy += 1;
+    if(keys['KeyA'] || keys['ArrowLeft']) dx -= 1; if(keys['KeyD'] || keys['ArrowRight']) dx += 1;
     if(dx !== 0 || dy !== 0) {
         const mag = Math.hypot(dx, dy);
-        player.x += (dx / mag) * PLAYER_SPEED * dt;
-        player.y += (dy / mag) * PLAYER_SPEED * dt;
+        player.x += (dx / mag) * PLAYER_SPEED * dt; player.y += (dy / mag) * PLAYER_SPEED * dt;
         if(currentWp.id === 3 && !isLocked) resetOverload();
     }
 }
-
-// 支援電腦版點擊換武器按鈕
 document.getElementById('weapon-btn').addEventListener('mousedown', e => { switchWp(); });
-// 支援電腦版點擊瞬移按鈕
 document.getElementById('tp-btn').addEventListener('mousedown', e => {
     if(tpCooldown > 0) return;
-    joyT.active = true; joyT.x1 = e.clientX; joyT.y1 = e.clientY;
-    tpTarget = { x: player.x, y: player.y };
+    joyT.active = true; joyT.x1 = e.clientX; joyT.y1 = e.clientY; tpTarget = { x: player.x, y: player.y };
 });
 window.addEventListener('mouseup', e => {
-    if(joyT.active) {
-        player.x = Math.max(20, Math.min(canvas.width-20, tpTarget.x));
-        player.y = Math.max(20, Math.min(canvas.height-20, tpTarget.y));
-        tpCooldown = TP_COOLDOWN_TIME; joyT.active = false;
-    }
+    if(joyT.active) { player.x = Math.max(20, Math.min(canvas.width-20, tpTarget.x)); player.y = Math.max(20, Math.min(canvas.height-20, tpTarget.y)); tpCooldown = TP_COOLDOWN_TIME; joyT.active = false; }
 });
-window.addEventListener('mousemove', e => {
-    if(joyT.active) {
-        tpTarget.x = player.x + (e.clientX - joyT.x1) * 3.5;
-        tpTarget.y = player.y + (e.clientY - joyT.y1) * 3.5;
-    }
-});
+window.addEventListener('mousemove', e => { if(joyT.active) { tpTarget.x = player.x + (e.clientX - joyT.x1) * 3.5; tpTarget.y = player.y + (e.clientY - joyT.y1) * 3.5; } });
 
 requestAnimationFrame(draw);
 </script>
