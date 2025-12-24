@@ -75,9 +75,19 @@ const ENEMY_CONFIG = {
     4: { id: 4, speed: 0.2, hpBase: 40, size: 25, color: '#FFD700', shootInterval: 10, bulletSpeed: 0.6, weight: 1.5, score: 500, dropRate: 1 } 
 };
 
-// Boss 配置與通用狀態
+// Boss 配置：通用參數與獨有行為參數分離
 const BOSS_CONFIG = {
-    101: { id: 101, hp: 500, maxHp: 500, size: 50, color: '#ff0000', score: 5000, triggerScore: 1000 }
+    101: { 
+        id: 101, hp: 500, size: 50, color: '#ff0000', score: 5000, triggerScore: 20000,
+        behavior: {
+            targetY: 60,           // 停留在 y=60
+            entrySpeed: 1.5,       // 入場向下速度
+            swingRange: 0.3,       // 左右擺動範圍 (螢幕寬度的百分比)
+            swingSpeed: 0.02,      // 擺動頻率
+            shootDelay: 1000,      // 射擊間隔 (ms)
+            bulletSpeed: 1.2       // 子彈速度
+        }
+    }
 };
 
 const DIFFICULTY_CONFIG = { threshold: 1000, hpIncrease: 0.05, speedIncrease: 0.05, spawnIncrease: 0.01 };
@@ -129,7 +139,8 @@ function triggerBossTransition(id) {
             clearInterval(timer);
             bar.innerText = "";
             const cfg = BOSS_CONFIG[id];
-            boss = { ...cfg, x: canvas.width / 2, y: -100, lastHitTime: 0, angle: 0, lastShootTime: 0 };
+            // 自動將配置表的 hp 賦值給當前 hp 與 maxHp，並注入運行狀態
+            boss = { ...cfg, maxHp: cfg.hp, x: canvas.width / 2, y: -100, lastHitTime: 0, angle: 0, lastShootTime: 0 };
             isTransitioning = false;
         }
     }, 1000);
@@ -251,17 +262,18 @@ function update() {
     // Boss 行為邏輯
     if(boss) {
         if(boss.id === 101) { // Boss 1 獨有行為
-            // 出場移動到 y=60
-            if(boss.y < 60) boss.y += 1.5;
+            const bh = boss.behavior;
+            // 出場移動到 targetY
+            if(boss.y < bh.targetY) boss.y += bh.entrySpeed;
             else {
-                // y=60 後開始左右移動
-                boss.angle += 0.02;
-                boss.x = (canvas.width / 2) + Math.sin(boss.angle) * (canvas.width * 0.3);
+                // 達到高度後開始左右移動
+                boss.angle += bh.swingSpeed;
+                boss.x = (canvas.width / 2) + Math.sin(boss.angle) * (canvas.width * bh.swingRange);
                 
-                // 每 1 秒朝玩家發射一顆子彈
-                if(now - boss.lastShootTime > 1000) {
+                // 根據 shootDelay 射擊
+                if(now - boss.lastShootTime > bh.shootDelay) {
                     const ang = Math.atan2(player.y - boss.y, player.x - boss.x);
-                    spawnBullet(ang, 0, 1.2, true, boss.x, boss.y);
+                    spawnBullet(ang, 0, bh.bulletSpeed, true, boss.x, boss.y);
                     boss.lastShootTime = now;
                 }
             }
