@@ -17,7 +17,12 @@
         #hp-bar { font-size: 20px; color: #ff5555; margin-top: 5px; font-weight: bold; }
         .stat-label { font-size: 16px; color: #ffd700; }
         #overload-info { color: #ff3300; font-weight: bold; font-size: 14px; visibility: hidden; }
-        #status-bar { position: absolute; top: 25px; left: 50%; transform: translateX(-50%); color: #ff3300; font-size: 18px; font-weight: bold; pointer-events: none; }
+        #status-bar { 
+            position: absolute; top: 25px; left: 50%; transform: translateX(-50%); 
+            color: #ff3300; font-size: 22px; font-weight: bold; pointer-events: none; 
+            text-align: center; white-space: pre-wrap; line-height: 1.2;
+            text-shadow: 2px 2px 4px #000;
+        }
         #weapon-btn {
             position: absolute; right: 40px; bottom: 220px; width: 75px; height: 75px;
             background: rgba(255, 255, 255, 0.1); border: 2px solid #00ffcc;
@@ -57,7 +62,6 @@
 
 <script>
 const BASE_FIRE_INTERVAL = 10; 
-// 依照指令更新的武器配置
 const WEAPON_CONFIG = {
     1: { id: 1, intervalMult: 1.0, speed: 15, damage: 1.0, color: '#fff' },
     2: { id: 2, intervalMult: 15.0, speed: 15, damage: 1.0, color: '#ffcc00' },
@@ -66,7 +70,6 @@ const WEAPON_CONFIG = {
 };
 Object.values(WEAPON_CONFIG).forEach(wp => wp.fireInterval = wp.intervalMult * BASE_FIRE_INTERVAL);
 
-// 依照指令更新的敵人配置
 const ENEMY_CONFIG = {
     spawnRateBase: 70, 
     1: { id: 1, speed: 0.2, hpBase: 2, size: 15, color: '#888888', shootInterval: 0, weight: 68.5, score: 100, dropRate: 0 }, 
@@ -75,7 +78,6 @@ const ENEMY_CONFIG = {
     4: { id: 4, speed: 0.2, hpBase: 40, size: 25, color: '#FFD700', shootInterval: 10, bulletSpeed: 0.6, weight: 1.5, score: 500, dropRate: 1 } 
 };
 
-// Boss 配置：hpBase 會隨難度加乘
 const BOSS_CONFIG = {
     101: { 
         id: 101, hpBase: 200, size: 50, color: '#ff0000', score: 5000, triggerScore: 100,
@@ -93,7 +95,7 @@ const BOSS_CONFIG = {
 const DIFFICULTY_CONFIG = { threshold: 1000, hpIncrease: 0.05, speedIncrease: 0.05, spawnIncrease: 0.01 };
 const PLAYER_SPEED = 1.2; 
 const INVULNERABLE_TIME = 250; 
-const HIT_FLASH_DURATION = 50; 
+const HIT_FLASH_DURATION = 35; 
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -109,39 +111,47 @@ let fireTimer = 0, spawnTimer = 0, score = 0, difficultyLevel = 0, lastAngle = 0
 let wp3IdleStartTime = Date.now(), speedMultiplier = 1.0, overloadFrames = 0, isLocked = false, idleTriggered = false;
 let joyL = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let joyR = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
-
 let joyT = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
 let tpTarget = { x: 0, y: 0 }, tpCooldown = 0;
 const TP_COOLDOWN_TIME = 3000;
 
 function updateDifficulty() {
     let newLevel = Math.floor(score / DIFFICULTY_CONFIG.threshold);
-    if (newLevel > difficultyLevel) { difficultyLevel = newLevel; document.getElementById('level-val').innerText = difficultyLevel; }
+    if (newLevel > difficultyLevel) {
+        difficultyLevel = newLevel;
+        document.getElementById('level-val').innerText = difficultyLevel;
+    }
 }
 
-// 通用 Boss 轉場函式
 function triggerBossTransition(id) {
     isTransitioning = true;
     enemies = [];
     enemyBullets = [];
-    // 在地圖中央生成補包
     drops.push({x: canvas.width / 2, y: canvas.height / 2, heal: 10});
     
     let countdown = 5;
     const bar = document.getElementById('status-bar');
-    bar.innerText = "WARNING: BOSS APPROACHING IN " + countdown;
+    bar.innerText = "WARNING\nBOSS IN " + countdown;
     
     const timer = setInterval(() => {
         countdown--;
         if(countdown > 0) {
-            bar.innerText = "WARNING: BOSS APPROACHING IN " + countdown;
+            bar.innerText = "WARNING\nBOSS IN " + countdown;
         } else {
             clearInterval(timer);
             bar.innerText = "";
             const cfg = BOSS_CONFIG[id];
-            // 根據當前難度計算 Boss 生命值
             const scaledHp = cfg.hpBase * (1 + difficultyLevel * DIFFICULTY_CONFIG.hpIncrease);
-            boss = { ...cfg, hp: scaledHp, maxHp: scaledHp, x: canvas.width / 2, y: -100, lastHitTime: 0, angle: 0, lastShootTime: 0 };
+            boss = {
+                ...cfg,
+                hp: scaledHp,
+                maxHp: scaledHp,
+                x: canvas.width / 2,
+                y: -100,
+                lastHitTime: 0,
+                angle: 0,
+                lastShootTime: 0
+            };
             isTransitioning = false;
         }
     }, 1000);
@@ -155,7 +165,12 @@ function switchWp() {
     const diffBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
     fireTimer = currentWp.fireInterval / diffBonus;
     resetOverload();
-    if(currentWp.id === 3) { wp3IdleStartTime = Date.now(); idleTriggered = false; isLocked = false; document.getElementById('status-bar').innerText = ""; }
+    if(currentWp.id === 3) {
+        wp3IdleStartTime = Date.now();
+        idleTriggered = false;
+        isLocked = false;
+        document.getElementById('status-bar').innerText = "";
+    }
 }
 
 function resetOverload() { 
@@ -169,34 +184,58 @@ function resetOverload() {
 function takeDamage() {
     const now = Date.now();
     if (now - player.lastHurtTime > INVULNERABLE_TIME) {
-        player.hp--; player.lastHurtTime = now;
+        player.hp--;
+        player.lastHurtTime = now;
         document.getElementById('hp-val').innerText = Math.max(0, player.hp);
-        if (player.hp <= 0) { alert("遊戲結束！分數: " + score); location.reload(); }
+        if (player.hp <= 0) {
+            alert("遊戲結束！分數: " + score);
+            location.reload();
+        }
     }
 }
 
 const tpBtn = document.getElementById('tp-btn');
 tpBtn.addEventListener('touchstart', e => {
-    e.preventDefault(); if(tpCooldown > 0) return;
-    const t = e.changedTouches[0]; joyT.active = true; joyT.id = t.identifier;
-    joyT.x1 = joyT.x2 = t.clientX; joyT.y1 = joyT.y2 = t.clientY;
+    e.preventDefault();
+    if(tpCooldown > 0) return;
+    const t = e.changedTouches[0];
+    joyT.active = true;
+    joyT.id = t.identifier;
+    joyT.x1 = joyT.x2 = t.clientX;
+    joyT.y1 = joyT.y2 = t.clientY;
     tpTarget = { x: player.x, y: player.y };
 }, {passive: false});
 
 canvas.addEventListener('touchstart', e => {
     e.preventDefault();
     for(let t of e.changedTouches) {
-        if(t.clientX < canvas.width/2) { joyL.active = true; joyL.x1 = joyL.x2 = t.clientX; joyL.y1 = joyL.y2 = t.clientY; joyL.id = t.identifier; }
-        else { joyR.active = true; joyR.x1 = joyR.x2 = t.clientX; joyR.y1 = joyR.y2 = t.clientY; joyR.id = t.identifier; }
+        if(t.clientX < canvas.width/2) {
+            joyL.active = true;
+            joyL.x1 = joyL.x2 = t.clientX;
+            joyL.y1 = joyL.y2 = t.clientY;
+            joyL.id = t.identifier;
+        } else {
+            joyR.active = true;
+            joyR.x1 = joyR.x2 = t.clientX;
+            joyR.y1 = joyR.y2 = t.clientY;
+            joyR.id = t.identifier;
+        }
     }
 }, {passive: false});
 
 window.addEventListener('touchmove', e => {
     for(let t of e.changedTouches) {
-        if(joyL.id === t.identifier) { joyL.x2 = t.clientX; joyL.y2 = t.clientY; }
-        if(joyR.id === t.identifier) { joyR.x2 = t.clientX; joyR.y2 = t.clientY; }
+        if(joyL.id === t.identifier) {
+            joyL.x2 = t.clientX;
+            joyL.y2 = t.clientY;
+        }
+        if(joyR.id === t.identifier) {
+            joyR.x2 = t.clientX;
+            joyR.y2 = t.clientY;
+        }
         if(joyT.id === t.identifier) {
-            joyT.x2 = t.clientX; joyT.y2 = t.clientY;
+            joyT.x2 = t.clientX;
+            joyT.y2 = t.clientY;
             tpTarget.x = player.x + (joyT.x2 - joyT.x1) * 3.5;
             tpTarget.y = player.y + (joyT.y2 - joyT.y1) * 3.5;
         }
@@ -205,17 +244,28 @@ window.addEventListener('touchmove', e => {
 
 window.addEventListener('touchend', e => {
     for(let t of e.changedTouches) {
-        if(joyL.id === t.identifier) { joyL.active = false; joyL.id = -1; }
-        if(joyR.id === t.identifier) { joyR.active = false; joyR.id = -1; }
+        if(joyL.id === t.identifier) {
+            joyL.active = false;
+            joyL.id = -1;
+        }
+        if(joyR.id === t.identifier) {
+            joyR.active = false;
+            joyR.id = -1;
+        }
         if(joyT.id === t.identifier) {
             player.x = Math.max(20, Math.min(canvas.width-20, tpTarget.x));
             player.y = Math.max(20, Math.min(canvas.height-20, tpTarget.y));
-            tpCooldown = TP_COOLDOWN_TIME; joyT.active = false; joyT.id = -1;
+            tpCooldown = TP_COOLDOWN_TIME;
+            joyT.active = false;
+            joyT.id = -1;
         }
     }
 }, {passive: false});
 
-document.getElementById('weapon-btn').addEventListener('touchstart', e => { e.preventDefault(); switchWp(); });
+document.getElementById('weapon-btn').addEventListener('touchstart', e => {
+    e.preventDefault();
+    switchWp();
+});
 
 function spawnEnemy() {
     const side = Math.floor(Math.random() * 4);
@@ -226,11 +276,23 @@ function spawnEnemy() {
     else { x = -80; y = Math.random() * canvas.height; }
     const rand = Math.random() * 100;
     let type = (rand < 68.5) ? ENEMY_CONFIG[1] : (rand < 83.5) ? ENEMY_CONFIG[2] : (rand < 98.5) ? ENEMY_CONFIG[3] : ENEMY_CONFIG[4];
-    enemies.push({ ...type, x, y, hp: type.hpBase * (1 + difficultyLevel * DIFFICULTY_CONFIG.hpIncrease), lastShootTime: Date.now(), lastHitTime: 0 });
+    enemies.push({
+        ...type,
+        x, y,
+        hp: type.hpBase * (1 + difficultyLevel * DIFFICULTY_CONFIG.hpIncrease),
+        lastShootTime: Date.now(),
+        lastHitTime: 0
+    });
 }
 
 function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0, dmg = 1) {
-    const b = { x: isEnemy ? ex : (player.x + Math.cos(angle + Math.PI/2) * offset), y: isEnemy ? ey : (player.y + Math.sin(angle + Math.PI/2) * offset), vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, dmg: dmg };
+    const b = {
+        x: isEnemy ? ex : (player.x + Math.cos(angle + Math.PI/2) * offset),
+        y: isEnemy ? ey : (player.y + Math.sin(angle + Math.PI/2) * offset),
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        dmg: dmg
+    };
     if(isEnemy) enemyBullets.push(b); else bullets.push(b);
 }
 
@@ -243,29 +305,31 @@ function update() {
         document.getElementById('tp-cd-overlay').style.transform = "scaleY(" + (tpCooldown / TP_COOLDOWN_TIME) + ")"; 
     }
 
-    // 只有在非 Boss 且非轉場期間才生成小怪
-    if(!boss && !isTransitioning && ++spawnTimer > (ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease))) { spawnEnemy(); spawnTimer = 0; }
+    if(!boss && !isTransitioning && ++spawnTimer > (ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease))) {
+        spawnEnemy();
+        spawnTimer = 0;
+    }
 
     if(joyL.active) {
         const dx = joyL.x2 - joyL.x1, dy = joyL.y2 - joyL.y1, d = Math.hypot(dx, dy);
         if(d > 2) {
-            player.x += (dx/d) * PLAYER_SPEED; player.y += (dy/d) * PLAYER_SPEED;
+            player.x += (dx/d) * PLAYER_SPEED;
+            player.y += (dy/d) * PLAYER_SPEED;
             if(currentWp.id === 3 && !isLocked) resetOverload();
         }
     }
 
-    // Boss 觸發檢測
     if(score >= BOSS_CONFIG[101].triggerScore && !b101Triggered) {
         b101Triggered = true;
         triggerBossTransition(101);
     }
 
-    // Boss 行為邏輯
     if(boss) {
-        if(boss.id === 101) { // Boss 1 獨有行為
+        if(boss.id === 101) {
             const bh = boss.behavior;
-            if(boss.y < bh.targetY) boss.y += bh.entrySpeed;
-            else {
+            if(boss.y < bh.targetY) {
+                boss.y += bh.entrySpeed;
+            } else {
                 boss.angle += bh.swingSpeed;
                 boss.x = (canvas.width / 2) + Math.sin(boss.angle) * (canvas.width * bh.swingRange);
                 if(now - boss.lastShootTime > bh.shootDelay) {
@@ -288,12 +352,13 @@ function update() {
         }
         if(idleSec >= currentWp.ultimateTriggerTime && !idleTriggered) {
             for(let i=0; i<10; i++) spawnBullet((i/10) * Math.PI * 2, 0, 8, false, 0, 0, currentWp.damage);
-            idleTriggered = true; isLocked = true; 
+            idleTriggered = true;
+            isLocked = true;
             document.getElementById('status-bar').innerText = "系統過熱！";
-            setTimeout(() => { 
-                isLocked = false; 
-                idleTriggered = false; 
-                document.getElementById('status-bar').innerText = ""; 
+            setTimeout(() => {
+                isLocked = false;
+                idleTriggered = false;
+                document.getElementById('status-bar').innerText = "";
                 resetOverload();
             }, currentWp.lockoutDuration * 1000);
         }
@@ -306,9 +371,14 @@ function update() {
 
     if (!isLocked && --fireTimer <= 0) {
         const interval = (currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval) / diffBonus;
-        if(currentWp.id === 1) spawnBullet(lastAngle, 0, currentWp.speed, false, 0, 0, currentWp.damage);
-        else if(currentWp.id === 2) for(let i=0; i<15; i++) spawnBullet(lastAngle - (15*Math.PI/180) + i*(2*Math.PI/180), 0, currentWp.speed, false, 0, 0, currentWp.damage);
-        else if(currentWp.id === 3) { spawnBullet(lastAngle, 12, currentWp.speed, false, 0, 0, currentWp.damage); spawnBullet(lastAngle, -12, currentWp.speed, false, 0, 0, currentWp.damage); }
+        if(currentWp.id === 1) {
+            spawnBullet(lastAngle, 0, currentWp.speed, false, 0, 0, currentWp.damage);
+        } else if(currentWp.id === 2) {
+            for(let i=0; i<15; i++) spawnBullet(lastAngle - (15*Math.PI/180) + i*(2*Math.PI/180), 0, currentWp.speed, false, 0, 0, currentWp.damage);
+        } else if(currentWp.id === 3) {
+            spawnBullet(lastAngle, 12, currentWp.speed, false, 0, 0, currentWp.damage);
+            spawnBullet(lastAngle, -12, currentWp.speed, false, 0, 0, currentWp.damage);
+        }
         fireTimer = Math.max(2, interval);
     }
 
@@ -316,7 +386,9 @@ function update() {
         for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
             let b = bullets[bIdx];
             if(Math.hypot(b.x - boss.x, b.y - boss.y) < boss.size) {
-                boss.hp -= b.dmg; boss.lastHitTime = now; bullets.splice(bIdx, 1);
+                boss.hp -= b.dmg;
+                boss.lastHitTime = now;
+                bullets.splice(bIdx, 1);
                 if(boss.hp <= 0) {
                     score += boss.score;
                     document.getElementById('score-val').innerText = score;
@@ -329,9 +401,15 @@ function update() {
     }
 
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
-        let en = enemies[eIdx]; const dx = player.x - en.x, dy = player.y - en.y, dist = Math.hypot(dx, dy);
-        en.x += (dx/dist) * en.speed; en.y += (dy/dist) * en.speed;
+        let en = enemies[eIdx];
+        const dx = player.x - en.x;
+        const dy = player.y - en.y;
+        const dist = Math.hypot(dx, dy);
+        en.x += (dx/dist) * en.speed;
+        en.y += (dy/dist) * en.speed;
+        
         if (dist < en.size + player.size/2) takeDamage();
+        
         if(en.shootInterval > 0 && now - en.lastShootTime > en.shootInterval * 1000) {
             const ang = Math.atan2(dy, dx);
             if(en.id === 2) spawnBullet(ang, 0, en.bulletSpeed, true, en.x, en.y);
@@ -339,16 +417,20 @@ function update() {
             else if(en.id === 4) for(let i=0; i<5; i++) spawnBullet(ang + (i * 72 * Math.PI/180), 0, en.bulletSpeed, true, en.x, en.y);
             en.lastShootTime = now;
         }
+        
         for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
             let b = bullets[bIdx];
             if(Math.hypot(b.x - en.x, b.y - en.y) < en.size + 4) {
-                en.hp -= b.dmg; en.lastHitTime = now; bullets.splice(bIdx, 1);
-                if(en.hp <= 0) { 
-                    score += en.score; 
-                    document.getElementById('score-val').innerText = score; 
-                    updateDifficulty(); 
+                en.hp -= b.dmg;
+                en.lastHitTime = now;
+                bullets.splice(bIdx, 1);
+                if(en.hp <= 0) {
+                    score += en.score;
+                    document.getElementById('score-val').innerText = score;
+                    updateDifficulty();
                     if(Math.random() < en.dropRate) drops.push({x: en.x, y: en.y, heal: 10});
-                    enemies.splice(eIdx, 1); break; 
+                    enemies.splice(eIdx, 1);
+                    break;
                 }
             }
         }
@@ -362,16 +444,29 @@ function update() {
         }
     });
 
-    enemyBullets.forEach((eb, i) => { if(Math.hypot(eb.x - player.x, eb.y - player.y) < player.size/2 + 4) { takeDamage(); enemyBullets.splice(i, 1); } });
-    [bullets, enemyBullets].forEach(arr => {
-        for(let i=arr.length-1; i>=0; i--) { arr[i].x += arr[i].vx; arr[i].y += arr[i].vy; if(arr[i].x<0 || arr[i].x>canvas.width || arr[i].y<0 || arr[i].y>canvas.height) arr.splice(i, 1); }
+    enemyBullets.forEach((eb, i) => {
+        if(Math.hypot(eb.x - player.x, eb.y - player.y) < player.size/2 + 4) {
+            takeDamage();
+            enemyBullets.splice(i, 1);
+        }
     });
-    player.x = Math.max(20, Math.min(canvas.width-20, player.x)); player.y = Math.max(20, Math.min(canvas.height-20, player.y));
+
+    [bullets, enemyBullets].forEach(arr => {
+        for(let i=arr.length-1; i>=0; i--) {
+            arr[i].x += arr[i].vx;
+            arr[i].y += arr[i].vy;
+            if(arr[i].x<0 || arr[i].x>canvas.width || arr[i].y<0 || arr[i].y>canvas.height) arr.splice(i, 1);
+        }
+    });
+    
+    player.x = Math.max(20, Math.min(canvas.width-20, player.x));
+    player.y = Math.max(20, Math.min(canvas.height-20, player.y));
 }
 
 function draw() {
     const now = Date.now();
-    ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
     
     drops.forEach(d => {
         ctx.fillStyle = '#00ff00';
@@ -382,39 +477,72 @@ function draw() {
     });
 
     enemies.forEach(en => {
-        ctx.fillStyle = (now - en.lastHitTime < HIT_FLASH_DURATION) ? '#fff' : en.color;
-        if(en.id === 4 && now - en.lastHitTime >= HIT_FLASH_DURATION) { ctx.shadowBlur = 15; ctx.shadowColor = '#FFD700'; }
-        ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+        ctx.fillStyle = (now - en.lastHitTime < HIT_FLASH_DURATION) ? 'rgba(255, 255, 255, 0.45)' : en.color;
+        if(en.id === 4 && now - en.lastHitTime >= HIT_FLASH_DURATION) {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#FFD700';
+        }
+        ctx.beginPath();
+        ctx.arc(en.x, en.y, en.size, 0, 7);
+        ctx.fill();
+        ctx.shadowBlur = 0;
     });
 
     if(boss) {
-        ctx.fillStyle = (now - boss.lastHitTime < HIT_FLASH_DURATION) ? '#fff' : boss.color;
+        ctx.fillStyle = (now - boss.lastHitTime < HIT_FLASH_DURATION) ? 'rgba(255, 255, 255, 0.45)' : boss.color;
         ctx.beginPath();
         ctx.arc(boss.x, boss.y, boss.size, 0, 7);
         ctx.fill();
-        ctx.fillStyle = '#444'; ctx.fillRect(boss.x - 50, boss.y - boss.size - 15, 100, 8);
-        ctx.fillStyle = '#f00'; ctx.fillRect(boss.x - 50, boss.y - boss.size - 15, (boss.hp / boss.maxHp) * 100, 8);
+        ctx.fillStyle = '#444';
+        ctx.fillRect(boss.x - 50, boss.y - boss.size - 15, 100, 8);
+        ctx.fillStyle = '#f00';
+        ctx.fillRect(boss.x - 50, boss.y - boss.size - 15, (boss.hp / boss.maxHp) * 100, 8);
     }
 
     if(joyT.active) {
-        ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tpTarget.x, tpTarget.y, 25, 0, 7); ctx.stroke();
-        ctx.setLineDash([5, 5]); ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(tpTarget.x, tpTarget.y); ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(tpTarget.x, tpTarget.y, 25, 0, 7);
+        ctx.stroke();
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(tpTarget.x, tpTarget.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
     }
 
     if (!(Date.now() - player.lastHurtTime < INVULNERABLE_TIME) || Math.floor(now/50) % 2) {
         let pColor = isLocked ? '#444' : (currentWp.id === 3 && document.getElementById('overload-info').style.visibility === 'visible' ? '#ff3300' : currentWp.color);
-        ctx.fillStyle = pColor; ctx.fillRect(player.x - 8, player.y - 8, 16, 16);
+        ctx.fillStyle = pColor;
+        ctx.fillRect(player.x - 8, player.y - 8, 16, 16);
     }
-    ctx.fillStyle = '#fff'; bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, 7); ctx.fill(); });
-    ctx.fillStyle = '#f00'; enemyBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, 7); ctx.fill(); });
+    
+    ctx.fillStyle = '#fff';
+    bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, 7); ctx.fill(); });
+    ctx.fillStyle = '#f00';
+    enemyBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, 7); ctx.fill(); });
+    
     if(joyL.active) drawJoy(joyL, '#00ccff');
     if(joyR.active) drawJoy(joyR, '#ff3300');
-    update(); requestAnimationFrame(draw);
+    
+    update();
+    requestAnimationFrame(draw);
 }
+
 function drawJoy(j, c) {
-    ctx.beginPath(); ctx.arc(j.x1, j.y1, 45, 0, 7); ctx.strokeStyle = c+'33'; ctx.lineWidth=3; ctx.stroke();
-    ctx.beginPath(); ctx.arc(j.x2, j.y2, 22, 0, 7); ctx.fillStyle = c+'66'; ctx.fill();
+    ctx.beginPath();
+    ctx.arc(j.x1, j.y1, 45, 0, 7);
+    ctx.strokeStyle = c+'33';
+    ctx.lineWidth=3;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(j.x2, j.y2, 22, 0, 7);
+    ctx.fillStyle = c+'66';
+    ctx.fill();
 }
+
 draw();
 </script>
 </body>
