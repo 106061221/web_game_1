@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <title>生存射擊 - 形狀對換版</title>
+    <title>生存射擊 - 圓角 UI 版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
@@ -184,7 +184,7 @@ function takeDamage() {
     }
 }
 
-// 事件監聽維持原樣
+// 事件監聽
 const tpBtn = document.getElementById('tp-btn');
 tpBtn.addEventListener('touchstart', e => {
     e.preventDefault(); if(tpCooldown > 0) return;
@@ -292,13 +292,11 @@ function update(dt) {
             for(let i = arr.length - 1; i >= 0; i--) {
                 let b = arr[i]; b.x += (b.vx * dt) / steps; b.y += (b.vy * dt) / steps;
                 if(isPlayerBullet) {
-                    // BOSS 碰撞判定 (保持原樣，因為 BOSS 原本就是矩形)
                     if(boss && Math.abs(b.x - boss.x) < boss.size && Math.abs(b.y - boss.y) < boss.size) {
                         boss.hp -= b.dmg; boss.lastHitTime = now; arr.splice(i, 1);
                         if(boss.hp <= 0) { score += boss.score; document.getElementById('score-val').innerText = score; updateDifficulty(); document.getElementById('status-bar').innerText = "BOSS DEFEATED!"; setTimeout(() => document.getElementById('status-bar').innerText = "", 3000); boss = null; }
                         continue;
                     }
-                    // 一般敵人碰撞判定 (更新：改為矩形邊界判定)
                     for(let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
                         let en = enemies[eIdx];
                         if(Math.abs(b.x - en.x) < en.size && Math.abs(b.y - en.y) < en.size) {
@@ -308,7 +306,6 @@ function update(dt) {
                         }
                     }
                 } else { 
-                    // 敵人子彈擊中玩家 (更新：玩家現在是圓形，半徑約 8-10)
                     if(Math.hypot(b.x - player.x, b.y - player.y) < 11) { takeDamage(); arr.splice(i, 1); } 
                 }
                 if(b && (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height)) arr.splice(i, 1);
@@ -318,7 +315,6 @@ function update(dt) {
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
         let en = enemies[eIdx]; const dx = player.x - en.x; const dy = player.y - en.y; const dist = Math.hypot(dx, dy);
         en.x += (dx/dist) * en.speed * dt; en.y += (dy/dist) * en.speed * dt;
-        // 玩家與敵人碰撞 (更新：矩形判定)
         if (Math.abs(player.x - en.x) < en.size + 8 && Math.abs(player.y - en.y) < en.size + 8) takeDamage();
         if(en.shootInterval > 0 && now - en.lastShootTime > en.shootInterval * 1000) {
             const ang = Math.atan2(dy, dx);
@@ -337,11 +333,14 @@ function draw(timestamp) {
     ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
     drops.forEach(d => { ctx.fillStyle = '#00ff00'; ctx.fillRect(d.x-8, d.y-8, 16, 16); ctx.fillStyle = '#fff'; ctx.fillRect(d.x-2, d.y-6, 4, 12); ctx.fillRect(d.x-6, d.y-2, 12, 4); });
     
-    // 敵人繪製 (更新：改為方形)
+    // 敵人繪製：圓角矩形 (5px)
     enemies.forEach(en => {
         ctx.fillStyle = (now - en.lastHitTime < HIT_FLASH_DURATION) ? 'rgba(255, 255, 255, 0.45)' : en.color;
         if(en.id === 4 && now - en.lastHitTime >= HIT_FLASH_DURATION) { ctx.shadowBlur = 15; ctx.shadowColor = '#FFD700'; }
-        ctx.fillRect(en.x - en.size, en.y - en.size, en.size * 2, en.size * 2); ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.roundRect(en.x - en.size, en.y - en.size, en.size * 2, en.size * 2, 5); 
+        ctx.fill();
+        ctx.shadowBlur = 0;
     });
 
     if(boss) {
@@ -351,7 +350,7 @@ function draw(timestamp) {
     }
     if(joyT.active) { ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tpTarget.x, tpTarget.y, 25, 0, 7); ctx.stroke(); ctx.setLineDash([5, 5]); ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(tpTarget.x, tpTarget.y); ctx.stroke(); ctx.setLineDash([]); }
     
-    // 玩家繪製 (更新：改為圓形)
+    // 玩家繪製：圓形
     if (!(Date.now() - player.lastHurtTime < INVULNERABLE_TIME) || Math.floor(now/50) % 2) {
         let pColor = isLocked ? '#444' : (currentWp.id === 3 && document.getElementById('overload-info').style.visibility === 'visible' ? '#ff3300' : currentWp.color);
         ctx.fillStyle = pColor; ctx.beginPath(); ctx.arc(player.x, player.y, 10, 0, Math.PI * 2); ctx.fill();
@@ -366,7 +365,7 @@ function draw(timestamp) {
 
 function drawJoy(j, c) { ctx.beginPath(); ctx.arc(j.x1, j.y1, 45, 0, 7); ctx.strokeStyle = c+'33'; ctx.lineWidth=3; ctx.stroke(); ctx.beginPath(); ctx.arc(j.x2, j.y2, 22, 0, 7); ctx.fillStyle = c+'66'; ctx.fill(); }
 
-// 電腦版支援區塊
+// 電腦版支援
 const keys = {};
 window.addEventListener('keydown', e => { keys[e.code] = true; if(e.code === 'KeyE') switchWp(); });
 window.addEventListener('keyup', e => keys[e.code] = false);
