@@ -62,6 +62,9 @@
     <canvas id="gameCanvas"></canvas>
 
 <script>
+// 基礎時間係數：假設原始邏輯是針對 60fps (16.67ms per frame)
+const TARGET_MS = 16.67; 
+
 const BASE_FIRE_INTERVAL = 10; 
 const WEAPON_CONFIG = {
     1: { id: 1, intervalMult: 1.0, speed: 15, damage: 1.0, color: '#fff' },
@@ -104,6 +107,7 @@ function handleResize() { canvas.width = window.innerWidth; canvas.height = wind
 window.addEventListener('resize', handleResize);
 handleResize();
 
+let lastTime = 0;
 let boss = null, isTransitioning = false, b101Triggered = false;
 let player = { x: canvas.width/2, y: canvas.height/2, hp: 30, maxHp: 30, size: 17, lastHurtTime: 0 };
 let bullets = [], enemyBullets = [], enemies = [], drops = [];
@@ -297,25 +301,28 @@ function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0, dmg 
     if(isEnemy) enemyBullets.push(b); else bullets.push(b);
 }
 
-function update() {
+function update(dt) {
     const now = Date.now();
     const diffBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
 
     if(tpCooldown > 0) { 
-        tpCooldown -= 16; 
-        document.getElementById('tp-cd-overlay').style.transform = "scaleY(" + (tpCooldown / TP_COOLDOWN_TIME) + ")"; 
+        tpCooldown -= 16 * dt; 
+        document.getElementById('tp-cd-overlay').style.transform = "scaleY(" + Math.max(0, tpCooldown / TP_COOLDOWN_TIME) + ")"; 
     }
 
-    if(!boss && !isTransitioning && ++spawnTimer > (ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease))) {
-        spawnEnemy();
-        spawnTimer = 0;
+    if(!boss && !isTransitioning) {
+        spawnTimer += dt;
+        if(spawnTimer > (ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease))) {
+            spawnEnemy();
+            spawnTimer = 0;
+        }
     }
 
     if(joyL.active) {
         const dx = joyL.x2 - joyL.x1, dy = joyL.y2 - joyL.y1, d = Math.hypot(dx, dy);
         if(d > 2) {
-            player.x += (dx/d) * PLAYER_SPEED;
-            player.y += (dy/d) * PLAYER_SPEED;
+            player.x += (dx/d) * PLAYER_SPEED * dt;
+            player.y += (dy/d) * PLAYER_SPEED * dt;
             if(currentWp.id === 3 && !isLocked) resetOverload();
         }
     }
@@ -329,9 +336,9 @@ function update() {
         if(boss.id === 101) {
             const bh = boss.behavior;
             if(boss.y < bh.targetY) {
-                boss.y += bh.entrySpeed;
+                boss.y += bh.entrySpeed * dt;
             } else {
-                boss.angle += bh.swingSpeed;
+                boss.angle += bh.swingSpeed * dt;
                 boss.x = (canvas.width / 2) + Math.sin(boss.angle) * (canvas.width * bh.swingRange);
                 if(now - boss.lastShootTime > bh.shootDelay) {
                     const ang = Math.atan2(player.y - boss.y, player.x - boss.x);
@@ -346,9 +353,11 @@ function update() {
         const idleSec = (now - wp3IdleStartTime) / 1000;
         if(idleSec >= currentWp.overloadTriggerTime) {
             document.getElementById('overload-info').style.visibility = 'visible';
-            if(++overloadFrames % 12 === 0) {
+            overloadFrames += dt;
+            if(overloadFrames >= 12) {
                 speedMultiplier += currentWp.overloadIncrement;
                 document.getElementById('speed-bonus').innerText = Math.round((speedMultiplier-1)*100);
+                overloadFrames = 0;
             }
         }
         if(idleSec >= currentWp.ultimateTriggerTime && !idleTriggered) {
@@ -370,72 +379,94 @@ function update() {
         if(Math.hypot(dx, dy) > 2) lastAngle = Math.atan2(dy, dx);
     }
 
-    if (!isLocked && --fireTimer <= 0) {
-        const interval = (currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval) / diffBonus;
-        if(currentWp.id === 1) {
-            spawnBullet(lastAngle, 0, currentWp.speed, false, 0, 0, currentWp.damage);
-        } else if(currentWp.id === 2) {
-            for(let i=0; i<15; i++) spawnBullet(lastAngle - (15*Math.PI/180) + i*(2*Math.PI/180), 0, currentWp.speed, false, 0, 0, currentWp.damage);
-        } else if(currentWp.id === 3) {
-            spawnBullet(lastAngle, 12, currentWp.speed, false, 0, 0, currentWp.damage);
-            spawnBullet(lastAngle, -12, currentWp.speed, false, 0, 0, currentWp.damage);
-        }
-        fireTimer = Math.max(2, interval);
-    }
-
-    if(boss) {
-        for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
-            let b = bullets[bIdx];
-            if(Math.abs(b.x - boss.x) < boss.size + 2 && Math.abs(b.y - boss.y) < boss.size + 2) {
-                boss.hp -= b.dmg;
-                boss.lastHitTime = now;
-                bullets.splice(bIdx, 1);
-                if(boss.hp <= 0) {
-                    score += boss.score;
-                    document.getElementById('score-val').innerText = score;
-                    updateDifficulty();
-                    document.getElementById('status-bar').innerText = "BOSS DEFEATED!";
-                    setTimeout(() => document.getElementById('status-bar').innerText = "", 3000);
-                    boss = null;
-                    break;
-                }
+    if (!isLocked) {
+        fireTimer -= dt;
+        if(fireTimer <= 0) {
+            const interval = (currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval) / diffBonus;
+            if(currentWp.id === 1) {
+                spawnBullet(lastAngle, 0, currentWp.speed, false, 0, 0, currentWp.damage);
+            } else if(currentWp.id === 2) {
+                for(let i=0; i<15; i++) spawnBullet(lastAngle - (15*Math.PI/180) + i*(2*Math.PI/180), 0, currentWp.speed, false, 0, 0, currentWp.damage);
+            } else if(currentWp.id === 3) {
+                spawnBullet(lastAngle, 12, currentWp.speed, false, 0, 0, currentWp.damage);
+                spawnBullet(lastAngle, -12, currentWp.speed, false, 0, 0, currentWp.damage);
             }
+            fireTimer = Math.max(2, interval);
         }
     }
 
+    // 子彈物理細分 (分兩步位移以防止穿模)
+    const steps = 2;
+    for(let s = 0; s < steps; s++) {
+        [bullets, enemyBullets].forEach((arr, arrType) => {
+            const isPlayerBullet = (arrType === 0);
+            for(let i = arr.length - 1; i >= 0; i--) {
+                let b = arr[i];
+                b.x += (b.vx * dt) / steps;
+                b.y += (b.vy * dt) / steps;
+
+                if(isPlayerBullet) {
+                    // 玩家子彈碰撞 Boss
+                    if(boss && Math.abs(b.x - boss.x) < boss.size + 2 && Math.abs(b.y - boss.y) < boss.size + 2) {
+                        boss.hp -= b.dmg;
+                        boss.lastHitTime = now;
+                        arr.splice(i, 1);
+                        if(boss.hp <= 0) {
+                            score += boss.score;
+                            document.getElementById('score-val').innerText = score;
+                            updateDifficulty();
+                            document.getElementById('status-bar').innerText = "BOSS DEFEATED!";
+                            setTimeout(() => document.getElementById('status-bar').innerText = "", 3000);
+                            boss = null;
+                        }
+                        continue;
+                    }
+                    // 玩家子彈碰撞小兵
+                    for(let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
+                        let en = enemies[eIdx];
+                        if(Math.hypot(b.x - en.x, b.y - en.y) < en.size + 2) {
+                            en.hp -= b.dmg;
+                            en.lastHitTime = now;
+                            arr.splice(i, 1);
+                            if(en.hp <= 0) {
+                                score += en.score;
+                                document.getElementById('score-val').innerText = score;
+                                updateDifficulty();
+                                if(Math.random() < en.dropRate) drops.push({x: en.x, y: en.y, heal: 10});
+                                enemies.splice(eIdx, 1);
+                            }
+                            break;
+                        }
+                    }
+                } else {
+                    // 敵人子彈碰撞玩家
+                    if(Math.hypot(b.x - player.x, b.y - player.y) < player.size/2 + 3) {
+                        takeDamage();
+                        arr.splice(i, 1);
+                    }
+                }
+                
+                // 邊界檢查
+                if(b && (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height)) arr.splice(i, 1);
+            }
+        });
+    }
+
+    // 小兵與掉落物邏輯
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
         let en = enemies[eIdx];
         const dx = player.x - en.x;
         const dy = player.y - en.y;
         const dist = Math.hypot(dx, dy);
-        en.x += (dx/dist) * en.speed;
-        en.y += (dy/dist) * en.speed;
-        
+        en.x += (dx/dist) * en.speed * dt;
+        en.y += (dy/dist) * en.speed * dt;
         if (dist < en.size + player.size/2) takeDamage();
-        
         if(en.shootInterval > 0 && now - en.lastShootTime > en.shootInterval * 1000) {
             const ang = Math.atan2(dy, dx);
             if(en.id === 2) spawnBullet(ang, 0, en.bulletSpeed, true, en.x, en.y);
             else if(en.id === 3) for(let i=-1; i<=1; i++) spawnBullet(ang + i*15*Math.PI/180, 0, en.bulletSpeed, true, en.x, en.y);
             else if(en.id === 4) for(let i=0; i<5; i++) spawnBullet(ang + (i * 72 * Math.PI/180), 0, en.bulletSpeed, true, en.x, en.y);
             en.lastShootTime = now;
-        }
-        
-        for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
-            let b = bullets[bIdx];
-            if(Math.hypot(b.x - en.x, b.y - en.y) < en.size + 2) {
-                en.hp -= b.dmg;
-                en.lastHitTime = now;
-                bullets.splice(bIdx, 1);
-                if(en.hp <= 0) {
-                    score += en.score;
-                    document.getElementById('score-val').innerText = score;
-                    updateDifficulty();
-                    if(Math.random() < en.dropRate) drops.push({x: en.x, y: en.y, heal: 10});
-                    enemies.splice(eIdx, 1);
-                    break;
-                }
-            }
         }
     }
     
@@ -446,27 +477,16 @@ function update() {
             drops.splice(i, 1);
         }
     });
-
-    enemyBullets.forEach((eb, i) => {
-        if(Math.hypot(eb.x - player.x, eb.y - player.y) < player.size/2 + 3) {
-            takeDamage();
-            enemyBullets.splice(i, 1);
-        }
-    });
-
-    [bullets, enemyBullets].forEach(arr => {
-        for(let i=arr.length-1; i>=0; i--) {
-            arr[i].x += arr[i].vx;
-            arr[i].y += arr[i].vy;
-            if(arr[i].x<0 || arr[i].x>canvas.width || arr[i].y<0 || arr[i].y>canvas.height) arr.splice(i, 1);
-        }
-    });
     
     player.x = Math.max(20, Math.min(canvas.width-20, player.x));
     player.y = Math.max(20, Math.min(canvas.height-20, player.y));
 }
 
-function draw() {
+function draw(timestamp) {
+    if (!lastTime) lastTime = timestamp;
+    const dt = (timestamp - lastTime) / TARGET_MS;
+    lastTime = timestamp;
+
     const now = Date.now();
     ctx.fillStyle = '#0a0a0a';
     ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -534,7 +554,7 @@ function draw() {
     if(joyL.active) drawJoy(joyL, '#00ccff');
     if(joyR.active) drawJoy(joyR, '#ff3300');
     
-    update();
+    update(dt);
     requestAnimationFrame(draw);
 }
 
@@ -550,7 +570,7 @@ function drawJoy(j, c) {
     ctx.fill();
 }
 
-draw();
+requestAnimationFrame(draw);
 </script>
 </body>
 </html>
