@@ -20,7 +20,7 @@
         #status-bar { 
             position: absolute; 
             top: 40%; left: 50%; transform: translate(-50%, -50%); 
-            color: #ff3300; font-size: 32px; font-weight: bold; pointer-events: none; 
+            color: #ff3300; font-size: 26px; font-weight: bold; pointer-events: none; 
             text-align: center; white-space: pre-wrap; line-height: 1.2;
             text-shadow: 2px 2px 4px #000;
         }
@@ -132,12 +132,12 @@ function triggerBossTransition(id) {
     
     let countdown = 5;
     const bar = document.getElementById('status-bar');
-    bar.innerText = "WARNING\nBOSS ARRIVING IN " + countdown + "S";
+    bar.innerText = "WARNING!!!\nBOSS ARRIVING IN " + countdown + " sec";
     
     const timer = setInterval(() => {
         countdown--;
         if(countdown > 0) {
-            bar.innerText = "WARNING\nBOSS ARRIVING IN " + countdown + "S";
+            bar.innerText = "WARNING!!!\nBOSS ARRIVING IN " + countdown + " sec";
         } else {
             clearInterval(timer);
             bar.innerText = "";
