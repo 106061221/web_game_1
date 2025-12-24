@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <title>生存射擊 - 橫向 補包更新版</title>
+    <title>生存射擊 - 雙端兼容版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
         canvas { display: block; }
@@ -29,7 +29,7 @@
             background: rgba(255, 255, 255, 0.1); border: 2px solid #00ffcc;
             border-radius: 50%; color: #00ffcc; display: flex; align-items: center;
             justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
-            backdrop-filter: blur(3px); -webkit-user-select: none;
+            backdrop-filter: blur(3px); -webkit-user-select: none; cursor: pointer;
         }
         #tp-btn {
             position: absolute; right: 130px; bottom: 175px; width: 75px; height: 75px;
@@ -37,7 +37,7 @@
             border-radius: 50%; color: #00ff00; display: flex; align-items: center;
             justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
             backdrop-filter: blur(3px); -webkit-user-select: none;
-            touch-action: none; overflow: hidden;
+            touch-action: none; overflow: hidden; cursor: pointer;
         }
         #tp-cd-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); pointer-events: none; transform: scaleY(0); transform-origin: bottom; }
         
@@ -57,14 +57,12 @@
         <div class="stat-label">SCORE: <span id="score-val">0</span></div>
         <div class="stat-label">LV: <span id="level-val">0</span></div>
     </div>
-    <div id="weapon-btn">換武器</div>
+    <div id="weapon-btn">換武器 (E)</div>
     <div id="tp-btn">瞬移<div id="tp-cd-overlay"></div></div>
     <canvas id="gameCanvas"></canvas>
 
 <script>
-// 基礎時間係數：假設原始邏輯是針對 60fps (16.67ms per frame)
 const TARGET_MS = 16.67; 
-
 const BASE_FIRE_INTERVAL = 10; 
 const WEAPON_CONFIG = {
     1: { id: 1, intervalMult: 1.0, speed: 15, damage: 1.0, color: '#fff' },
@@ -130,33 +128,19 @@ function updateDifficulty() {
 
 function triggerBossTransition(id) {
     isTransitioning = true;
-    enemies = [];
-    enemyBullets = [];
+    enemies = []; enemyBullets = [];
     drops.push({x: canvas.width / 2, y: canvas.height / 2, heal: 10});
-    
     let countdown = 5;
     const bar = document.getElementById('status-bar');
     bar.innerText = "WARNING!!!\nBOSS ARRIVING IN " + countdown + " SEC";
-    
     const timer = setInterval(() => {
         countdown--;
-        if(countdown > 0) {
-            bar.innerText = "WARNING!!!\nBOSS ARRIVING IN " + countdown + " SEC";
-        } else {
-            clearInterval(timer);
-            bar.innerText = "";
+        if(countdown > 0) { bar.innerText = "WARNING!!!\nBOSS ARRIVING IN " + countdown + " SEC"; } 
+        else {
+            clearInterval(timer); bar.innerText = "";
             const cfg = BOSS_CONFIG[id];
             const scaledHp = cfg.hpBase * (1 + difficultyLevel * DIFFICULTY_CONFIG.hpIncrease);
-            boss = {
-                ...cfg,
-                hp: scaledHp,
-                maxHp: scaledHp,
-                x: canvas.width / 2,
-                y: -100,
-                lastHitTime: 0,
-                angle: 0,
-                lastShootTime: 0
-            };
+            boss = { ...cfg, hp: scaledHp, maxHp: scaledHp, x: canvas.width / 2, y: -100, lastHitTime: 0, angle: 0, lastShootTime: 0 };
             isTransitioning = false;
         }
     }, 1000);
@@ -170,18 +154,11 @@ function switchWp() {
     const diffBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
     fireTimer = currentWp.fireInterval / diffBonus;
     resetOverload();
-    if(currentWp.id === 3) {
-        wp3IdleStartTime = Date.now();
-        idleTriggered = false;
-        isLocked = false;
-        document.getElementById('status-bar').innerText = "";
-    }
+    if(currentWp.id === 3) { wp3IdleStartTime = Date.now(); idleTriggered = false; isLocked = false; document.getElementById('status-bar').innerText = ""; }
 }
 
 function resetOverload() { 
-    speedMultiplier = 1.0; 
-    overloadFrames = 0; 
-    wp3IdleStartTime = Date.now();
+    speedMultiplier = 1.0; overloadFrames = 0; wp3IdleStartTime = Date.now();
     document.getElementById('overload-info').style.visibility = 'hidden'; 
     document.getElementById('speed-bonus').innerText = "0";
 }
@@ -189,88 +166,52 @@ function resetOverload() {
 function takeDamage() {
     const now = Date.now();
     if (now - player.lastHurtTime > INVULNERABLE_TIME) {
-        player.hp--;
-        player.lastHurtTime = now;
+        player.hp--; player.lastHurtTime = now;
         document.getElementById('hp-val').innerText = Math.max(0, player.hp);
-        if (player.hp <= 0) {
-            alert("遊戲結束！分數: " + score);
-            location.reload();
-        }
+        if (player.hp <= 0) { alert("遊戲結束！分數: " + score); location.reload(); }
     }
 }
 
 const tpBtn = document.getElementById('tp-btn');
 tpBtn.addEventListener('touchstart', e => {
-    e.preventDefault();
-    if(tpCooldown > 0) return;
-    const t = e.changedTouches[0];
-    joyT.active = true;
-    joyT.id = t.identifier;
-    joyT.x1 = joyT.x2 = t.clientX;
-    joyT.y1 = joyT.y2 = t.clientY;
+    e.preventDefault(); if(tpCooldown > 0) return;
+    const t = e.changedTouches[0]; joyT.active = true; joyT.id = t.identifier;
+    joyT.x1 = joyT.x2 = t.clientX; joyT.y1 = joyT.y2 = t.clientY;
     tpTarget = { x: player.x, y: player.y };
 }, {passive: false});
 
 canvas.addEventListener('touchstart', e => {
     e.preventDefault();
     for(let t of e.changedTouches) {
-        if(t.clientX < canvas.width/2) {
-            joyL.active = true;
-            joyL.x1 = joyL.x2 = t.clientX;
-            joyL.y1 = joyL.y2 = t.clientY;
-            joyL.id = t.identifier;
-        } else {
-            joyR.active = true;
-            joyR.x1 = joyR.x2 = t.clientX;
-            joyR.y1 = joyR.y2 = t.clientY;
-            joyR.id = t.identifier;
-        }
+        if(t.clientX < canvas.width/2) { joyL.active = true; joyL.x1 = joyL.x2 = t.clientX; joyL.y1 = joyL.y2 = t.clientY; joyL.id = t.identifier; } 
+        else { joyR.active = true; joyR.x1 = joyR.x2 = t.clientX; joyR.y1 = joyR.y2 = t.clientY; joyR.id = t.identifier; }
     }
 }, {passive: false});
 
 window.addEventListener('touchmove', e => {
     for(let t of e.changedTouches) {
-        if(joyL.id === t.identifier) {
-            joyL.x2 = t.clientX;
-            joyL.y2 = t.clientY;
-        }
-        if(joyR.id === t.identifier) {
-            joyR.x2 = t.clientX;
-            joyR.y2 = t.clientY;
-        }
-        if(joyT.id === t.identifier) {
-            joyT.x2 = t.clientX;
-            joyT.y2 = t.clientY;
-            tpTarget.x = player.x + (joyT.x2 - joyT.x1) * 3.5;
-            tpTarget.y = player.y + (joyT.y2 - joyT.y1) * 3.5;
+        if(joyL.id === t.identifier) { joyL.x2 = t.clientX; joyL.y2 = t.clientY; }
+        if(joyR.id === t.identifier) { joyR.x2 = t.clientX; joyR.y2 = t.clientY; }
+        if(joyT.id === t.identifier) { 
+            joyT.x2 = t.clientX; joyT.y2 = t.clientY;
+            tpTarget.x = player.x + (joyT.x2 - joyT.x1) * 3.5; tpTarget.y = player.y + (joyT.y2 - joyT.y1) * 3.5;
         }
     }
 }, {passive: false});
 
 window.addEventListener('touchend', e => {
     for(let t of e.changedTouches) {
-        if(joyL.id === t.identifier) {
-            joyL.active = false;
-            joyL.id = -1;
-        }
-        if(joyR.id === t.identifier) {
-            joyR.active = false;
-            joyR.id = -1;
-        }
+        if(joyL.id === t.identifier) { joyL.active = false; joyL.id = -1; }
+        if(joyR.id === t.identifier) { joyR.active = false; joyR.id = -1; }
         if(joyT.id === t.identifier) {
             player.x = Math.max(20, Math.min(canvas.width-20, tpTarget.x));
             player.y = Math.max(20, Math.min(canvas.height-20, tpTarget.y));
-            tpCooldown = TP_COOLDOWN_TIME;
-            joyT.active = false;
-            joyT.id = -1;
+            tpCooldown = TP_COOLDOWN_TIME; joyT.active = false; joyT.id = -1;
         }
     }
 }, {passive: false});
 
-document.getElementById('weapon-btn').addEventListener('touchstart', e => {
-    e.preventDefault();
-    switchWp();
-});
+document.getElementById('weapon-btn').addEventListener('touchstart', e => { e.preventDefault(); switchWp(); });
 
 function spawnEnemy() {
     const side = Math.floor(Math.random() * 4);
@@ -281,185 +222,89 @@ function spawnEnemy() {
     else { x = -80; y = Math.random() * canvas.height; }
     const rand = Math.random() * 100;
     let type = (rand < 68.5) ? ENEMY_CONFIG[1] : (rand < 83.5) ? ENEMY_CONFIG[2] : (rand < 98.5) ? ENEMY_CONFIG[3] : ENEMY_CONFIG[4];
-    enemies.push({
-        ...type,
-        x, y,
-        hp: type.hpBase * (1 + difficultyLevel * DIFFICULTY_CONFIG.hpIncrease),
-        lastShootTime: Date.now(),
-        lastHitTime: 0
-    });
+    enemies.push({ ...type, x, y, hp: type.hpBase * (1 + difficultyLevel * DIFFICULTY_CONFIG.hpIncrease), lastShootTime: Date.now(), lastHitTime: 0 });
 }
 
 function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0, dmg = 1) {
-    const b = {
-        x: isEnemy ? ex : (player.x + Math.cos(angle + Math.PI/2) * offset),
-        y: isEnemy ? ey : (player.y + Math.sin(angle + Math.PI/2) * offset),
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        dmg: dmg
-    };
+    const b = { x: isEnemy ? ex : (player.x + Math.cos(angle + Math.PI/2) * offset), y: isEnemy ? ey : (player.y + Math.sin(angle + Math.PI/2) * offset), vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, dmg: dmg };
     if(isEnemy) enemyBullets.push(b); else bullets.push(b);
 }
 
 function update(dt) {
     const now = Date.now();
     const diffBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
-
-    if(tpCooldown > 0) { 
-        tpCooldown -= 16 * dt; 
-        document.getElementById('tp-cd-overlay').style.transform = "scaleY(" + Math.max(0, tpCooldown / TP_COOLDOWN_TIME) + ")"; 
-    }
-
+    if(tpCooldown > 0) { tpCooldown -= 16 * dt; document.getElementById('tp-cd-overlay').style.transform = "scaleY(" + Math.max(0, tpCooldown / TP_COOLDOWN_TIME) + ")"; }
     if(!boss && !isTransitioning) {
         spawnTimer += dt;
-        if(spawnTimer > (ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease))) {
-            spawnEnemy();
-            spawnTimer = 0;
-        }
+        if(spawnTimer > (ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease))) { spawnEnemy(); spawnTimer = 0; }
     }
-
     if(joyL.active) {
         const dx = joyL.x2 - joyL.x1, dy = joyL.y2 - joyL.y1, d = Math.hypot(dx, dy);
-        if(d > 2) {
-            player.x += (dx/d) * PLAYER_SPEED * dt;
-            player.y += (dy/d) * PLAYER_SPEED * dt;
-            if(currentWp.id === 3 && !isLocked) resetOverload();
+        if(d > 2) { player.x += (dx/d) * PLAYER_SPEED * dt; player.y += (dy/d) * PLAYER_SPEED * dt; if(currentWp.id === 3 && !isLocked) resetOverload(); }
+    }
+    // --- 注入區：電腦版鍵盤移動判斷 ---
+    if(typeof handleKeyboardInput === 'function') handleKeyboardInput(dt);
+
+    if(score >= BOSS_CONFIG[101].triggerScore && !b101Triggered) { b101Triggered = true; triggerBossTransition(101); }
+    if(boss && boss.id === 101) {
+        const bh = boss.behavior;
+        if(boss.y < bh.targetY) { boss.y += bh.entrySpeed * dt; } 
+        else {
+            boss.angle += bh.swingSpeed * dt; boss.x = (canvas.width / 2) + Math.sin(boss.angle) * (canvas.width * bh.swingRange);
+            if(now - boss.lastShootTime > bh.shootDelay) { const ang = Math.atan2(player.y - boss.y, player.x - boss.x); spawnBullet(ang, 0, bh.bulletSpeed, true, boss.x, boss.y); boss.lastShootTime = now; }
         }
     }
-
-    if(score >= BOSS_CONFIG[101].triggerScore && !b101Triggered) {
-        b101Triggered = true;
-        triggerBossTransition(101);
-    }
-
-    if(boss) {
-        if(boss.id === 101) {
-            const bh = boss.behavior;
-            if(boss.y < bh.targetY) {
-                boss.y += bh.entrySpeed * dt;
-            } else {
-                boss.angle += bh.swingSpeed * dt;
-                boss.x = (canvas.width / 2) + Math.sin(boss.angle) * (canvas.width * bh.swingRange);
-                if(now - boss.lastShootTime > bh.shootDelay) {
-                    const ang = Math.atan2(player.y - boss.y, player.x - boss.x);
-                    spawnBullet(ang, 0, bh.bulletSpeed, true, boss.x, boss.y);
-                    boss.lastShootTime = now;
-                }
-            }
-        }
-    }
-
     if(currentWp.id === 3 && !isLocked) {
         const idleSec = (now - wp3IdleStartTime) / 1000;
         if(idleSec >= currentWp.overloadTriggerTime) {
             document.getElementById('overload-info').style.visibility = 'visible';
-            overloadFrames += dt;
-            if(overloadFrames >= 12) {
-                speedMultiplier += currentWp.overloadIncrement;
-                document.getElementById('speed-bonus').innerText = Math.round((speedMultiplier-1)*100);
-                overloadFrames = 0;
-            }
+            overloadFrames += dt; if(overloadFrames >= 12) { speedMultiplier += currentWp.overloadIncrement; document.getElementById('speed-bonus').innerText = Math.round((speedMultiplier-1)*100); overloadFrames = 0; }
         }
         if(idleSec >= currentWp.ultimateTriggerTime && !idleTriggered) {
             for(let i=0; i<10; i++) spawnBullet((i/10) * Math.PI * 2, 0, 8, false, 0, 0, currentWp.damage);
-            idleTriggered = true;
-            isLocked = true;
-            document.getElementById('status-bar').innerText = "系統過熱！";
-            setTimeout(() => {
-                isLocked = false;
-                idleTriggered = false;
-                document.getElementById('status-bar').innerText = "";
-                resetOverload();
-            }, currentWp.lockoutDuration * 1000);
+            idleTriggered = true; isLocked = true; document.getElementById('status-bar').innerText = "系統過熱！";
+            setTimeout(() => { isLocked = false; idleTriggered = false; document.getElementById('status-bar').innerText = ""; resetOverload(); }, currentWp.lockoutDuration * 1000);
         }
     }
-
-    if(joyR.active) {
-        const dx = joyR.x2 - joyR.x1, dy = joyR.y2 - joyR.y1;
-        if(Math.hypot(dx, dy) > 2) lastAngle = Math.atan2(dy, dx);
-    }
-
+    if(joyR.active) { const dx = joyR.x2 - joyR.x1, dy = joyR.y2 - joyR.y1; if(Math.hypot(dx, dy) > 2) lastAngle = Math.atan2(dy, dx); }
     if (!isLocked) {
         fireTimer -= dt;
-        if(fireTimer <= 0) {
-            const interval = (currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval) / diffBonus;
-            if(currentWp.id === 1) {
-                spawnBullet(lastAngle, 0, currentWp.speed, false, 0, 0, currentWp.damage);
-            } else if(currentWp.id === 2) {
-                for(let i=0; i<15; i++) spawnBullet(lastAngle - (15*Math.PI/180) + i*(2*Math.PI/180), 0, currentWp.speed, false, 0, 0, currentWp.damage);
-            } else if(currentWp.id === 3) {
-                spawnBullet(lastAngle, 12, currentWp.speed, false, 0, 0, currentWp.damage);
-                spawnBullet(lastAngle, -12, currentWp.speed, false, 0, 0, currentWp.damage);
-            }
-            fireTimer = Math.max(2, interval);
+        const interval = (currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval) / diffBonus;
+        while (fireTimer <= 0) {
+            if(currentWp.id === 1) { spawnBullet(lastAngle, 0, currentWp.speed, false, 0, 0, currentWp.damage); } 
+            else if(currentWp.id === 2) { for(let i=0; i<15; i++) spawnBullet(lastAngle - (15*Math.PI/180) + i*(2*Math.PI/180), 0, currentWp.speed, false, 0, 0, currentWp.damage); } 
+            else if(currentWp.id === 3) { spawnBullet(lastAngle, 12, currentWp.speed, false, 0, 0, currentWp.damage); spawnBullet(lastAngle, -12, currentWp.speed, false, 0, 0, currentWp.damage); }
+            fireTimer += interval; 
         }
     }
-
-    // 子彈物理細分 (分兩步位移以防止穿模)
     const steps = 2;
     for(let s = 0; s < steps; s++) {
         [bullets, enemyBullets].forEach((arr, arrType) => {
             const isPlayerBullet = (arrType === 0);
             for(let i = arr.length - 1; i >= 0; i--) {
-                let b = arr[i];
-                b.x += (b.vx * dt) / steps;
-                b.y += (b.vy * dt) / steps;
-
+                let b = arr[i]; b.x += (b.vx * dt) / steps; b.y += (b.vy * dt) / steps;
                 if(isPlayerBullet) {
-                    // 玩家子彈碰撞 Boss
                     if(boss && Math.abs(b.x - boss.x) < boss.size + 2 && Math.abs(b.y - boss.y) < boss.size + 2) {
-                        boss.hp -= b.dmg;
-                        boss.lastHitTime = now;
-                        arr.splice(i, 1);
-                        if(boss.hp <= 0) {
-                            score += boss.score;
-                            document.getElementById('score-val').innerText = score;
-                            updateDifficulty();
-                            document.getElementById('status-bar').innerText = "BOSS DEFEATED!";
-                            setTimeout(() => document.getElementById('status-bar').innerText = "", 3000);
-                            boss = null;
-                        }
+                        boss.hp -= b.dmg; boss.lastHitTime = now; arr.splice(i, 1);
+                        if(boss.hp <= 0) { score += boss.score; document.getElementById('score-val').innerText = score; updateDifficulty(); document.getElementById('status-bar').innerText = "BOSS DEFEATED!"; setTimeout(() => document.getElementById('status-bar').innerText = "", 3000); boss = null; }
                         continue;
                     }
-                    // 玩家子彈碰撞小兵
                     for(let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
                         let en = enemies[eIdx];
                         if(Math.hypot(b.x - en.x, b.y - en.y) < en.size + 2) {
-                            en.hp -= b.dmg;
-                            en.lastHitTime = now;
-                            arr.splice(i, 1);
-                            if(en.hp <= 0) {
-                                score += en.score;
-                                document.getElementById('score-val').innerText = score;
-                                updateDifficulty();
-                                if(Math.random() < en.dropRate) drops.push({x: en.x, y: en.y, heal: 10});
-                                enemies.splice(eIdx, 1);
-                            }
+                            en.hp -= b.dmg; en.lastHitTime = now; arr.splice(i, 1);
+                            if(en.hp <= 0) { score += en.score; document.getElementById('score-val').innerText = score; updateDifficulty(); if(Math.random() < en.dropRate) drops.push({x: en.x, y: en.y, heal: 10}); enemies.splice(eIdx, 1); }
                             break;
                         }
                     }
-                } else {
-                    // 敵人子彈碰撞玩家
-                    if(Math.hypot(b.x - player.x, b.y - player.y) < player.size/2 + 3) {
-                        takeDamage();
-                        arr.splice(i, 1);
-                    }
-                }
-                
-                // 邊界檢查
+                } else { if(Math.hypot(b.x - player.x, b.y - player.y) < player.size/2 + 3) { takeDamage(); arr.splice(i, 1); } }
                 if(b && (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height)) arr.splice(i, 1);
             }
         });
     }
-
-    // 小兵與掉落物邏輯
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
-        let en = enemies[eIdx];
-        const dx = player.x - en.x;
-        const dy = player.y - en.y;
-        const dist = Math.hypot(dx, dy);
-        en.x += (dx/dist) * en.speed * dt;
-        en.y += (dy/dist) * en.speed * dt;
+        let en = enemies[eIdx]; const dx = player.x - en.x; const dy = player.y - en.y; const dist = Math.hypot(dx, dy);
+        en.x += (dx/dist) * en.speed * dt; en.y += (dy/dist) * en.speed * dt;
         if (dist < en.size + player.size/2) takeDamage();
         if(en.shootInterval > 0 && now - en.lastShootTime > en.shootInterval * 1000) {
             const ang = Math.atan2(dy, dx);
@@ -469,106 +314,97 @@ function update(dt) {
             en.lastShootTime = now;
         }
     }
-    
-    drops.forEach((d, i) => {
-        if(Math.hypot(d.x - player.x, d.y - player.y) < player.size + 10) {
-            player.hp = Math.min(player.maxHp, player.hp + d.heal);
-            document.getElementById('hp-val').innerText = player.hp;
-            drops.splice(i, 1);
-        }
-    });
-    
-    player.x = Math.max(20, Math.min(canvas.width-20, player.x));
-    player.y = Math.max(20, Math.min(canvas.height-20, player.y));
+    drops.forEach((d, i) => { if(Math.hypot(d.x - player.x, d.y - player.y) < player.size + 10) { player.hp = Math.min(player.maxHp, player.hp + d.heal); document.getElementById('hp-val').innerText = player.hp; drops.splice(i, 1); } });
+    player.x = Math.max(20, Math.min(canvas.width-20, player.x)); player.y = Math.max(20, Math.min(canvas.height-20, player.y));
 }
 
 function draw(timestamp) {
     if (!lastTime) lastTime = timestamp;
-    const dt = (timestamp - lastTime) / TARGET_MS;
-    lastTime = timestamp;
-
-    const now = Date.now();
-    ctx.fillStyle = '#0a0a0a';
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    
-    drops.forEach(d => {
-        ctx.fillStyle = '#00ff00';
-        ctx.fillRect(d.x-8, d.y-8, 16, 16);
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(d.x-2, d.y-6, 4, 12);
-        ctx.fillRect(d.x-6, d.y-2, 12, 4);
-    });
-
+    const dt = (timestamp - lastTime) / TARGET_MS; lastTime = timestamp;
+    const now = Date.now(); ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    drops.forEach(d => { ctx.fillStyle = '#00ff00'; ctx.fillRect(d.x-8, d.y-8, 16, 16); ctx.fillStyle = '#fff'; ctx.fillRect(d.x-2, d.y-6, 4, 12); ctx.fillRect(d.x-6, d.y-2, 12, 4); });
     enemies.forEach(en => {
         ctx.fillStyle = (now - en.lastHitTime < HIT_FLASH_DURATION) ? 'rgba(255, 255, 255, 0.45)' : en.color;
-        if(en.id === 4 && now - en.lastHitTime >= HIT_FLASH_DURATION) {
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = '#FFD700';
-        }
-        ctx.beginPath();
-        ctx.arc(en.x, en.y, en.size, 0, 7);
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        if(en.id === 4 && now - en.lastHitTime >= HIT_FLASH_DURATION) { ctx.shadowBlur = 15; ctx.shadowColor = '#FFD700'; }
+        ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
     });
-
     if(boss) {
         ctx.fillStyle = (now - boss.lastHitTime < HIT_FLASH_DURATION) ? 'rgba(255, 255, 255, 0.45)' : boss.color;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = '#fff';
-        ctx.beginPath();
-        ctx.roundRect(boss.x - boss.size, boss.y - boss.size, boss.size * 2, boss.size * 2, 12);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        
-        ctx.fillStyle = '#444';
-        ctx.fillRect(boss.x - 50, boss.y - boss.size - 15, 100, 8);
-        ctx.fillStyle = '#f00';
-        ctx.fillRect(boss.x - 50, boss.y - boss.size - 15, (boss.hp / boss.maxHp) * 100, 8);
+        ctx.shadowBlur = 15; ctx.shadowColor = '#fff'; ctx.beginPath(); ctx.roundRect(boss.x - boss.size, boss.y - boss.size, boss.size * 2, boss.size * 2, 12); ctx.fill(); ctx.shadowBlur = 0;
+        ctx.fillStyle = '#444'; ctx.fillRect(boss.x - 50, boss.y - boss.size - 15, 100, 8); ctx.fillStyle = '#f00'; ctx.fillRect(boss.x - 50, boss.y - boss.size - 15, (boss.hp / boss.maxHp) * 100, 8);
     }
-
-    if(joyT.active) {
-        ctx.strokeStyle = '#00ff00';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(tpTarget.x, tpTarget.y, 25, 0, 7);
-        ctx.stroke();
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.moveTo(player.x, player.y);
-        ctx.lineTo(tpTarget.x, tpTarget.y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-    }
-
+    if(joyT.active) { ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tpTarget.x, tpTarget.y, 25, 0, 7); ctx.stroke(); ctx.setLineDash([5, 5]); ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(tpTarget.x, tpTarget.y); ctx.stroke(); ctx.setLineDash([]); }
     if (!(Date.now() - player.lastHurtTime < INVULNERABLE_TIME) || Math.floor(now/50) % 2) {
         let pColor = isLocked ? '#444' : (currentWp.id === 3 && document.getElementById('overload-info').style.visibility === 'visible' ? '#ff3300' : currentWp.color);
-        ctx.fillStyle = pColor;
-        ctx.fillRect(player.x - 8, player.y - 8, 16, 16);
+        ctx.fillStyle = pColor; ctx.fillRect(player.x - 8, player.y - 8, 16, 16);
     }
-    
-    ctx.fillStyle = '#fff';
-    bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 2, 0, 7); ctx.fill(); });
-    ctx.fillStyle = '#f00';
-    enemyBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, 7); ctx.fill(); });
-    
+    ctx.fillStyle = '#fff'; bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 2, 0, 7); ctx.fill(); });
+    ctx.fillStyle = '#f00'; enemyBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, 7); ctx.fill(); });
     if(joyL.active) drawJoy(joyL, '#00ccff');
     if(joyR.active) drawJoy(joyR, '#ff3300');
-    
     update(dt);
     requestAnimationFrame(draw);
 }
 
-function drawJoy(j, c) {
-    ctx.beginPath();
-    ctx.arc(j.x1, j.y1, 45, 0, 7);
-    ctx.strokeStyle = c+'33';
-    ctx.lineWidth=3;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(j.x2, j.y2, 22, 0, 7);
-    ctx.fillStyle = c+'66';
-    ctx.fill();
+function drawJoy(j, c) { ctx.beginPath(); ctx.arc(j.x1, j.y1, 45, 0, 7); ctx.strokeStyle = c+'33'; ctx.lineWidth=3; ctx.stroke(); ctx.beginPath(); ctx.arc(j.x2, j.y2, 22, 0, 7); ctx.fillStyle = c+'66'; ctx.fill(); }
+
+// ==========================================
+// 獨立電腦版支援區塊 (注入功能)
+// ==========================================
+const keys = {};
+window.addEventListener('keydown', e => { 
+    keys[e.code] = true; 
+    if(e.code === 'KeyE') switchWp(); // 按 E 換武器
+});
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+// 滑鼠控制：瞄準與射擊
+canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    lastAngle = Math.atan2(mouseY - player.y, mouseX - player.x);
+});
+canvas.addEventListener('mousedown', (e) => { if(e.button === 0) joyR.active = true; }); 
+window.addEventListener('mouseup', () => joyR.active = false);
+
+// 電腦版按鍵換算為移動向量
+function handleKeyboardInput(dt) {
+    let dx = 0, dy = 0;
+    if(keys['KeyW'] || keys['ArrowUp']) dy -= 1;
+    if(keys['KeyS'] || keys['ArrowDown']) dy += 1;
+    if(keys['KeyA'] || keys['ArrowLeft']) dx -= 1;
+    if(keys['KeyD'] || keys['ArrowRight']) dx += 1;
+    
+    if(dx !== 0 || dy !== 0) {
+        const mag = Math.hypot(dx, dy);
+        player.x += (dx / mag) * PLAYER_SPEED * dt;
+        player.y += (dy / mag) * PLAYER_SPEED * dt;
+        if(currentWp.id === 3 && !isLocked) resetOverload();
+    }
 }
+
+// 支援電腦版點擊換武器按鈕
+document.getElementById('weapon-btn').addEventListener('mousedown', e => { switchWp(); });
+// 支援電腦版點擊瞬移按鈕
+document.getElementById('tp-btn').addEventListener('mousedown', e => {
+    if(tpCooldown > 0) return;
+    joyT.active = true; joyT.x1 = e.clientX; joyT.y1 = e.clientY;
+    tpTarget = { x: player.x, y: player.y };
+});
+window.addEventListener('mouseup', e => {
+    if(joyT.active) {
+        player.x = Math.max(20, Math.min(canvas.width-20, tpTarget.x));
+        player.y = Math.max(20, Math.min(canvas.height-20, tpTarget.y));
+        tpCooldown = TP_COOLDOWN_TIME; joyT.active = false;
+    }
+});
+window.addEventListener('mousemove', e => {
+    if(joyT.active) {
+        tpTarget.x = player.x + (e.clientX - joyT.x1) * 3.5;
+        tpTarget.y = player.y + (e.clientY - joyT.y1) * 3.5;
+    }
+});
 
 requestAnimationFrame(draw);
 </script>
