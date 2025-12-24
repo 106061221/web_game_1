@@ -77,7 +77,7 @@ const ENEMY_CONFIG = {
 
 // Boss 配置與通用狀態
 const BOSS_CONFIG = {
-    101: { id: 101, hp: 500, maxHp: 500, size: 50, color: '#ff0000', score: 5000, lastShootTime: 0 }
+    101: { id: 101, hp: 500, maxHp: 500, size: 50, color: '#ff0000', score: 5000, triggerScore: 20000 }
 };
 
 const DIFFICULTY_CONFIG = { threshold: 1000, hpIncrease: 0.05, speedIncrease: 0.05, spawnIncrease: 0.01 };
@@ -129,7 +129,7 @@ function triggerBossTransition(id) {
             clearInterval(timer);
             bar.innerText = "";
             const cfg = BOSS_CONFIG[id];
-            boss = { ...cfg, x: canvas.width / 2, y: -100, lastHitTime: 0, angle: 0 };
+            boss = { ...cfg, x: canvas.width / 2, y: -100, lastHitTime: 0, angle: 0, lastShootTime: 0 };
             isTransitioning = false;
         }
     }, 1000);
@@ -242,15 +242,15 @@ function update() {
         }
     }
 
-    // Boss 觸發檢測 (20000分觸發 Boss 1)
-    if(score >= 20000 && !b101Triggered) {
+    // Boss 觸發檢測 (使用參數化門檻)
+    if(score >= BOSS_CONFIG[101].triggerScore && !b101Triggered) {
         b101Triggered = true;
         triggerBossTransition(101);
     }
 
     // Boss 行為邏輯
     if(boss) {
-        if(boss.id === 101) {
+        if(boss.id === 101) { // Boss 1 獨有行為
             // 出場移動到 y=60
             if(boss.y < 60) boss.y += 1.5;
             else {
