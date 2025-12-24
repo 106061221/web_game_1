@@ -75,17 +75,17 @@ const ENEMY_CONFIG = {
     4: { id: 4, speed: 0.2, hpBase: 40, size: 25, color: '#FFD700', shootInterval: 10, bulletSpeed: 0.6, weight: 1.5, score: 500, dropRate: 1 } 
 };
 
-// Boss 配置：通用參數與獨有行為參數分離
+// Boss 配置：hpBase 會隨難度加乘
 const BOSS_CONFIG = {
     101: { 
-        id: 101, hp: 200, size: 50, color: '#ff0000', score: 5000, triggerScore: 100,
+        id: 101, hpBase: 200, size: 50, color: '#ff0000', score: 5000, triggerScore: 100,
         behavior: {
-            targetY: 120,           // 停留在 y=60
-            entrySpeed: 1.5,       // 入場向下速度
-            swingRange: 0.3,       // 左右擺動範圍 (螢幕寬度的百分比)
-            swingSpeed: 0.01,      // 擺動頻率
-            shootDelay: 1000,      // 射擊間隔 (ms)
-            bulletSpeed: 1.2       // 子彈速度
+            targetY: 120,          
+            entrySpeed: 1.5,       
+            swingRange: 0.3,       
+            swingSpeed: 0.01,      
+            shootDelay: 1000,      
+            bulletSpeed: 1.2       
         }
     }
 };
@@ -139,8 +139,9 @@ function triggerBossTransition(id) {
             clearInterval(timer);
             bar.innerText = "";
             const cfg = BOSS_CONFIG[id];
-            // 自動將配置表的 hp 賦值給當前 hp 與 maxHp，並注入運行狀態
-            boss = { ...cfg, maxHp: cfg.hp, x: canvas.width / 2, y: -100, lastHitTime: 0, angle: 0, lastShootTime: 0 };
+            // 根據當前難度計算 Boss 生命值
+            const scaledHp = cfg.hpBase * (1 + difficultyLevel * DIFFICULTY_CONFIG.hpIncrease);
+            boss = { ...cfg, hp: scaledHp, maxHp: scaledHp, x: canvas.width / 2, y: -100, lastHitTime: 0, angle: 0, lastShootTime: 0 };
             isTransitioning = false;
         }
     }, 1000);
@@ -253,7 +254,7 @@ function update() {
         }
     }
 
-    // Boss 觸發檢測 (使用參數化門檻)
+    // Boss 觸發檢測
     if(score >= BOSS_CONFIG[101].triggerScore && !b101Triggered) {
         b101Triggered = true;
         triggerBossTransition(101);
@@ -263,14 +264,10 @@ function update() {
     if(boss) {
         if(boss.id === 101) { // Boss 1 獨有行為
             const bh = boss.behavior;
-            // 出場移動到 targetY
             if(boss.y < bh.targetY) boss.y += bh.entrySpeed;
             else {
-                // 達到高度後開始左右移動
                 boss.angle += bh.swingSpeed;
                 boss.x = (canvas.width / 2) + Math.sin(boss.angle) * (canvas.width * bh.swingRange);
-                
-                // 根據 shootDelay 射擊
                 if(now - boss.lastShootTime > bh.shootDelay) {
                     const ang = Math.atan2(player.y - boss.y, player.x - boss.x);
                     spawnBullet(ang, 0, bh.bulletSpeed, true, boss.x, boss.y);
@@ -290,7 +287,6 @@ function update() {
             }
         }
         if(idleSec >= currentWp.ultimateTriggerTime && !idleTriggered) {
-            // 已依照指令修改為 10 顆子彈
             for(let i=0; i<10; i++) spawnBullet((i/10) * Math.PI * 2, 0, 8, false, 0, 0, currentWp.damage);
             idleTriggered = true; isLocked = true; 
             document.getElementById('status-bar').innerText = "系統過熱！";
@@ -316,7 +312,6 @@ function update() {
         fireTimer = Math.max(2, interval);
     }
 
-    // Boss 碰撞檢測
     if(boss) {
         for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
             let b = bullets[bIdx];
@@ -352,7 +347,6 @@ function update() {
                     score += en.score; 
                     document.getElementById('score-val').innerText = score; 
                     updateDifficulty(); 
-                    // 掉落補包邏輯
                     if(Math.random() < en.dropRate) drops.push({x: en.x, y: en.y, heal: 10});
                     enemies.splice(eIdx, 1); break; 
                 }
@@ -360,7 +354,6 @@ function update() {
         }
     }
     
-    // 補包碰撞檢測
     drops.forEach((d, i) => {
         if(Math.hypot(d.x - player.x, d.y - player.y) < player.size + 10) {
             player.hp = Math.min(player.maxHp, player.hp + d.heal);
@@ -380,7 +373,6 @@ function draw() {
     const now = Date.now();
     ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
     
-    // 繪製補包
     drops.forEach(d => {
         ctx.fillStyle = '#00ff00';
         ctx.fillRect(d.x-8, d.y-8, 16, 16);
@@ -395,13 +387,11 @@ function draw() {
         ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
     });
 
-    // 繪製 Boss 個體
     if(boss) {
         ctx.fillStyle = (now - boss.lastHitTime < HIT_FLASH_DURATION) ? '#fff' : boss.color;
         ctx.beginPath();
         ctx.arc(boss.x, boss.y, boss.size, 0, 7);
         ctx.fill();
-        // 繪製 Boss 血條
         ctx.fillStyle = '#444'; ctx.fillRect(boss.x - 50, boss.y - boss.size - 15, 100, 8);
         ctx.fillStyle = '#f00'; ctx.fillRect(boss.x - 50, boss.y - boss.size - 15, (boss.hp / boss.maxHp) * 100, 8);
     }
