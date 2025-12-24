@@ -19,14 +19,14 @@
         #overload-info { color: #ff3300; font-weight: bold; font-size: 14px; visibility: hidden; }
         #status-bar { position: absolute; top: 25px; left: 50%; transform: translateX(-50%); color: #ff3300; font-size: 18px; font-weight: bold; pointer-events: none; }
         #weapon-btn {
-            position: absolute; right: 40px; bottom: 180px; width: 75px; height: 75px;
+            position: absolute; right: 40px; bottom: 220px; width: 75px; height: 75px;
             background: rgba(255, 255, 255, 0.1); border: 2px solid #00ffcc;
             border-radius: 50%; color: #00ffcc; display: flex; align-items: center;
             justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
             backdrop-filter: blur(3px); -webkit-user-select: none;
         }
         #tp-btn {
-            position: absolute; right: 130px; bottom: 135px; width: 75px; height: 75px;
+            position: absolute; right: 130px; bottom: 175px; width: 75px; height: 75px;
             background: rgba(0, 255, 0, 0.1); border: 2px solid #00ff00;
             border-radius: 50%; color: #00ff00; display: flex; align-items: center;
             justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
@@ -75,6 +75,11 @@ const ENEMY_CONFIG = {
     4: { id: 4, speed: 0.2, hpBase: 40, size: 25, color: '#FFD700', shootInterval: 10, bulletSpeed: 0.6, weight: 1.5, score: 500, dropRate: 1 } 
 };
 
+// Boss 配置與通用狀態
+const BOSS_CONFIG = {
+    101: { id: 101, hp: 500, maxHp: 500, size: 50, color: '#ff0000', score: 5000, lastShootTime: 0 }
+};
+
 const DIFFICULTY_CONFIG = { threshold: 1000, hpIncrease: 0.05, speedIncrease: 0.05, spawnIncrease: 0.01 };
 const PLAYER_SPEED = 1.2; 
 const INVULNERABLE_TIME = 250; 
@@ -86,6 +91,7 @@ function handleResize() { canvas.width = window.innerWidth; canvas.height = wind
 window.addEventListener('resize', handleResize);
 handleResize();
 
+let boss = null, isTransitioning = false, b101Triggered = false;
 let player = { x: canvas.width/2, y: canvas.height/2, hp: 30, maxHp: 30, size: 17, lastHurtTime: 0 };
 let bullets = [], enemyBullets = [], enemies = [], drops = [];
 let currentWp = WEAPON_CONFIG[1];
@@ -101,6 +107,32 @@ const TP_COOLDOWN_TIME = 3000;
 function updateDifficulty() {
     let newLevel = Math.floor(score / DIFFICULTY_CONFIG.threshold);
     if (newLevel > difficultyLevel) { difficultyLevel = newLevel; document.getElementById('level-val').innerText = difficultyLevel; }
+}
+
+// 通用 Boss 轉場函式
+function triggerBossTransition(id) {
+    isTransitioning = true;
+    enemies = [];
+    enemyBullets = [];
+    // 在地圖中央生成補包
+    drops.push({x: canvas.width / 2, y: canvas.height / 2, heal: 10});
+    
+    let countdown = 5;
+    const bar = document.getElementById('status-bar');
+    bar.innerText = "WARNING: BOSS APPROACHING IN " + countdown;
+    
+    const timer = setInterval(() => {
+        countdown--;
+        if(countdown > 0) {
+            bar.innerText = "WARNING: BOSS APPROACHING IN " + countdown;
+        } else {
+            clearInterval(timer);
+            bar.innerText = "";
+            const cfg = BOSS_CONFIG[id];
+            boss = { ...cfg, x: canvas.width / 2, y: -100, lastHitTime: 0, angle: 0 };
+            isTransitioning = false;
+        }
+    }, 1000);
 }
 
 function switchWp() {
@@ -199,13 +231,40 @@ function update() {
         document.getElementById('tp-cd-overlay').style.transform = "scaleY(" + (tpCooldown / TP_COOLDOWN_TIME) + ")"; 
     }
 
-    if(++spawnTimer > (ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease))) { spawnEnemy(); spawnTimer = 0; }
+    // 只有在非 Boss 且非轉場期間才生成小怪
+    if(!boss && !isTransitioning && ++spawnTimer > (ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease))) { spawnEnemy(); spawnTimer = 0; }
 
     if(joyL.active) {
         const dx = joyL.x2 - joyL.x1, dy = joyL.y2 - joyL.y1, d = Math.hypot(dx, dy);
         if(d > 2) {
             player.x += (dx/d) * PLAYER_SPEED; player.y += (dy/d) * PLAYER_SPEED;
             if(currentWp.id === 3 && !isLocked) resetOverload();
+        }
+    }
+
+    // Boss 觸發檢測 (20000分觸發 Boss 1)
+    if(score >= 20000 && !b101Triggered) {
+        b101Triggered = true;
+        triggerBossTransition(101);
+    }
+
+    // Boss 行為邏輯
+    if(boss) {
+        if(boss.id === 101) {
+            // 出場移動到 y=60
+            if(boss.y < 60) boss.y += 1.5;
+            else {
+                // y=60 後開始左右移動
+                boss.angle += 0.02;
+                boss.x = (canvas.width / 2) + Math.sin(boss.angle) * (canvas.width * 0.3);
+                
+                // 每 1 秒朝玩家發射一顆子彈
+                if(now - boss.lastShootTime > 1000) {
+                    const ang = Math.atan2(player.y - boss.y, player.x - boss.x);
+                    spawnBullet(ang, 0, 1.2, true, boss.x, boss.y);
+                    boss.lastShootTime = now;
+                }
+            }
         }
     }
 
@@ -243,6 +302,23 @@ function update() {
         else if(currentWp.id === 2) for(let i=0; i<15; i++) spawnBullet(lastAngle - (15*Math.PI/180) + i*(2*Math.PI/180), 0, currentWp.speed, false, 0, 0, currentWp.damage);
         else if(currentWp.id === 3) { spawnBullet(lastAngle, 12, currentWp.speed, false, 0, 0, currentWp.damage); spawnBullet(lastAngle, -12, currentWp.speed, false, 0, 0, currentWp.damage); }
         fireTimer = Math.max(2, interval);
+    }
+
+    // Boss 碰撞檢測
+    if(boss) {
+        for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
+            let b = bullets[bIdx];
+            if(Math.hypot(b.x - boss.x, b.y - boss.y) < boss.size) {
+                boss.hp -= b.dmg; boss.lastHitTime = now; bullets.splice(bIdx, 1);
+                if(boss.hp <= 0) {
+                    score += boss.score;
+                    document.getElementById('score-val').innerText = score;
+                    updateDifficulty();
+                    boss = null;
+                    break;
+                }
+            }
+        }
     }
 
     for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
@@ -306,6 +382,17 @@ function draw() {
         if(en.id === 4 && now - en.lastHitTime >= HIT_FLASH_DURATION) { ctx.shadowBlur = 15; ctx.shadowColor = '#FFD700'; }
         ctx.beginPath(); ctx.arc(en.x, en.y, en.size, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
     });
+
+    // 繪製 Boss 個體
+    if(boss) {
+        ctx.fillStyle = (now - boss.lastHitTime < HIT_FLASH_DURATION) ? '#fff' : boss.color;
+        ctx.beginPath();
+        ctx.arc(boss.x, boss.y, boss.size, 0, 7);
+        ctx.fill();
+        // 繪製 Boss 血條
+        ctx.fillStyle = '#444'; ctx.fillRect(boss.x - 50, boss.y - boss.size - 15, 100, 8);
+        ctx.fillStyle = '#f00'; ctx.fillRect(boss.x - 50, boss.y - boss.size - 15, (boss.hp / boss.maxHp) * 100, 8);
+    }
 
     if(joyT.active) {
         ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tpTarget.x, tpTarget.y, 25, 0, 7); ctx.stroke();
