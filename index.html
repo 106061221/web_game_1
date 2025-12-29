@@ -288,7 +288,7 @@
                 msg.style.fontSize = "0.8rem";
                 setTimeout(() => {
                     document.body.classList.remove('flash-red');
-                    money = 1000; 
+                    // 這裡不再重置 money，保持為 0
                     exitToMenu();
                 }, 3000);
             }, 1000);
