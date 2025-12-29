@@ -1,404 +1,227 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="manifest.json">
-    <title>生存射擊 - 圓角 UI 版</title>
+    <title>Neon Cyber Casino</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; touch-action: none; }
-        canvas { display: block; }
-        
-        .ui-panel {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.85); z-index: 100;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            color: #fff; text-align: center; backdrop-filter: blur(5px);
-        }
-        .ui-panel h1 { font-size: 42px; color: #00ffcc; margin-bottom: 10px; text-shadow: 0 0 15px rgba(0,255,204,0.5); }
-        .ui-panel p { font-size: 20px; margin-bottom: 30px; color: #ffd700; }
-        .ui-panel button {
-            padding: 15px 50px; font-size: 22px; background: #00ffcc; border: none;
-            border-radius: 40px; color: #000; font-weight: bold; cursor: pointer;
-            transition: transform 0.2s; box-shadow: 0 5px 15px rgba(0,255,204,0.3);
-        }
-        .ui-panel button:active { transform: scale(0.95); }
-
-        #ui-left { position: absolute; top: 20px; left: 30px; color: #fff; pointer-events: none; z-index: 10; }
-        #ui-right { position: absolute; top: 20px; right: 30px; text-align: right; color: #fff; pointer-events: none; z-index: 10; }
-        .weapon-tag { font-weight: bold; font-size: 22px; color: #00ffcc; }
-        #hp-bar { font-size: 20px; color: #ff5555; margin-top: 5px; font-weight: bold; }
-        .stat-label { font-size: 16px; color: #ffd700; }
-        #overload-info { color: #ff3300; font-weight: bold; font-size: 14px; visibility: hidden; }
-        #status-bar { 
-            position: absolute; 
-            top: 40%; left: 50%; transform: translate(-50%, -50%); 
-            color: #ff3300; font-size: 16px; font-weight: bold; pointer-events: none; 
-            text-align: center; white-space: pre-wrap; line-height: 1.2;
-            text-shadow: 2px 2px 4px #000;
-        }
-        #weapon-btn {
-            position: absolute; right: 40px; bottom: 220px; width: 75px; height: 75px;
-            background: rgba(255, 255, 255, 0.1); border: 2px solid #00ffcc;
-            border-radius: 50%; color: #00ffcc; display: flex; align-items: center;
-            justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
-            backdrop-filter: blur(3px); -webkit-user-select: none; cursor: pointer;
-        }
-        #tp-btn {
-            position: absolute; right: 130px; bottom: 175px; width: 75px; height: 75px;
-            background: rgba(0, 255, 0, 0.1); border: 2px solid #00ff00;
-            border-radius: 50%; color: #00ff00; display: flex; align-items: center;
-            justify-content: center; font-weight: bold; font-size: 14px; z-index: 20;
-            backdrop-filter: blur(3px); -webkit-user-select: none;
-            touch-action: none; overflow: hidden; cursor: pointer;
-        }
-        #tp-cd-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); pointer-events: none; transform: scaleY(0); transform-origin: bottom; }
-        
-        @media screen and (orientation: portrait) { #landscape-hint { display: flex; } }
-        #landscape-hint { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; color: #fff; z-index: 200; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; color: #fff; }
+        #lobby, #game-container { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
+        #game-container { display: none; background: radial-gradient(circle at center, #0a1020 0%, #000 100%); }
+        .title { font-size: 70px; font-weight: bold; letter-spacing: 10px; text-shadow: 0 0 20px #0ff, 0 0 40px #0ff; margin-bottom: 40px; }
+        .stats { position: absolute; top: 30px; right: 40px; font-size: 28px; color: #0ff; font-weight: bold; text-shadow: 0 0 10px #0ff; border: 1px solid #0ff; padding: 10px 20px; border-radius: 5px; z-index: 10; }
+        .menu-btn { background: transparent; border: 1px solid #0ff; color: #0ff; padding: 20px; margin: 10px; cursor: pointer; font-size: 22px; transition: 0.4s; border-radius: 2px; width: 350px; text-transform: uppercase; letter-spacing: 3px; }
+        .menu-btn:hover { background: rgba(0, 255, 255, 0.1); box-shadow: 0 0 30px #0ff; transform: translateY(-5px); }
+        .game-controls { position: absolute; bottom: 40px; display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; width: 100%; }
+        .control-btn { background: transparent; border: 1px solid #f0f; color: #f0f; padding: 12px 20px; cursor: pointer; font-size: 16px; text-transform: uppercase; transition: 0.3s; min-width: 120px; }
+        .control-btn:hover:not(:disabled) { background: #f0f; color: #fff; box-shadow: 0 0 20px #f0f; }
+        .control-btn:disabled { border-color: #444; color: #444; cursor: default; }
+        .back-btn { position: absolute; top: 30px; left: 40px; border-color: #fff; color: #fff; z-index: 10; }
+        #status-msg { position: absolute; top: 100px; font-size: 32px; font-weight: bold; text-shadow: 0 0 15px #fff; width: 100%; text-align: center; letter-spacing: 2px; }
     </style>
 </head>
 <body>
-    <div id="landscape-hint"><h2>請旋轉手機至橫向</h2><p>並關閉直排鎖定</p></div>
-
-    <div id="start-screen" class="ui-panel">
-        <h1>生存射擊</h1>
-        <p>滑動左側移動 / 右側瞄準射擊</p>
-        <button onclick="startGame()">開始遊戲</button>
+    <div id="lobby">
+        <div class="title">NEON CASINO</div>
+        <button class="menu-btn" onclick="openGame('blackjack')">Blackjack</button>
+        <button class="menu-btn" onclick="openGame('roulette')">Neon Roulette</button>
+        <button class="menu-btn" onclick="openGame('baccarat')">Neon Baccarat</button>
     </div>
-
-    <div id="end-screen" class="ui-panel" style="display: none;">
-        <h1>遊戲結束</h1>
-        <p>最終分數: <span id="final-score">0</span></p>
-        <button onclick="location.reload()">重新開始</button>
+    <div id="game-container">
+        <button class="control-btn back-btn" onclick="goLobby()">EXIT</button>
+        <div id="status-msg">READY TO PLAY</div>
+        <canvas id="gameCanvas"></canvas>
+        <div class="game-controls" id="controls"></div>
     </div>
+    <div class="stats">$<span id="balance">1000</span></div>
 
-    <div id="ui-left">
-        <div id="hp-bar">HP: <span id="hp-val">30</span></div>
-        <div id="overload-info">超載攻速: +<span id="speed-bonus">0</span>%</div>
-    </div>
-    <div id="status-bar"></div>
-    <div id="ui-right">
-        <div class="weapon-tag">武器: <span id="weapon-id">1</span></div>
-        <div class="stat-label">SCORE: <span id="score-val">0</span></div>
-        <div class="stat-label">LV: <span id="level-val">0</span></div>
-    </div>
-    <div id="weapon-btn">換武器</div>
-    <div id="tp-btn">瞬移<div id="tp-cd-overlay"></div></div>
-    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const balanceEl = document.getElementById('balance');
+        const statusMsg = document.getElementById('status-msg');
+        const controls = document.getElementById('controls');
 
-<script>
-const TARGET_MS = 16.67; 
-const BASE_FIRE_INTERVAL = 10; 
-const WEAPON_CONFIG = {
-    1: { id: 1, intervalMult: 1.0, speed: 15, damage: 1.0, color: '#fff' },
-    2: { id: 2, intervalMult: 15.0, speed: 15, damage: 1.0, color: '#ffcc00' },
-    3: { id: 3, intervalMult: 2.2, speed: 15, damage: 1.0, color: '#00ccff', 
-         overloadTriggerTime: 0.6, overloadIncrement: 0.1, ultimateTriggerTime: 3.6, lockoutDuration: 2 }
-};
-Object.values(WEAPON_CONFIG).forEach(wp => wp.fireInterval = wp.intervalMult * BASE_FIRE_INTERVAL);
+        let balance = 1000, currentGame = null, isAnimating = false;
+        let pHand = [], dHand = [], pScore = 0, dScore = 0;
+        let wheelAngle = 0, spinVel = 0, deck = [], currentBet = null;
 
-const ENEMY_CONFIG = {
-    spawnRateBase: 70, 
-    1: { id: 1, speed: 0.2, hpBase: 2, size: 15, color: '#888888', shootInterval: 0, weight: 68.5, score: 100, dropRate: 0 }, 
-    2: { id: 2, speed: 0.2, hpBase: 4, size: 18, color: '#ff4444', shootInterval: 4, bulletSpeed: 0.6, weight: 15, score: 100, dropRate: 0 }, 
-    3: { id: 3, speed: 0.2, hpBase: 4, size: 18, color: '#aa00ff', shootInterval: 13, bulletSpeed: 0.6, weight: 15, score: 100, dropRate: 0 },
-    4: { id: 4, speed: 0.2, hpBase: 40, size: 25, color: '#FFD700', shootInterval: 10, bulletSpeed: 0.6, weight: 1.5, score: 500, dropRate: 1 } 
-};
+        const rouletteNums = ["0", "28", "9", "26", "30", "11", "7", "20", "32", "17", "5", "22", "34", "15", "3", "24", "36", "13", "1", "00", "27", "10", "25", "29", "12", "8", "19", "31", "18", "6", "21", "33", "16", "4", "23", "35", "14", "2"];
+        const rouletteCols = ["green", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "green", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black"];
 
-const BOSS_CONFIG = {
-    101: { 
-        id: 101, hpBase: 200, size: 50, color: '#8B0000', score: 5000, triggerScore: 100,
-        behavior: { targetY: 120, entrySpeed: 1.5, swingRange: 0.3, swingSpeed: 0.01, shootDelay: 1000, bulletSpeed: 1.2 }
-    }
-};
-
-const DIFFICULTY_CONFIG = { threshold: 1000, hpIncrease: 0.05, speedIncrease: 0.05, spawnIncrease: 0.01 };
-const PLAYER_SPEED = 1.5; 
-const INVULNERABLE_TIME = 250; 
-const HIT_FLASH_DURATION = 35; 
-
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-function handleResize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-window.addEventListener('resize', handleResize);
-handleResize();
-
-let isGameRunning = false;
-let lastTime = 0;
-let boss = null, isTransitioning = false, b101Triggered = false;
-let player = { x: canvas.width/2, y: canvas.height/2, hp: 30, maxHp: 30, size: 17, lastHurtTime: 0 };
-let bullets = [], enemyBullets = [], enemies = [], drops = [];
-let currentWp = WEAPON_CONFIG[1];
-let fireTimer = 0, spawnTimer = 0, score = 0, difficultyLevel = 0, lastAngle = 0;
-let wp3IdleStartTime = Date.now(), speedMultiplier = 1.0, overloadFrames = 0, isLocked = false, idleTriggered = false;
-let joyL = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
-let joyR = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
-let joyT = { active: false, x1: 0, y1: 0, x2: 0, y2: 0, id: -1 };
-let tpTarget = { x: 0, y: 0 }, tpCooldown = 0;
-const TP_COOLDOWN_TIME = 3000;
-
-function startGame() { document.getElementById('start-screen').style.display = 'none'; isGameRunning = true; lastTime = performance.now(); wp3IdleStartTime = Date.now(); }
-function showEndScreen() { isGameRunning = false; document.getElementById('final-score').innerText = score; document.getElementById('end-screen').style.display = 'flex'; }
-function updateDifficulty() { let newLevel = Math.floor(score / DIFFICULTY_CONFIG.threshold); if (newLevel > difficultyLevel) { difficultyLevel = newLevel; document.getElementById('level-val').innerText = difficultyLevel; } }
-
-function triggerBossTransition(id) {
-    isTransitioning = true; enemies = []; enemyBullets = [];
-    drops.push({x: canvas.width / 2, y: canvas.height / 2, heal: 10});
-    let countdown = 5;
-    const bar = document.getElementById('status-bar');
-    bar.innerText = "WARNING!!!\nBOSS ARRIVING IN " + countdown + " SEC";
-    const timer = setInterval(() => {
-        countdown--;
-        if(countdown > 0) { bar.innerText = "WARNING!!!\nBOSS ARRIVING IN " + countdown + " SEC"; } 
-        else {
-            clearInterval(timer); bar.innerText = "";
-            const cfg = BOSS_CONFIG[id];
-            const scaledHp = cfg.hpBase * (1 + difficultyLevel * DIFFICULTY_CONFIG.hpIncrease);
-            boss = { ...cfg, hp: scaledHp, maxHp: scaledHp, x: canvas.width / 2, y: -100, lastHitTime: 0, angle: 0, lastShootTime: 0 };
-            isTransitioning = false;
+        function updateBalance(amt) { balance += amt; balanceEl.innerText = balance; }
+        function openGame(type) {
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('game-container').style.display = 'flex';
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            currentGame = type; pHand = []; dHand = []; spinVel = 0; setupUI(type);
         }
-    }, 1000);
-}
+        function goLobby() { if(isAnimating || spinVel > 0) return; document.getElementById('lobby').style.display = 'flex'; document.getElementById('game-container').style.display = 'none'; currentGame = null; }
 
-function switchWp() {
-    let nextId = currentWp.id + 1; if(nextId > 3) nextId = 1; currentWp = WEAPON_CONFIG[nextId];
-    document.getElementById('weapon-id').innerText = currentWp.id;
-    const diffBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
-    fireTimer = currentWp.fireInterval / diffBonus;
-    resetOverload();
-    if(currentWp.id === 3) { wp3IdleStartTime = Date.now(); idleTriggered = false; isLocked = false; document.getElementById('status-bar').innerText = ""; }
-}
-
-function resetOverload() { speedMultiplier = 1.0; overloadFrames = 0; wp3IdleStartTime = Date.now(); document.getElementById('overload-info').style.visibility = 'hidden'; document.getElementById('speed-bonus').innerText = "0"; }
-
-function takeDamage() {
-    const now = Date.now();
-    if (now - player.lastHurtTime > INVULNERABLE_TIME) {
-        player.hp--; player.lastHurtTime = now;
-        document.getElementById('hp-val').innerText = Math.max(0, player.hp);
-        if (player.hp <= 0) showEndScreen();
-    }
-}
-
-// 事件監聽
-const tpBtn = document.getElementById('tp-btn');
-tpBtn.addEventListener('touchstart', e => {
-    e.preventDefault(); if(tpCooldown > 0) return;
-    const t = e.changedTouches[0]; joyT.active = true; joyT.id = t.identifier;
-    joyT.x1 = joyT.x2 = t.clientX; joyT.y1 = joyT.y2 = t.clientY; tpTarget = { x: player.x, y: player.y };
-}, {passive: false});
-
-canvas.addEventListener('touchstart', e => {
-    e.preventDefault();
-    for(let t of e.changedTouches) {
-        if(t.clientX < canvas.width/2) { joyL.active = true; joyL.x1 = joyL.x2 = t.clientX; joyL.y1 = joyL.y2 = t.clientY; joyL.id = t.identifier; } 
-        else { joyR.active = true; joyR.x1 = joyR.x2 = t.clientX; joyR.y1 = joyR.y2 = t.clientY; joyR.id = t.identifier; }
-    }
-}, {passive: false});
-
-window.addEventListener('touchmove', e => {
-    for(let t of e.changedTouches) {
-        if(joyL.id === t.identifier) { joyL.x2 = t.clientX; joyL.y2 = t.clientY; }
-        if(joyR.id === t.identifier) { joyR.x2 = t.clientX; joyR.y2 = t.clientY; }
-        if(joyT.id === t.identifier) { 
-            joyT.x2 = t.clientX; joyT.y2 = t.clientY;
-            tpTarget.x = player.x + (joyT.x2 - joyT.x1) * 3.5; tpTarget.y = player.y + (joyT.y2 - joyT.y1) * 3.5;
-        }
-    }
-}, {passive: false});
-
-window.addEventListener('touchend', e => {
-    for(let t of e.changedTouches) {
-        if(joyL.id === t.identifier) { joyL.active = false; joyL.id = -1; }
-        if(joyR.id === t.identifier) { joyR.active = false; joyR.id = -1; }
-        if(joyT.id === t.identifier) {
-            player.x = Math.max(20, Math.min(canvas.width-20, tpTarget.x)); player.y = Math.max(20, Math.min(canvas.height-20, tpTarget.y));
-            tpCooldown = TP_COOLDOWN_TIME; joyT.active = false; joyT.id = -1;
-        }
-    }
-}, {passive: false});
-
-document.getElementById('weapon-btn').addEventListener('touchstart', e => { e.preventDefault(); switchWp(); });
-
-function spawnEnemy() {
-    const side = Math.floor(Math.random() * 4);
-    let x, y;
-    if(side === 0) { x = Math.random() * canvas.width; y = -80; }
-    else if(side === 1) { x = canvas.width + 80; y = Math.random() * canvas.height; }
-    else if(side === 2) { x = Math.random() * canvas.width; y = canvas.height + 80; }
-    else { x = -80; y = Math.random() * canvas.height; }
-    const rand = Math.random() * 100;
-    let type = (rand < 68.5) ? ENEMY_CONFIG[1] : (rand < 83.5) ? ENEMY_CONFIG[2] : (rand < 98.5) ? ENEMY_CONFIG[3] : ENEMY_CONFIG[4];
-    enemies.push({ ...type, x, y, hp: type.hpBase * (1 + difficultyLevel * DIFFICULTY_CONFIG.hpIncrease), lastShootTime: Date.now(), lastHitTime: 0 });
-}
-
-function spawnBullet(angle, offset, speed, isEnemy = false, ex = 0, ey = 0, dmg = 1) {
-    const b = { x: isEnemy ? ex : (player.x + Math.cos(angle + Math.PI/2) * offset), y: isEnemy ? ey : (player.y + Math.sin(angle + Math.PI/2) * offset), vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, dmg: dmg };
-    if(isEnemy) enemyBullets.push(b); else bullets.push(b);
-}
-
-function update(dt) {
-    const now = Date.now(); const diffBonus = (1 + difficultyLevel * DIFFICULTY_CONFIG.speedIncrease);
-    if(tpCooldown > 0) { tpCooldown -= 16 * dt; document.getElementById('tp-cd-overlay').style.transform = "scaleY(" + Math.max(0, tpCooldown / TP_COOLDOWN_TIME) + ")"; }
-    if(!boss && !isTransitioning) {
-        spawnTimer += dt;
-        if(spawnTimer > (ENEMY_CONFIG.spawnRateBase / (1 + difficultyLevel * DIFFICULTY_CONFIG.spawnIncrease))) { spawnEnemy(); spawnTimer = 0; }
-    }
-    if(joyL.active) {
-        const dx = joyL.x2 - joyL.x1, dy = joyL.y2 - joyL.y1, d = Math.hypot(dx, dy);
-        if(d > 2) { player.x += (dx/d) * PLAYER_SPEED * dt; player.y += (dy/d) * PLAYER_SPEED * dt; if(currentWp.id === 3 && !isLocked) resetOverload(); }
-    }
-    if(typeof handleKeyboardInput === 'function') handleKeyboardInput(dt);
-    if(score >= BOSS_CONFIG[101].triggerScore && !b101Triggered) { b101Triggered = true; triggerBossTransition(101); }
-    if(boss && boss.id === 101) {
-        const bh = boss.behavior;
-        if(boss.y < bh.targetY) { boss.y += bh.entrySpeed * dt; } 
-        else {
-            boss.angle += bh.swingSpeed * dt; boss.x = (canvas.width / 2) + Math.sin(boss.angle) * (canvas.width * bh.swingRange);
-            if(now - boss.lastShootTime > bh.shootDelay) { const ang = Math.atan2(player.y - boss.y, player.x - boss.x); spawnBullet(ang, 0, bh.bulletSpeed, true, boss.x, boss.y); boss.lastShootTime = now; }
-        }
-    }
-    if(currentWp.id === 3 && !isLocked) {
-        const idleSec = (now - wp3IdleStartTime) / 1000;
-        if(idleSec >= currentWp.overloadTriggerTime) {
-            document.getElementById('overload-info').style.visibility = 'visible';
-            overloadFrames += dt; if(overloadFrames >= 12) { speedMultiplier += currentWp.overloadIncrement; document.getElementById('speed-bonus').innerText = Math.round((speedMultiplier-1)*100); overloadFrames = 0; }
-        }
-        if(idleSec >= currentWp.ultimateTriggerTime && !idleTriggered) {
-            for(let i=0; i<10; i++) spawnBullet((i/10) * Math.PI * 2, 0, 8, false, 0, 0, currentWp.damage);
-            idleTriggered = true; isLocked = true; document.getElementById('status-bar').innerText = "系統過熱！";
-            setTimeout(() => { isLocked = false; idleTriggered = false; document.getElementById('status-bar').innerText = ""; resetOverload(); }, currentWp.lockoutDuration * 1000);
-        }
-    }
-    if(joyR.active) { const dx = joyR.x2 - joyR.x1, dy = joyR.y2 - joyR.y1; if(Math.hypot(dx, dy) > 2) lastAngle = Math.atan2(dy, dx); }
-    if (!isLocked) {
-        fireTimer -= dt;
-        const interval = (currentWp.id === 3 ? (currentWp.fireInterval / speedMultiplier) : currentWp.fireInterval) / diffBonus;
-        while (fireTimer <= 0) {
-            if(currentWp.id === 1) { spawnBullet(lastAngle, 0, currentWp.speed, false, 0, 0, currentWp.damage); } 
-            else if(currentWp.id === 2) { for(let i=0; i<15; i++) spawnBullet(lastAngle - (15*Math.PI/180) + i*(2*Math.PI/180), 0, currentWp.speed, false, 0, 0, currentWp.damage); } 
-            else if(currentWp.id === 3) { spawnBullet(lastAngle, 12, currentWp.speed, false, 0, 0, currentWp.damage); spawnBullet(lastAngle, -12, currentWp.speed, false, 0, 0, currentWp.damage); }
-            fireTimer += interval; 
-        }
-    }
-    const steps = 2;
-    for(let s = 0; s < steps; s++) {
-        [bullets, enemyBullets].forEach((arr, arrType) => {
-            const isPlayerBullet = (arrType === 0);
-            for(let i = arr.length - 1; i >= 0; i--) {
-                let b = arr[i]; b.x += (b.vx * dt) / steps; b.y += (b.vy * dt) / steps;
-                if(isPlayerBullet) {
-                    if(boss && Math.abs(b.x - boss.x) < boss.size && Math.abs(b.y - boss.y) < boss.size) {
-                        boss.hp -= b.dmg; boss.lastHitTime = now; arr.splice(i, 1);
-                        if(boss.hp <= 0) { score += boss.score; document.getElementById('score-val').innerText = score; updateDifficulty(); document.getElementById('status-bar').innerText = "BOSS DEFEATED!"; setTimeout(() => document.getElementById('status-bar').innerText = "", 3000); boss = null; }
-                        continue;
-                    }
-                    for(let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
-                        let en = enemies[eIdx];
-                        if(Math.abs(b.x - en.x) < en.size && Math.abs(b.y - en.y) < en.size) {
-                            en.hp -= b.dmg; en.lastHitTime = now; arr.splice(i, 1);
-                            if(en.hp <= 0) { score += en.score; document.getElementById('score-val').innerText = score; updateDifficulty(); if(Math.random() < en.dropRate) drops.push({x: en.x, y: en.y, heal: 10}); enemies.splice(eIdx, 1); }
-                            break;
-                        }
-                    }
-                } else { 
-                    if(Math.hypot(b.x - player.x, b.y - player.y) < 11) { takeDamage(); arr.splice(i, 1); } 
-                }
-                if(b && (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height)) arr.splice(i, 1);
+        function setupUI(type) {
+            controls.innerHTML = '';
+            if (type === 'blackjack') {
+                createBtn("DEAL $100", startBJ); createBtn("HIT", bjHit, true); createBtn("STAND", bjStand, true);
+            } else if (type === 'roulette') {
+                createBtn("RED $100", () => startRoulette('color', 'red')); createBtn("BLACK $100", () => startRoulette('color', 'black')); createBtn("RANDOM $100", () => startRoulette('number', rouletteNums[Math.floor(Math.random()*38)]));
+            } else if (type === 'baccarat') {
+                createBtn("PLAYER $100", () => startBaccarat('player')); createBtn("BANKER $100", () => startBaccarat('banker')); createBtn("TIE $100", () => startBaccarat('tie'));
             }
-        });
-    }
-    for (let eIdx = enemies.length - 1; eIdx >= 0; eIdx--) {
-        let en = enemies[eIdx]; const dx = player.x - en.x; const dy = player.y - en.y; const dist = Math.hypot(dx, dy);
-        en.x += (dx/dist) * en.speed * dt; en.y += (dy/dist) * en.speed * dt;
-        if (Math.abs(player.x - en.x) < en.size + 8 && Math.abs(player.y - en.y) < en.size + 8) takeDamage();
-        if(en.shootInterval > 0 && now - en.lastShootTime > en.shootInterval * 1000) {
-            const ang = Math.atan2(dy, dx);
-            if(en.id === 2) spawnBullet(ang, 0, en.bulletSpeed, true, en.x, en.y);
-            else if(en.id === 3) for(let i=-1; i<=1; i++) spawnBullet(ang + i*15*Math.PI/180, 0, en.bulletSpeed, true, en.x, en.y);
-            else if(en.id === 4) for(let i=0; i<5; i++) spawnBullet(ang + (i * 72 * Math.PI/180), 0, en.bulletSpeed, true, en.x, en.y);
-            en.lastShootTime = now;
         }
-    }
-    drops.forEach((d, i) => { if(Math.hypot(d.x - player.x, d.y - player.y) < 25) { player.hp = Math.min(player.maxHp, player.hp + d.heal); document.getElementById('hp-val').innerText = player.hp; drops.splice(i, 1); } });
-    player.x = Math.max(20, Math.min(canvas.width-20, player.x)); player.y = Math.max(20, Math.min(canvas.height-20, player.y));
-}
+        function createBtn(text, func, disabled = false) { const b = document.createElement('button'); b.className = 'control-btn'; b.innerText = text; b.onclick = func; b.disabled = disabled; controls.appendChild(b); }
 
-function draw(timestamp) {
-    if (!lastTime) lastTime = timestamp; const dt = (timestamp - lastTime) / TARGET_MS; lastTime = timestamp; const now = Date.now();
-    ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
-    drops.forEach(d => { ctx.fillStyle = '#00ff00'; ctx.fillRect(d.x-8, d.y-8, 16, 16); ctx.fillStyle = '#fff'; ctx.fillRect(d.x-2, d.y-6, 4, 12); ctx.fillRect(d.x-6, d.y-2, 12, 4); });
-    
-    // 敵人繪製：圓角矩形 (5px)
-    enemies.forEach(en => {
-        ctx.fillStyle = (now - en.lastHitTime < HIT_FLASH_DURATION) ? 'rgba(255, 255, 255, 0.45)' : en.color;
-        if(en.id === 4 && now - en.lastHitTime >= HIT_FLASH_DURATION) { ctx.shadowBlur = 15; ctx.shadowColor = '#FFD700'; }
-        ctx.beginPath();
-        ctx.roundRect(en.x - en.size, en.y - en.size, en.size * 2, en.size * 2, 5); 
-        ctx.fill();
-        ctx.shadowBlur = 0;
-    });
+        const lerp = (start, end, t) => start + (end - start) * t;
 
-    if(boss) {
-        ctx.fillStyle = (now - boss.lastHitTime < HIT_FLASH_DURATION) ? 'rgba(255, 255, 255, 0.45)' : boss.color;
-        ctx.shadowBlur = 15; ctx.shadowColor = '#fff'; ctx.beginPath(); ctx.roundRect(boss.x - boss.size, boss.y - boss.size, boss.size * 2, boss.size * 2, 12); ctx.fill(); ctx.shadowBlur = 0;
-        ctx.fillStyle = '#444'; ctx.fillRect(boss.x - 50, boss.y - boss.size - 15, 100, 8); ctx.fillStyle = '#f00'; ctx.fillRect(boss.x - 50, boss.y - boss.size - 15, (boss.hp / boss.maxHp) * 100, 8);
-    }
-    if(joyT.active) { ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tpTarget.x, tpTarget.y, 25, 0, 7); ctx.stroke(); ctx.setLineDash([5, 5]); ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(tpTarget.x, tpTarget.y); ctx.stroke(); ctx.setLineDash([]); }
-    
-    // 玩家繪製：圓形
-    if (!(Date.now() - player.lastHurtTime < INVULNERABLE_TIME) || Math.floor(now/50) % 2) {
-        let pColor = isLocked ? '#444' : (currentWp.id === 3 && document.getElementById('overload-info').style.visibility === 'visible' ? '#ff3300' : currentWp.color);
-        ctx.fillStyle = pColor; ctx.beginPath(); ctx.arc(player.x, player.y, 10, 0, Math.PI * 2); ctx.fill();
-    }
+        // --- 全域渲染循環修復 ---
+        function renderLoop() {
+            if (!currentGame) { requestAnimationFrame(renderLoop); return; }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (currentGame === 'roulette') {
+                if (spinVel > 0) {
+                    wheelAngle += spinVel;
+                    spinVel *= 0.992; // 阻尼
+                    if (spinVel < 0.05) {
+                        finishRoulette();
+                        spinVel = 0;
+                    }
+                }
+                renderRoulette();
+            } else { 
+                updatePhysics(); 
+                if (currentGame === 'blackjack') renderBJ(); 
+                else if (currentGame === 'baccarat') renderBaccarat(); 
+            }
+            requestAnimationFrame(renderLoop);
+        }
 
-    ctx.fillStyle = '#fff'; bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 2, 0, 7); ctx.fill(); });
-    ctx.fillStyle = '#f00'; enemyBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, 7); ctx.fill(); });
-    if(joyL.active) drawJoy(joyL, '#00ccff'); if(joyR.active) drawJoy(joyR, '#ff3300');
-    if(isGameRunning) update(dt);
-    requestAnimationFrame(draw);
-}
+        function updatePhysics() { [...pHand, ...dHand].forEach(c => { c.x = lerp(c.x, c.tx, 0.1); c.y = lerp(c.y, c.ty, 0.1); }); }
 
-function drawJoy(j, c) { ctx.beginPath(); ctx.arc(j.x1, j.y1, 45, 0, 7); ctx.strokeStyle = c+'33'; ctx.lineWidth=3; ctx.stroke(); ctx.beginPath(); ctx.arc(j.x2, j.y2, 22, 0, 7); ctx.fillStyle = c+'66'; ctx.fill(); }
+        function createDeck() {
+            deck = []; const vls = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+            for(let i=0; i<4; i++) vls.forEach(v => deck.push({v, w: 0, c: i%2?'#0ff':'#f0f', x: canvas.width/2, y: -200, tx: canvas.width/2, ty: -200, hidden: false}));
+            deck.sort(()=>Math.random()-0.5);
+        }
 
-// 電腦版支援
-const keys = {};
-window.addEventListener('keydown', e => { keys[e.code] = true; if(e.code === 'KeyE') switchWp(); });
-window.addEventListener('keyup', e => keys[e.code] = false);
-canvas.addEventListener('mousemove', e => {
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left; const mouseY = e.clientY - rect.top;
-    lastAngle = Math.atan2(mouseY - player.y, mouseX - player.x);
-});
-canvas.addEventListener('mousedown', (e) => { if(e.button === 0) joyR.active = true; }); 
-window.addEventListener('mouseup', () => joyR.active = false);
+        function drawCard(c) {
+            const hide = c.hidden;
+            ctx.save(); ctx.translate(c.x, c.y); 
+            ctx.shadowBlur = 15; ctx.shadowColor = hide ? '#333' : c.c;
+            ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 80, 120);
+            ctx.strokeStyle = hide ? '#444' : c.c; ctx.lineWidth = 2; ctx.strokeRect(0, 0, 80, 120);
+            if(!hide) { ctx.fillStyle = '#fff'; ctx.font = 'bold 22px Arial'; ctx.fillText(c.v, 10, 30); }
+            else { ctx.strokeStyle = '#222'; ctx.beginPath(); ctx.moveTo(20,40); ctx.lineTo(60,80); ctx.moveTo(60,40); ctx.lineTo(20,80); ctx.stroke(); }
+            ctx.restore();
+        }
 
-function handleKeyboardInput(dt) {
-    if(!isGameRunning) return;
-    let dx = 0, dy = 0;
-    if(keys['KeyW'] || keys['ArrowUp']) dy -= 1; if(keys['KeyS'] || keys['ArrowDown']) dy += 1;
-    if(keys['KeyA'] || keys['ArrowLeft']) dx -= 1; if(keys['KeyD'] || keys['ArrowRight']) dx += 1;
-    if(dx !== 0 || dy !== 0) {
-        const mag = Math.hypot(dx, dy);
-        player.x += (dx / mag) * PLAYER_SPEED * dt; player.y += (dy / mag) * PLAYER_SPEED * dt;
-        if(currentWp.id === 3 && !isLocked) resetOverload();
-    }
-}
-document.getElementById('weapon-btn').addEventListener('mousedown', e => { switchWp(); });
-document.getElementById('tp-btn').addEventListener('mousedown', e => {
-    if(tpCooldown > 0) return;
-    joyT.active = true; joyT.x1 = e.clientX; joyT.y1 = e.clientY; tpTarget = { x: player.x, y: player.y };
-});
-window.addEventListener('mouseup', e => {
-    if(joyT.active) { player.x = Math.max(20, Math.min(canvas.width-20, tpTarget.x)); player.y = Math.max(20, Math.min(canvas.height-20, tpTarget.y)); tpCooldown = TP_COOLDOWN_TIME; joyT.active = false; }
-});
-window.addEventListener('mousemove', e => { if(joyT.active) { tpTarget.x = player.x + (e.clientX - joyT.x1) * 3.5; tpTarget.y = player.y + (e.clientY - joyT.y1) * 3.5; } });
+        // --- 21點 ---
+        async function startBJ() {
+            if (balance < 100 || isAnimating) return; isAnimating = true;
+            updateBalance(-100); createDeck(); pHand = []; dHand = [];
+            statusMsg.innerText = "DEALING..."; setBtnState(true, true, true);
+            await dealTo(pHand, canvas.width/2-150, canvas.height-350);
+            await dealTo(dHand, canvas.width/2-150, 200);
+            await dealTo(pHand, canvas.width/2-50, canvas.height-350);
+            await dealTo(dHand, canvas.width/2-50, 200, true);
+            statusMsg.innerText = "YOUR TURN"; setBtnState(true, false, false); isAnimating = false;
+        }
+        async function bjHit() { if(isAnimating) return; isAnimating = true; await dealTo(pHand, canvas.width/2-150 + pHand.length*100, canvas.height-350); if (getScore(pHand) > 21) endBJ("BUST! DEALER WINS"); isAnimating = false; }
+        async function bjStand() { 
+            if(isAnimating) return; isAnimating = true; statusMsg.innerText = "DEALER'S TURN";
+            dHand.forEach(c => c.hidden = false);
+            while(getScore(dHand) < 17) await dealTo(dHand, canvas.width/2-150 + dHand.length*100, 200);
+            let ps = getScore(pHand), ds = getScore(dHand);
+            if(ds > 21 || ps > ds) { updateBalance(200); endBJ("YOU WIN! +$200"); }
+            else if(ps < ds) endBJ("DEALER WINS");
+            else { updateBalance(100); endBJ("PUSH"); }
+            isAnimating = false;
+        }
+        async function dealTo(hand, tx, ty, hide = false) {
+            let c = deck.pop(); c.x = canvas.width/2; c.y = -150; c.tx = tx; c.ty = ty; c.hidden = hide;
+            hand.push(c); await new Promise(r => setTimeout(r, 500));
+        }
+        function getScore(h) { 
+            let scoreDeck = h.map(c => { let w = isNaN(c.v)?(c.v==='A'?11:10):parseInt(c.v); return w; });
+            let s = scoreDeck.reduce((a,b)=>a+b, 0), aces = h.filter(x=>x.v==='A').length;
+            while(s > 21 && aces > 0) { s-=10; aces--; } return s;
+        }
+        function setBtnState(d, h, s) { const b = controls.children; if(b.length >= 3) { b[0].disabled = d; b[1].disabled = h; b[2].disabled = s; } }
+        function endBJ(m) { statusMsg.innerText = m; dHand.forEach(c => c.hidden = false); setBtnState(false, true, true); }
+        function renderBJ() { pHand.forEach(c => drawCard(c)); dHand.forEach(c => drawCard(c)); }
 
-requestAnimationFrame(draw);
-</script>
+        // --- 輪盤 邏輯同步化修復 ---
+        function startRoulette(mode, bet) {
+            if (spinVel > 0 || balance < 100) return;
+            updateBalance(-100);
+            currentBet = { mode, bet };
+            spinVel = 15 + Math.random() * 10;
+            statusMsg.innerText = "SPINNING...";
+            Array.from(controls.children).forEach(b => b.disabled = true);
+        }
+
+        function finishRoulette() {
+            let idx = Math.floor(((360 - (wheelAngle % 360)) % 360 / 360) * 38);
+            let num = rouletteNums[idx], col = rouletteCols[idx];
+            let won = (currentBet.mode === 'color' && currentBet.bet === col) || (currentBet.mode === 'number' && currentBet.bet === num);
+            if (won) {
+                let p = currentBet.mode === 'color' ? 200 : 3600;
+                updateBalance(p);
+                statusMsg.innerText = `WIN! ${num} (+$${p})`;
+            } else {
+                statusMsg.innerText = `LOST: ${num} (${col.toUpperCase()})`;
+            }
+            Array.from(controls.children).forEach(b => b.disabled = false);
+        }
+
+        function renderRoulette() {
+            const cx = canvas.width/2, cy = canvas.height/2-80;
+            ctx.save(); ctx.translate(cx, cy); ctx.rotate(wheelAngle*Math.PI/180);
+            for(let i=0; i<38; i++) {
+                ctx.beginPath(); ctx.fillStyle = rouletteCols[i]==='green'?'#0f0':(rouletteCols[i]==='red'?'#f0f':'#111');
+                ctx.arc(0,0,180, i*(Math.PI*2/38), (i+1)*(Math.PI*2/38)); ctx.lineTo(0,0); ctx.fill();
+                ctx.save(); ctx.rotate(i*(Math.PI*2/38)+Math.PI/38); ctx.fillStyle='#fff'; ctx.font='bold 10px Arial';
+                ctx.fillText(rouletteNums[i], 155, 5); ctx.restore();
+            }
+            ctx.restore();
+            ctx.fillStyle='#0ff'; ctx.beginPath(); ctx.moveTo(cx+190, cy); ctx.lineTo(cx+210, cy-10); ctx.lineTo(cx+210, cy+10); ctx.fill();
+        }
+
+        // --- 百家樂 ---
+        async function startBaccarat(bet) {
+            if (balance < 100 || isAnimating) return; isAnimating = true;
+            updateBalance(-100); createDeck(); 
+            deck.forEach(c => { c.w = isNaN(c.v)?(c.v==='A'?1:0):parseInt(c.v); });
+            pHand = []; dHand = []; pScore = 0; dScore = 0;
+            statusMsg.innerText = "DEALING..."; Array.from(controls.children).forEach(b => b.disabled = true);
+            const mid = canvas.width/2;
+            await dealTo(pHand, mid-350, 330); await dealTo(dHand, mid+120, 330);
+            await dealTo(pHand, mid-270, 330); await dealTo(dHand, mid+200, 330);
+            const updateScores = () => { pScore = pHand.reduce((a,b)=>a+b.w,0)%10; dScore = dHand.reduce((a,b)=>a+b.w,0)%10; };
+            updateScores();
+            if (pScore <= 5) { await dealTo(pHand, mid-190, 330); updateScores(); }
+            if (dScore <= 5) { await dealTo(dHand, mid+280, 330); updateScores(); }
+            let res = pScore > dScore ? 'player' : (dScore > pScore ? 'banker' : 'tie');
+            statusMsg.innerText = (bet === res) ? `WIN! ${res.toUpperCase()}` : `LOSE! ${res.toUpperCase()} WON`;
+            if (bet === res) updateBalance(res === 'tie' ? 900 : 200);
+            isAnimating = false; Array.from(controls.children).forEach(b => b.disabled = false);
+        }
+        function renderBaccarat() {
+            const mid = canvas.width / 2;
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.2)'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(mid, 150); ctx.lineTo(mid, 500); ctx.stroke();
+            drawBaccaratUI("PLAYER", mid - 280, 250, pHand.length>=2?pScore:"?", '#0ff');
+            drawBaccaratUI("BANKER", mid + 120, 250, dHand.length>=2?dScore:"?", '#f0f');
+            pHand.forEach(c => drawCard(c)); dHand.forEach(c => drawCard(c));
+        }
+        function drawBaccaratUI(label, x, y, score, color) {
+            ctx.save(); ctx.shadowBlur = 15; ctx.shadowColor = color; ctx.fillStyle = color;
+            ctx.font = 'bold 24px Arial'; ctx.fillText(label, x, y);
+            ctx.strokeStyle = color; ctx.strokeRect(x - 10, y - 30, 160, 45);
+            ctx.beginPath(); ctx.arc(x + 200, y - 10, 25, 0, Math.PI*2); ctx.stroke();
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 20px Arial'; ctx.fillText(score, x + 190, y - 2);
+            ctx.restore();
+        }
+
+        renderLoop();
+        balanceEl.innerText = balance;
+    </script>
 </body>
 </html>
