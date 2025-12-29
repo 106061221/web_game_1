@@ -1,29 +1,35 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Neon Cyber Casino</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; color: #fff; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; color: #fff; touch-action: manipulation; }
         #lobby, #game-container { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.5s; }
         #game-container { display: none; background: radial-gradient(circle at center, #0a1020 0%, #000 100%); }
-        .title { font-size: 70px; font-weight: bold; letter-spacing: 10px; text-shadow: 0 0 20px #0ff, 0 0 40px #0ff; margin-bottom: 40px; }
-        .stats { position: absolute; top: 30px; right: 40px; font-size: 28px; color: #0ff; font-weight: bold; text-shadow: 0 0 10px #0ff; border: 1px solid #0ff; padding: 10px 20px; border-radius: 5px; z-index: 10; }
-        .menu-btn { background: transparent; border: 1px solid #0ff; color: #0ff; padding: 20px; margin: 10px; cursor: pointer; font-size: 22px; transition: 0.4s; border-radius: 2px; width: 350px; text-transform: uppercase; letter-spacing: 3px; }
-        .menu-btn:hover { background: rgba(0, 255, 255, 0.1); box-shadow: 0 0 30px #0ff; transform: translateY(-5px); }
-        .game-controls { position: absolute; bottom: 40px; display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; width: 100%; }
-        .control-btn { background: transparent; border: 1px solid #f0f; color: #f0f; padding: 12px 20px; cursor: pointer; font-size: 16px; text-transform: uppercase; transition: 0.3s; min-width: 120px; }
-        .control-btn:hover:not(:disabled) { background: #f0f; color: #fff; box-shadow: 0 0 20px #f0f; }
+        .title { font-size: 8vw; font-weight: bold; letter-spacing: 5px; text-shadow: 0 0 20px #0ff, 0 0 40px #0ff; margin-bottom: 5vh; text-align: center; }
+        .stats { position: absolute; top: 20px; right: 20px; font-size: 20px; color: #0ff; font-weight: bold; text-shadow: 0 0 10px #0ff; border: 1px solid #0ff; padding: 5px 15px; border-radius: 5px; z-index: 10; background: rgba(0,0,0,0.5); }
+        .menu-btn { background: transparent; border: 1px solid #0ff; color: #0ff; padding: 15px; margin: 10px; cursor: pointer; font-size: 18px; transition: 0.3s; width: 80%; max-width: 300px; text-transform: uppercase; letter-spacing: 2px; }
+        .menu-btn:hover { background: rgba(0, 255, 255, 0.1); box-shadow: 0 0 20px #0ff; }
+        .game-controls { position: absolute; bottom: 5vh; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 95%; }
+        .control-btn { background: transparent; border: 1px solid #f0f; color: #f0f; padding: 10px 15px; cursor: pointer; font-size: 14px; text-transform: uppercase; transition: 0.2s; min-width: 90px; flex: 1 1 100px; max-width: 150px; }
+        .control-btn:hover:not(:disabled) { background: #f0f; color: #fff; box-shadow: 0 0 15px #f0f; }
         .control-btn:disabled { border-color: #444; color: #444; cursor: default; }
-        .back-btn { position: absolute; top: 30px; left: 40px; border-color: #fff; color: #fff; z-index: 10; }
-        #status-msg { position: absolute; top: 100px; font-size: 32px; font-weight: bold; text-shadow: 0 0 15px #fff; width: 100%; text-align: center; letter-spacing: 2px; }
+        .back-btn { position: absolute; top: 20px; left: 20px; border-color: #fff; color: #fff; z-index: 10; min-width: 60px; padding: 5px 10px; }
+        #status-msg { position: absolute; top: 80px; font-size: 24px; font-weight: bold; text-shadow: 0 0 15px #fff; width: 100%; text-align: center; }
+        @media (min-width: 800px) { .title { font-size: 60px; } .control-btn { font-size: 18px; min-width: 120px; } .stats { font-size: 28px; top: 30px; right: 40px; } #status-msg { font-size: 32px; top: 100px; } }
     </style>
 </head>
 <body>
     <div id="lobby">
         <div class="title">NEON CASINO</div>
         <button class="menu-btn" onclick="openGame('blackjack')">Blackjack</button>
-        <button class="menu-btn" onclick="openGame('roulette')">Neon Roulette</button>
-        <button class="menu-btn" onclick="openGame('baccarat')">Neon Baccarat</button>
+        <button class="menu-btn" onclick="openGame('roulette')">Roulette</button>
+        <button class="menu-btn" onclick="openGame('baccarat')">Baccarat</button>
     </div>
     <div id="game-container">
         <button class="control-btn back-btn" onclick="goLobby()">EXIT</button>
@@ -47,179 +53,64 @@
         const rouletteNums = ["0", "28", "9", "26", "30", "11", "7", "20", "32", "17", "5", "22", "34", "15", "3", "24", "36", "13", "1", "00", "27", "10", "25", "29", "12", "8", "19", "31", "18", "6", "21", "33", "16", "4", "23", "35", "14", "2"];
         const rouletteCols = ["green", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "green", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black", "red", "black"];
 
+        const getScale = () => Math.min(canvas.width / 1200, canvas.height / 800) || 1;
         function updateBalance(amt) { balance += amt; balanceEl.innerText = balance; }
-        function openGame(type) {
-            document.getElementById('lobby').style.display = 'none';
-            document.getElementById('game-container').style.display = 'flex';
-            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-            currentGame = type; pHand = []; dHand = []; spinVel = 0; setupUI(type);
-        }
+        function openGame(type) { document.getElementById('lobby').style.display = 'none'; document.getElementById('game-container').style.display = 'flex'; resize(); currentGame = type; pHand = []; dHand = []; spinVel = 0; setupUI(type); }
         function goLobby() { if(isAnimating || spinVel > 0) return; document.getElementById('lobby').style.display = 'flex'; document.getElementById('game-container').style.display = 'none'; currentGame = null; }
 
         function setupUI(type) {
             controls.innerHTML = '';
-            if (type === 'blackjack') {
-                createBtn("DEAL $100", startBJ); createBtn("HIT", bjHit, true); createBtn("STAND", bjStand, true);
-            } else if (type === 'roulette') {
-                createBtn("RED $100", () => startRoulette('color', 'red')); createBtn("BLACK $100", () => startRoulette('color', 'black')); createBtn("RANDOM $100", () => startRoulette('number', rouletteNums[Math.floor(Math.random()*38)]));
-            } else if (type === 'baccarat') {
-                createBtn("PLAYER $100", () => startBaccarat('player')); createBtn("BANKER $100", () => startBaccarat('banker')); createBtn("TIE $100", () => startBaccarat('tie'));
-            }
+            if (type === 'blackjack') { createBtn("DEAL $100", startBJ); createBtn("HIT", bjHit, true); createBtn("STAND", bjStand, true); }
+            else if (type === 'roulette') { createBtn("RED $100", () => startRoulette('color', 'red')); createBtn("BLACK $100", () => startRoulette('color', 'black')); createBtn("RANDOM $100", () => startRoulette('number', rouletteNums[Math.floor(Math.random()*38)])); }
+            else if (type === 'baccarat') { createBtn("PLAYER $100", () => startBaccarat('player')); createBtn("BANKER $100", () => startBaccarat('banker')); createBtn("TIE $100", () => startBaccarat('tie')); }
         }
         function createBtn(text, func, disabled = false) { const b = document.createElement('button'); b.className = 'control-btn'; b.innerText = text; b.onclick = func; b.disabled = disabled; controls.appendChild(b); }
 
         const lerp = (start, end, t) => start + (end - start) * t;
-
-        // --- 全域渲染循環修復 ---
         function renderLoop() {
             if (!currentGame) { requestAnimationFrame(renderLoop); return; }
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            if (currentGame === 'roulette') {
-                if (spinVel > 0) {
-                    wheelAngle += spinVel;
-                    spinVel *= 0.992; // 阻尼
-                    if (spinVel < 0.05) {
-                        finishRoulette();
-                        spinVel = 0;
-                    }
-                }
-                renderRoulette();
-            } else { 
-                updatePhysics(); 
-                if (currentGame === 'blackjack') renderBJ(); 
-                else if (currentGame === 'baccarat') renderBaccarat(); 
-            }
+            if (currentGame === 'roulette') { if (spinVel > 0) { wheelAngle += spinVel; spinVel *= 0.992; if (spinVel < 0.05) { finishRoulette(); spinVel = 0; } } renderRoulette(); }
+            else { updatePhysics(); if (currentGame === 'blackjack') renderBJ(); else if (currentGame === 'baccarat') renderBaccarat(); }
             requestAnimationFrame(renderLoop);
         }
-
         function updatePhysics() { [...pHand, ...dHand].forEach(c => { c.x = lerp(c.x, c.tx, 0.1); c.y = lerp(c.y, c.ty, 0.1); }); }
-
-        function createDeck() {
-            deck = []; const vls = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-            for(let i=0; i<4; i++) vls.forEach(v => deck.push({v, w: 0, c: i%2?'#0ff':'#f0f', x: canvas.width/2, y: -200, tx: canvas.width/2, ty: -200, hidden: false}));
-            deck.sort(()=>Math.random()-0.5);
-        }
+        function createDeck() { deck = []; const vls = ['A','2','3','4','5','6','7','8','9','10','J','Q','K']; for(let i=0; i<4; i++) vls.forEach(v => deck.push({v, w: 0, c: i%2?'#0ff':'#f0f', x: canvas.width/2, y: -200, tx: canvas.width/2, ty: -200, hidden: false})); deck.sort(()=>Math.random()-0.5); }
 
         function drawCard(c) {
-            const hide = c.hidden;
-            ctx.save(); ctx.translate(c.x, c.y); 
-            ctx.shadowBlur = 15; ctx.shadowColor = hide ? '#333' : c.c;
-            ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 80, 120);
-            ctx.strokeStyle = hide ? '#444' : c.c; ctx.lineWidth = 2; ctx.strokeRect(0, 0, 80, 120);
-            if(!hide) { ctx.fillStyle = '#fff'; ctx.font = 'bold 22px Arial'; ctx.fillText(c.v, 10, 30); }
-            else { ctx.strokeStyle = '#222'; ctx.beginPath(); ctx.moveTo(20,40); ctx.lineTo(60,80); ctx.moveTo(60,40); ctx.lineTo(20,80); ctx.stroke(); }
+            const sc = getScale(); const cw = 80 * sc, ch = 120 * sc; const hide = c.hidden;
+            ctx.save(); ctx.translate(c.x, c.y); ctx.shadowBlur = 15 * sc; ctx.shadowColor = hide ? '#333' : c.c;
+            ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cw, ch); ctx.strokeStyle = hide ? '#444' : c.c; ctx.lineWidth = 2 * sc; ctx.strokeRect(0, 0, cw, ch);
+            if(!hide) { ctx.fillStyle = '#fff'; ctx.font = `bold ${22 * sc}px Arial`; ctx.fillText(c.v, 10 * sc, 30 * sc); }
+            else { ctx.strokeStyle = '#222'; ctx.beginPath(); ctx.moveTo(20*sc,40*sc); ctx.lineTo(60*sc,80*sc); ctx.moveTo(60*sc,40*sc); ctx.lineTo(20*sc,80*sc); ctx.stroke(); }
             ctx.restore();
         }
 
-        // --- 21點 ---
         async function startBJ() {
-            if (balance < 100 || isAnimating) return; isAnimating = true;
-            updateBalance(-100); createDeck(); pHand = []; dHand = [];
-            statusMsg.innerText = "DEALING..."; setBtnState(true, true, true);
-            await dealTo(pHand, canvas.width/2-150, canvas.height-350);
-            await dealTo(dHand, canvas.width/2-150, 200);
-            await dealTo(pHand, canvas.width/2-50, canvas.height-350);
-            await dealTo(dHand, canvas.width/2-50, 200, true);
+            if (balance < 100 || isAnimating) return; isAnimating = true; updateBalance(-100); createDeck(); pHand = []; dHand = []; statusMsg.innerText = "DEALING..."; setBtnState(true, true, true);
+            const sc = getScale(); const mid = canvas.width / 2; const cardGap = 90 * sc;
+            await dealTo(pHand, mid - cardGap * 1.5, canvas.height - (300 * sc)); await dealTo(dHand, mid - cardGap * 1.5, 180 * sc);
+            await dealTo(pHand, mid - cardGap * 0.5, canvas.height - (300 * sc)); await dealTo(dHand, mid - cardGap * 0.5, 180 * sc, true);
             statusMsg.innerText = "YOUR TURN"; setBtnState(true, false, false); isAnimating = false;
         }
-        async function bjHit() { if(isAnimating) return; isAnimating = true; await dealTo(pHand, canvas.width/2-150 + pHand.length*100, canvas.height-350); if (getScore(pHand) > 21) endBJ("BUST! DEALER WINS"); isAnimating = false; }
-        async function bjStand() { 
-            if(isAnimating) return; isAnimating = true; statusMsg.innerText = "DEALER'S TURN";
-            dHand.forEach(c => c.hidden = false);
-            while(getScore(dHand) < 17) await dealTo(dHand, canvas.width/2-150 + dHand.length*100, 200);
-            let ps = getScore(pHand), ds = getScore(dHand);
-            if(ds > 21 || ps > ds) { updateBalance(200); endBJ("YOU WIN! +$200"); }
-            else if(ps < ds) endBJ("DEALER WINS");
-            else { updateBalance(100); endBJ("PUSH"); }
-            isAnimating = false;
-        }
-        async function dealTo(hand, tx, ty, hide = false) {
-            let c = deck.pop(); c.x = canvas.width/2; c.y = -150; c.tx = tx; c.ty = ty; c.hidden = hide;
-            hand.push(c); await new Promise(r => setTimeout(r, 500));
-        }
-        function getScore(h) { 
-            let scoreDeck = h.map(c => { let w = isNaN(c.v)?(c.v==='A'?11:10):parseInt(c.v); return w; });
-            let s = scoreDeck.reduce((a,b)=>a+b, 0), aces = h.filter(x=>x.v==='A').length;
-            while(s > 21 && aces > 0) { s-=10; aces--; } return s;
-        }
+        async function bjHit() { if(isAnimating) return; isAnimating = true; const sc = getScale(); await dealTo(pHand, canvas.width/2 - (90*sc)*1.5 + pHand.length*(90*sc), canvas.height - (300 * sc)); if (getScore(pHand) > 21) endBJ("BUST! DEALER WINS"); isAnimating = false; }
+        async function bjStand() { if(isAnimating) return; isAnimating = true; statusMsg.innerText = "DEALER'S TURN"; dHand.forEach(c => c.hidden = false); const sc = getScale(); while(getScore(dHand) < 17) await dealTo(dHand, canvas.width/2 - (90*sc)*1.5 + dHand.length*(90*sc), 180 * sc); let ps = getScore(pHand), ds = getScore(dHand); if(ds > 21 || ps > ds) { updateBalance(200); endBJ("YOU WIN! +$200"); } else if(ps < ds) endBJ("DEALER WINS"); else { updateBalance(100); endBJ("PUSH"); } isAnimating = false; }
+        async function dealTo(hand, tx, ty, hide = false) { let c = deck.pop(); c.x = canvas.width/2; c.y = -150; c.tx = tx; c.ty = ty; c.hidden = hide; hand.push(c); await new Promise(r => setTimeout(r, 500)); }
+        function getScore(h) { let scoreDeck = h.map(c => { let w = isNaN(c.v)?(c.v==='A'?11:10):parseInt(c.v); return w; }); let s = scoreDeck.reduce((a,b)=>a+b, 0), aces = h.filter(x=>x.v==='A').length; while(s > 21 && aces > 0) { s-=10; aces--; } return s; }
         function setBtnState(d, h, s) { const b = controls.children; if(b.length >= 3) { b[0].disabled = d; b[1].disabled = h; b[2].disabled = s; } }
         function endBJ(m) { statusMsg.innerText = m; dHand.forEach(c => c.hidden = false); setBtnState(false, true, true); }
         function renderBJ() { pHand.forEach(c => drawCard(c)); dHand.forEach(c => drawCard(c)); }
 
-        // --- 輪盤 邏輯同步化修復 ---
-        function startRoulette(mode, bet) {
-            if (spinVel > 0 || balance < 100) return;
-            updateBalance(-100);
-            currentBet = { mode, bet };
-            spinVel = 15 + Math.random() * 10;
-            statusMsg.innerText = "SPINNING...";
-            Array.from(controls.children).forEach(b => b.disabled = true);
-        }
+        function startRoulette(mode, bet) { if (spinVel > 0 || balance < 100) return; updateBalance(-100); currentBet = { mode, bet }; spinVel = 15 + Math.random() * 10; statusMsg.innerText = "SPINNING..."; Array.from(controls.children).forEach(b => b.disabled = true); }
+        function finishRoulette() { let idx = Math.floor(((360 - (wheelAngle % 360)) % 360 / 360) * 38); let num = rouletteNums[idx], col = rouletteCols[idx]; let won = (currentBet.mode === 'color' && currentBet.bet === col) || (currentBet.mode === 'number' && currentBet.bet === num); if (won) { let p = currentBet.mode === 'color' ? 200 : 3600; updateBalance(p); statusMsg.innerText = `WIN! ${num} (+$${p})`; } else { statusMsg.innerText = `LOST: ${num} (${col.toUpperCase()})`; } Array.from(controls.children).forEach(b => b.disabled = false); }
+        function renderRoulette() { const sc = getScale(); const cx = canvas.width/2, cy = canvas.height/2 - (50 * sc); const radius = 180 * sc; ctx.save(); ctx.translate(cx, cy); ctx.rotate(wheelAngle*Math.PI/180); for(let i=0; i<38; i++) { ctx.beginPath(); ctx.fillStyle = rouletteCols[i]==='green'?'#0f0':(rouletteCols[i]==='red'?'#f0f':'#111'); ctx.arc(0,0, radius, i*(Math.PI*2/38), (i+1)*(Math.PI*2/38)); ctx.lineTo(0,0); ctx.fill(); ctx.save(); ctx.rotate(i*(Math.PI*2/38)+Math.PI/38); ctx.fillStyle='#fff'; ctx.font=`bold ${10*sc}px Arial`; ctx.fillText(rouletteNums[i], radius - (25*sc), 5*sc); ctx.restore(); } ctx.restore(); ctx.fillStyle='#0ff'; ctx.beginPath(); ctx.moveTo(cx+radius+10, cy); ctx.lineTo(cx+radius+30, cy-10); ctx.lineTo(cx+radius+30, cy+10); ctx.fill(); }
 
-        function finishRoulette() {
-            let idx = Math.floor(((360 - (wheelAngle % 360)) % 360 / 360) * 38);
-            let num = rouletteNums[idx], col = rouletteCols[idx];
-            let won = (currentBet.mode === 'color' && currentBet.bet === col) || (currentBet.mode === 'number' && currentBet.bet === num);
-            if (won) {
-                let p = currentBet.mode === 'color' ? 200 : 3600;
-                updateBalance(p);
-                statusMsg.innerText = `WIN! ${num} (+$${p})`;
-            } else {
-                statusMsg.innerText = `LOST: ${num} (${col.toUpperCase()})`;
-            }
-            Array.from(controls.children).forEach(b => b.disabled = false);
-        }
+        async function startBaccarat(bet) { if (balance < 100 || isAnimating) return; isAnimating = true; updateBalance(-100); createDeck(); deck.forEach(c => { c.w = isNaN(c.v)?(c.v==='A'?1:0):parseInt(c.v); }); pHand = []; dHand = []; pScore = 0; dScore = 0; statusMsg.innerText = "DEALING..."; Array.from(controls.children).forEach(b => b.disabled = true); const mid = canvas.width/2; const sc = getScale(); const by = canvas.height * 0.45; await dealTo(pHand, mid - (350 * sc), by); await dealTo(dHand, mid + (120 * sc), by); await dealTo(pHand, mid - (270 * sc), by); await dealTo(dHand, mid + (200 * sc), by); const updateScores = () => { pScore = pHand.reduce((a,b)=>a+b.w,0)%10; dScore = dHand.reduce((a,b)=>a+b.w,0)%10; }; updateScores(); if (pScore <= 5) { await dealTo(pHand, mid - (190 * sc), by); updateScores(); } if (dScore <= 5) { await dealTo(dHand, mid + (280 * sc), by); updateScores(); } let res = pScore > dScore ? 'player' : (dScore > pScore ? 'banker' : 'tie'); statusMsg.innerText = (bet === res) ? `WIN! ${res.toUpperCase()}` : `LOSE! ${res.toUpperCase()} WON`; if (bet === res) updateBalance(res === 'tie' ? 900 : 200); isAnimating = false; Array.from(controls.children).forEach(b => b.disabled = false); }
+        function renderBaccarat() { const mid = canvas.width / 2; const sc = getScale(); ctx.strokeStyle = 'rgba(0, 255, 255, 0.2)'; ctx.lineWidth = 2 * sc; ctx.beginPath(); ctx.moveTo(mid, 150 * sc); ctx.lineTo(mid, canvas.height - 200 * sc); ctx.stroke(); drawBaccaratUI("PLAYER", mid - (280 * sc), 250 * sc, pHand.length>=2?pScore:"?", '#0ff'); drawBaccaratUI("BANKER", mid + (120 * sc), 250 * sc, dHand.length>=2?dScore:"?", '#f0f'); pHand.forEach(c => drawCard(c)); dHand.forEach(c => drawCard(c)); }
+        function drawBaccaratUI(label, x, y, score, color) { const sc = getScale(); ctx.save(); ctx.shadowBlur = 15 * sc; ctx.shadowColor = color; ctx.fillStyle = color; ctx.font = `bold ${24 * sc}px Arial`; ctx.fillText(label, x, y); ctx.strokeStyle = color; ctx.strokeRect(x - (10 * sc), y - (30 * sc), 160 * sc, 45 * sc); ctx.beginPath(); ctx.arc(x + (200 * sc), y - (10 * sc), 25 * sc, 0, Math.PI*2); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.font = `bold ${20 * sc}px Arial`; ctx.fillText(score, x + (190 * sc), y - (2 * sc)); ctx.restore(); }
 
-        function renderRoulette() {
-            const cx = canvas.width/2, cy = canvas.height/2-80;
-            ctx.save(); ctx.translate(cx, cy); ctx.rotate(wheelAngle*Math.PI/180);
-            for(let i=0; i<38; i++) {
-                ctx.beginPath(); ctx.fillStyle = rouletteCols[i]==='green'?'#0f0':(rouletteCols[i]==='red'?'#f0f':'#111');
-                ctx.arc(0,0,180, i*(Math.PI*2/38), (i+1)*(Math.PI*2/38)); ctx.lineTo(0,0); ctx.fill();
-                ctx.save(); ctx.rotate(i*(Math.PI*2/38)+Math.PI/38); ctx.fillStyle='#fff'; ctx.font='bold 10px Arial';
-                ctx.fillText(rouletteNums[i], 155, 5); ctx.restore();
-            }
-            ctx.restore();
-            ctx.fillStyle='#0ff'; ctx.beginPath(); ctx.moveTo(cx+190, cy); ctx.lineTo(cx+210, cy-10); ctx.lineTo(cx+210, cy+10); ctx.fill();
-        }
-
-        // --- 百家樂 ---
-        async function startBaccarat(bet) {
-            if (balance < 100 || isAnimating) return; isAnimating = true;
-            updateBalance(-100); createDeck(); 
-            deck.forEach(c => { c.w = isNaN(c.v)?(c.v==='A'?1:0):parseInt(c.v); });
-            pHand = []; dHand = []; pScore = 0; dScore = 0;
-            statusMsg.innerText = "DEALING..."; Array.from(controls.children).forEach(b => b.disabled = true);
-            const mid = canvas.width/2;
-            await dealTo(pHand, mid-350, 330); await dealTo(dHand, mid+120, 330);
-            await dealTo(pHand, mid-270, 330); await dealTo(dHand, mid+200, 330);
-            const updateScores = () => { pScore = pHand.reduce((a,b)=>a+b.w,0)%10; dScore = dHand.reduce((a,b)=>a+b.w,0)%10; };
-            updateScores();
-            if (pScore <= 5) { await dealTo(pHand, mid-190, 330); updateScores(); }
-            if (dScore <= 5) { await dealTo(dHand, mid+280, 330); updateScores(); }
-            let res = pScore > dScore ? 'player' : (dScore > pScore ? 'banker' : 'tie');
-            statusMsg.innerText = (bet === res) ? `WIN! ${res.toUpperCase()}` : `LOSE! ${res.toUpperCase()} WON`;
-            if (bet === res) updateBalance(res === 'tie' ? 900 : 200);
-            isAnimating = false; Array.from(controls.children).forEach(b => b.disabled = false);
-        }
-        function renderBaccarat() {
-            const mid = canvas.width / 2;
-            ctx.strokeStyle = 'rgba(0, 255, 255, 0.2)'; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(mid, 150); ctx.lineTo(mid, 500); ctx.stroke();
-            drawBaccaratUI("PLAYER", mid - 280, 250, pHand.length>=2?pScore:"?", '#0ff');
-            drawBaccaratUI("BANKER", mid + 120, 250, dHand.length>=2?dScore:"?", '#f0f');
-            pHand.forEach(c => drawCard(c)); dHand.forEach(c => drawCard(c));
-        }
-        function drawBaccaratUI(label, x, y, score, color) {
-            ctx.save(); ctx.shadowBlur = 15; ctx.shadowColor = color; ctx.fillStyle = color;
-            ctx.font = 'bold 24px Arial'; ctx.fillText(label, x, y);
-            ctx.strokeStyle = color; ctx.strokeRect(x - 10, y - 30, 160, 45);
-            ctx.beginPath(); ctx.arc(x + 200, y - 10, 25, 0, Math.PI*2); ctx.stroke();
-            ctx.fillStyle = '#fff'; ctx.font = 'bold 20px Arial'; ctx.fillText(score, x + 190, y - 2);
-            ctx.restore();
-        }
-
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; if (currentGame === 'blackjack' || currentGame === 'baccarat') { pHand = []; dHand = []; } }
+        window.addEventListener('resize', resize);
         renderLoop();
         balanceEl.innerText = balance;
     </script>
