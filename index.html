@@ -309,4 +309,139 @@
         bet = val; money -= bet; document.getElementById('ui-money').innerText = money; isPlaying = true;
         document.getElementById('ui-msg').innerText = ''; 
         if (currentGame === 'crash') handleCrashStart(); 
-        else { createDeck(); if (currentGame === 'bj') handleBJStart(); else if (currentGame =
+        else { createDeck(); if (currentGame === 'bj') handleBJStart(); else if (currentGame === 'csp') handleCSPStart(); else handleRDStart(); }
+    }
+
+    function handleCrashStart() {
+        document.getElementById('bet-ui').classList.add('hidden'); document.getElementById('crash-action-ui').classList.remove('hidden');
+        currentMult = 1.00; crashPoint = (97 / (100 - Math.random() * 99)).toFixed(2);
+        let start = Date.now();
+        crashInterval = setInterval(() => {
+            currentMult = Math.pow(1.08, (Date.now() - start)/500);
+            if (currentMult >= crashPoint) { currentMult = crashPoint; clearInterval(crashInterval); document.getElementById('ui-multiplier').classList.add('crashed-text'); resolveGame('CRASHED'); }
+            document.getElementById('ui-multiplier').innerText = parseFloat(currentMult).toFixed(2) + 'x';
+        }, 50);
+    }
+    function handleCashOut() { if (!isPlaying || currentMult >= crashPoint) return; clearInterval(crashInterval); money += Math.floor(bet * currentMult); resolveGame('WIN'); }
+
+    async function handleBJStart() {
+        pHand = [deck.pop(), deck.pop()]; dHand = [deck.pop(), deck.pop()];
+        document.getElementById('bet-ui').classList.add('hidden');
+        renderCard(pHand[0], document.getElementById('player-cards')); await sleep(300);
+        renderCard(dHand[0], document.getElementById('dealer-cards')); await sleep(300);
+        renderCard(pHand[1], document.getElementById('player-cards')); await sleep(300);
+        renderCard(dHand[1], document.getElementById('dealer-cards'), true);
+        let s = getBJScore(pHand); document.getElementById('ui-p-score').innerText = s;
+        document.getElementById('bj-action-ui').classList.remove('hidden');
+        document.getElementById('bj-double').style.display = (money >= bet) ? 'inline-block' : 'none';
+        if (s === 21) handleStand(); 
+    }
+    function getBJScore(h) { let s = h.reduce((a, b) => a + (b.w > 10 ? (b.v==='A'?11:10) : b.w), 0); let aces = h.filter(c => c.v === 'A').length; while (s > 21 && aces > 0) { s -= 10; aces--; } return s; }
+    function handleHit() {
+        if (actionLocked || !isPlaying) return;
+        const c = deck.pop(); pHand.push(c); renderCard(c, document.getElementById('player-cards'));
+        let s = getBJScore(pHand); document.getElementById('ui-p-score').innerText = s;
+        if (s > 21) { actionLocked = true; document.getElementById('bj-action-ui').classList.add('hidden'); resolveGame('BUST'); }
+    }
+    async function handleBJDouble() {
+        if (actionLocked || !isPlaying) return;
+        actionLocked = true; money -= bet; bet *= 2; document.getElementById('ui-money').innerText = money;
+        const c = deck.pop(); pHand.push(c); renderCard(c, document.getElementById('player-cards'));
+        document.getElementById('ui-p-score').innerText = getBJScore(pHand);
+        if (getBJScore(pHand) > 21) { resolveGame('BUST'); } else { handleStand(); }
+    }
+    async function handleStand() {
+        actionLocked = true; document.getElementById('bj-action-ui').classList.add('hidden');
+        document.getElementById('dealer-cards').children[1].classList.add('flipped'); await sleep(600);
+        const draw = async () => {
+            let s = getBJScore(dHand); document.getElementById('ui-d-score').innerText = s;
+            if (s < 17) { let c = deck.pop(); dHand.push(c); renderCard(c, document.getElementById('dealer-cards')); await sleep(600); draw(); }
+            else {
+                let ps = getBJScore(pHand), ds = getBJScore(dHand);
+                if (ps === 21 && pHand.length === 2 && ds !== 21) { money += Math.floor(bet * 2.5); resolveGame('BLACKJACK!'); }
+                else if (ds > 21 || ps > ds) { money += bet * 2; resolveGame('WIN'); }
+                else if (ps < ds) resolveGame('LOSE'); else { money += bet; resolveGame('PUSH'); }
+            }
+        }; draw();
+    }
+
+    async function handleCSPStart() {
+        pHand = Array(5).fill().map(() => deck.pop()); dHand = Array(5).fill().map(() => deck.pop());
+        document.getElementById('bet-ui').classList.add('hidden');
+        for(let i=0; i<5; i++) { renderCard(pHand[i], document.getElementById('player-cards')); await sleep(150); }
+        for(let i=0; i<4; i++) { renderCard(dHand[i], document.getElementById('dealer-cards'), true); await sleep(150); }
+        renderCard(dHand[4], document.getElementById('dealer-cards'));
+        document.getElementById('csp-action-ui').classList.remove('hidden');
+        document.getElementById('ui-p-score').innerText = getPokerRank(pHand).name;
+    }
+    function handleCSPFold() { actionLocked = true; document.getElementById('csp-action-ui').classList.add('hidden'); resolveGame('LOSE'); }
+    async function handleCSPRaise() {
+        if (actionLocked || !isPlaying) return;
+        actionLocked = true; money -= bet * 2; document.getElementById('ui-money').innerText = money;
+        document.getElementById('csp-action-ui').classList.add('hidden');
+        for(let i=0; i<4; i++) { document.getElementById('dealer-cards').children[i].classList.add('flipped'); await sleep(100); }
+        let pRank = getPokerRank(pHand), dRank = getPokerRank(dHand);
+        document.getElementById('ui-d-score').innerText = dRank.name;
+        let qualified = (dRank.score > 1) || (dHand.some(c=>c.v==='A') && dHand.some(c=>c.v==='K'));
+        if (!qualified) { money += bet * 4; resolveGame('D-NOT QUALIFIED'); }
+        else {
+            if (pRank.score > dRank.score) { money += bet * 4 + (bet * 2 * CSP_PAYOUT[pRank.name]); resolveGame('WIN'); }
+            else if (pRank.score < dRank.score) resolveGame('LOSE');
+            else { money += bet * 3; resolveGame('PUSH'); }
+        }
+    }
+    const CSP_PAYOUT = { 'ROYAL FLUSH': 100, 'STR FLUSH': 50, '4 OF A KIND': 20, 'FULL HOUSE': 7, 'FLUSH': 5, 'STRAIGHT': 4, '3 OF A KIND': 3, '2 PAIR': 2, 'PAIR': 1, 'HIGH CARD': 1 };
+    function getPokerRank(h) {
+        const counts = {}, values = h.map(c => c.w).sort((a,b)=>b-a);
+        values.forEach(v => counts[v] = (counts[v]||0)+1);
+        const isFlush = new Set(h.map(c=>c.s)).size === 1;
+        if (isFlush && values[0] === 14 && values[4] === 10) return {name: 'ROYAL FLUSH', score: 10};
+        if (isFlush) return {name: 'FLUSH', score: 7};
+        if (Object.values(counts).includes(2)) return {name: 'PAIR', score: 3};
+        return {name: 'HIGH CARD', score: 2};
+    }
+
+    let rdCards = [], rdSpread = 0;
+    async function handleRDStart() {
+        const container = document.getElementById('player-cards');
+        rdCards = [deck.pop(), deck.pop()];
+        document.getElementById('bet-ui').classList.add('hidden');
+        renderCard(rdCards[0], container); await sleep(400);
+        renderCard(rdCards[1], container); await sleep(400);
+        let v1 = rdCards[0].w, v2 = rdCards[1].w;
+        if (v1 > v2) [v1, v2] = [v2, v1];
+        rdSpread = v2 - v1 - 1;
+        if (rdSpread === -1) { 
+            document.getElementById('ui-msg').innerText = "PAIR!"; await sleep(1000); 
+            let c3 = deck.pop(); const newCard = renderCard(c3, container);
+            container.insertBefore(newCard, container.children[1]); 
+            if (c3.w === v1) { money += bet * 12; resolveGame('11:1 THREE OF A KIND!'); }
+            else { money += bet; resolveGame('PUSH'); }
+        } else if (rdSpread === 0) { resolveGame('PUSH'); money += bet; }
+        else { document.getElementById('ui-msg').innerText = `SPREAD: ${rdSpread}`; document.getElementById('rd-action-ui').classList.remove('hidden'); }
+    }
+    function handleRDCall() { executeRDResult(); }
+    function handleRDRaise() { money -= bet; bet *= 2; document.getElementById('ui-money').innerText = money; executeRDResult(); }
+    async function executeRDResult() {
+        actionLocked = true; document.getElementById('rd-action-ui').classList.add('hidden');
+        const container = document.getElementById('player-cards');
+        let c3 = deck.pop(); 
+        const newCard = renderCard(c3, container);
+        container.insertBefore(newCard, container.children[1]); 
+        let v1 = rdCards[0].w, v2 = rdCards[1].w;
+        if (v1 > v2) [v1, v2] = [v2, v1];
+        if (c3.w > v1 && c3.w < v2) {
+            let pay = (rdSpread === 1) ? 5 : (rdSpread === 2) ? 4 : (rdSpread === 3) ? 2 : 1;
+            money += bet + (bet * pay); resolveGame(`WIN (${pay}:1)`);
+        } else { resolveGame('LOSE'); }
+    }
+
+    function resolveGame(res) {
+        isPlaying = false; const msg = document.getElementById('ui-msg');
+        msg.innerText = res; document.getElementById('ui-money').innerText = money; updateVIP();
+        if (money <= 0) { setTimeout(() => { document.body.classList.add('flash-red'); msg.innerText = "GAME OVER"; setTimeout(() => { document.body.classList.remove('flash-red'); exitToMenu(); }, 3000); }, 1000); }
+        else { setTimeout(resetTable, 2500); }
+    }
+</script>
+</body>
+</html>
