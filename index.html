@@ -3,67 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Infinity Collector</title>
+    <title>Neon Fog Explorer</title>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #050510;
-            color: #fff;
-            font-family: 'Segoe UI', sans-serif;
-            overflow: hidden;
-            touch-action: none;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        canvas {
-            display: block;
-        }
+        body { margin: 0; background: #000; overflow: hidden; touch-action: none; font-family: 'Segoe UI', sans-serif; }
+        canvas { display: block; }
         #ui {
-            position: absolute;
-            text-align: center;
-            z-index: 10;
-            background: rgba(5, 5, 16, 0.9);
-            padding: 40px;
-            border-radius: 20px;
-            border: 1px solid #0ff;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center; z-index: 20; background: rgba(0, 0, 0, 0.85);
+            padding: 40px; border-radius: 20px; border: 2px solid #0ff; width: 250px;
         }
+        #msg { font-size: 1.8rem; color: #f0f; text-shadow: 0 0 10px #f0f; margin-bottom: 10px; }
+        #scoreDisplay { font-size: 1.2rem; color: #0ff; margin-bottom: 20px; }
         button {
-            padding: 15px 30px;
-            font-size: 1.2rem;
-            background: transparent;
-            color: #0ff;
-            border: 2px solid #0ff;
-            border-radius: 30px;
-            cursor: pointer;
-            box-shadow: 0 0 15px #0ff;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-top: 20px;
-        }
-        #msg {
-            font-size: 1.5rem;
-            text-shadow: 0 0 10px #f0f;
-            color: #f0f;
-        }
-        #scoreDisplay {
-            font-size: 1.2rem;
-            color: #0ff;
-            margin-top: 10px;
+            padding: 15px 30px; font-size: 1.1rem; background: transparent; color: #0ff;
+            border: 2px solid #0ff; border-radius: 30px; cursor: pointer;
+            box-shadow: 0 0 15px #0ff; text-transform: uppercase;
         }
     </style>
 </head>
 <body>
-
     <div id="ui">
-        <div id="msg">NEON DRIFT</div>
+        <div id="msg">NEON FOG</div>
         <div id="scoreDisplay"></div>
         <button id="startBtn">開始遊戲</button>
     </div>
-
     <canvas id="gameCanvas"></canvas>
 
     <script>
@@ -75,12 +38,12 @@
         const scoreDisplay = document.getElementById('scoreDisplay');
 
         let isRunning = false;
-        let width, height;
-        let score = 0;
-        let ball = { x: 0, y: 0, vx: 0, vy: 0, r: 12 };
+        let width, height, score = 0;
+        let ball = { x: 0, y: 0, vx: 0, vy: 0, r: 10 };
         let pointBall = { x: 0, y: 0, r: 8 };
-        let holes = [];
+        let obstacles = [];
         let tilt = { x: 0, y: 0 };
+        const viewDist = 150; // 視野範圍
 
         function resize() {
             width = window.innerWidth;
@@ -93,68 +56,49 @@
             if(!isRunning) resetLevel();
         }
 
-        // 修改後的生成邏輯：確保不生在洞裡
         function spawnPoint() {
-            let isSafe = false;
-            let attempts = 0;
-            
-            while (!isSafe && attempts < 100) {
-                pointBall.x = 40 + Math.random() * (width - 80);
-                pointBall.y = 40 + Math.random() * (height - 80);
-                
-                isSafe = true;
-                // 遍歷所有洞穴檢查距離
-                for (let h of holes) {
-                    const dist = Math.hypot(pointBall.x - h.x, pointBall.y - h.y);
-                    // 安全距離 = 洞半徑 + 球半徑 + 15px 緩衝
-                    if (dist < h.r + pointBall.r + 15) {
-                        isSafe = false;
-                        break;
+            let safe = false;
+            while(!safe) {
+                pointBall.x = 30 + Math.random() * (width - 60);
+                pointBall.y = 30 + Math.random() * (height - 60);
+                safe = true;
+                for(let ob of obstacles) {
+                    if(ob.type === 'circle') {
+                        if(Math.hypot(pointBall.x - ob.x, pointBall.y - ob.y) < ob.r + pointBall.r + 10) safe = false;
+                    } else {
+                        if(pointBall.x > ob.x - 15 && pointBall.x < ob.x + ob.w + 15 && 
+                           pointBall.y > ob.y - 15 && pointBall.y < ob.y + ob.h + 15) safe = false;
                     }
                 }
-                attempts++;
             }
         }
 
         function resetLevel() {
             score = 0;
-            ball.x = width / 2;
-            ball.y = height / 2;
-            ball.vx = 0;
-            ball.vy = 0;
-            
-            // 先生成洞穴，再生成球點
-            holes = [];
-            for (let i = 0; i < 6; i++) {
-                holes.push({
-                    x: Math.random() * (width - 60) + 30,
-                    y: Math.random() * (height - 60) + 30,
-                    r: 25 + Math.random() * 10
-                });
+            ball.x = width / 2; ball.y = height / 2;
+            ball.vx = 0; ball.vy = 0;
+            obstacles = [];
+            for(let i=0; i<8; i++) {
+                let type = Math.random() > 0.5 ? 'circle' : 'rect';
+                if(type === 'circle') {
+                    obstacles.push({ type: 'circle', x: Math.random()*width, y: Math.random()*height, r: 25 + Math.random()*15 });
+                } else {
+                    obstacles.push({ type: 'rect', x: Math.random()*width, y: Math.random()*height, w: 40+Math.random()*40, h: 40+Math.random()*40 });
+                }
             }
-            
             spawnPoint();
         }
 
         function handleOrientation(event) {
-            // 微調靈敏度為 0.15
-            tilt.x = event.gamma * 0.15; 
-            tilt.y = event.beta * 0.15;
+            tilt.x = event.gamma * 0.08;
+            tilt.y = event.beta * 0.08;
         }
 
         startBtn.addEventListener('click', async () => {
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                try {
-                    const permission = await DeviceOrientationEvent.requestPermission();
-                    if (permission === 'granted') {
-                        initGame();
-                    }
-                } catch (e) {
-                    alert('需要授權才能遊玩');
-                }
-            } else {
-                initGame();
-            }
+                const p = await DeviceOrientationEvent.requestPermission();
+                if (p === 'granted') initGame();
+            } else { initGame(); }
         });
 
         function initGame() {
@@ -166,89 +110,104 @@
         }
 
         function update() {
-            if (!isRunning) return;
+            if(!isRunning) return;
+            ball.vx += tilt.x; ball.vy += tilt.y;
+            ball.vx *= 0.96; ball.vy *= 0.96;
+            ball.x += ball.vx; ball.y += ball.vy;
 
-            ball.vx += tilt.x;
-            ball.vy += tilt.y;
-            ball.vx *= 0.98; 
-            ball.vy *= 0.98;
-            ball.x += ball.vx;
-            ball.y += ball.vy;
+            // 牆壁碰撞 (反彈)
+            if (ball.x < ball.r) { ball.x = ball.r; ball.vx *= -0.6; }
+            if (ball.x > width - ball.r) { ball.x = width - ball.r; ball.vx *= -0.6; }
+            if (ball.y < ball.r) { ball.y = ball.r; ball.vy *= -0.6; }
+            if (ball.y > height - ball.r) { ball.y = height - ball.r; ball.vy *= -0.6; }
 
-            if (ball.x < ball.r) { ball.x = ball.r; ball.vx *= -0.5; }
-            if (ball.x > width - ball.r) { ball.x = width - ball.r; ball.vx *= -0.5; }
-            if (ball.y < ball.r) { ball.y = ball.r; ball.vy *= -0.5; }
-            if (ball.y > height - ball.r) { ball.y = height - ball.r; ball.vy *= -0.5; }
-
-            holes.forEach(h => {
-                const dist = Math.hypot(ball.x - h.x, ball.y - h.y);
-                if (dist < h.r) {
-                    gameOver();
+            obstacles.forEach(ob => {
+                if(ob.type === 'circle') {
+                    let d = Math.hypot(ball.x - ob.x, ball.y - ob.y);
+                    if(d < ob.r + ball.r) {
+                        let nx = (ball.x - ob.x) / d; let ny = (ball.y - ob.y) / d;
+                        ball.x = ob.x + nx * (ob.r + ball.r);
+                        let dot = ball.vx * nx + ball.vy * ny;
+                        ball.vx = (ball.vx - 2 * dot * nx) * 0.7;
+                        ball.vy = (ball.vy - 2 * dot * ny) * 0.7;
+                    }
+                } else {
+                    // 簡易矩形碰撞
+                    if(ball.x + ball.r > ob.x && ball.x - ball.r < ob.x + ob.w &&
+                       ball.y + ball.r > ob.y && ball.y - ball.r < ob.y + ob.h) {
+                        let prevX = ball.x - ball.vx;
+                        if (prevX + ball.r <= ob.x || prevX - ball.r >= ob.x + ob.w) {
+                            ball.vx *= -0.7; ball.x = (ball.x < ob.x) ? ob.x - ball.r : ob.x + ob.w + ball.r;
+                        } else {
+                            ball.vy *= -0.7; ball.y = (ball.y < ob.y) ? ob.y - ball.r : ob.y + ob.h + ball.r;
+                        }
+                    }
                 }
             });
 
-            const distToPoint = Math.hypot(ball.x - pointBall.x, ball.y - pointBall.y);
-            if (distToPoint < ball.r + pointBall.r) {
-                score++;
-                if (window.navigator.vibrate) window.navigator.vibrate(20);
-                spawnPoint();
+            if(Math.hypot(ball.x - pointBall.x, ball.y - pointBall.y) < ball.r + pointBall.r) {
+                score++; if(window.navigator.vibrate) window.navigator.vibrate(20); spawnPoint();
             }
-
             draw();
             requestAnimationFrame(update);
+        }
+
+        function draw() {
+            // 1. 繪製所有底層元素 (障礙物與點數球)
+            ctx.fillStyle = '#050510';
+            ctx.fillRect(0, 0, width, height);
+
+            obstacles.forEach(ob => {
+                ctx.strokeStyle = '#f0f'; ctx.lineWidth = 3;
+                ctx.beginPath();
+                if(ob.type === 'circle') ctx.arc(ob.x, ob.y, ob.r, 0, Math.PI*2);
+                else ctx.rect(ob.x, ob.y, ob.w, ob.h);
+                ctx.stroke();
+            });
+
+            ctx.fillStyle = '#ff0'; ctx.beginPath();
+            ctx.arc(pointBall.x, pointBall.y, pointBall.r, 0, Math.PI*2);
+            ctx.fill();
+
+            // 2. 製作動態遮罩
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
+            const tCtx = tempCanvas.getContext('2d');
+            tCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            
+            // 填滿黑暗
+            tCtx.fillStyle = 'rgba(0,0,0,0.98)';
+            tCtx.fillRect(0, 0, width, height);
+
+            // 挖洞 (手電筒效果)
+            tCtx.globalCompositeOperation = 'destination-out';
+            const grad = tCtx.createRadialGradient(ball.x, ball.y, 0, ball.x, ball.y, viewDist);
+            grad.addColorStop(0, 'rgba(255,255,255,1)');
+            grad.addColorStop(1, 'rgba(255,255,255,0)');
+            tCtx.fillStyle = grad;
+            tCtx.beginPath();
+            tCtx.arc(ball.x, ball.y, viewDist, 0, Math.PI*2);
+            tCtx.fill();
+
+            ctx.drawImage(tempCanvas, 0, 0, width, height);
+
+            // 3. 繪製玩家 (在遮罩上方)
+            ctx.shadowBlur = 15; ctx.shadowColor = '#0ff'; ctx.fillStyle = '#0ff';
+            ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2); ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // 繪製分數
+            ctx.fillStyle = '#0ff'; ctx.font = '20px Arial';
+            ctx.textAlign = 'left'; ctx.fillText('Score: ' + score, 20, 40);
         }
 
         function gameOver() {
             isRunning = false;
             msg.innerText = "GAME OVER";
-            scoreDisplay.innerText = "SCORE: " + score;
-            startBtn.innerText = "重新開始"; // 已修改
+            scoreDisplay.innerText = "最終分數: " + score;
+            startBtn.innerText = "重新開始";
             ui.style.display = 'block';
             window.removeEventListener('deviceorientation', handleOrientation);
-        }
-
-        function drawHole(h) {
-            const grad = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, h.r);
-            grad.addColorStop(0, '#000');
-            grad.addColorStop(0.8, '#050510');
-            grad.addColorStop(1, '#f0f'); 
-
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.arc(h.x, h.y, h.r, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.strokeStyle = '#f0f';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        }
-
-        function draw() {
-            ctx.fillStyle = '#050510';
-            ctx.fillRect(0, 0, width, height);
-
-            ctx.fillStyle = "rgba(0, 255, 255, 0.2)";
-            ctx.font = "bold 100px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText(score, width / 2, height / 2 + 35);
-
-            holes.forEach(h => drawHole(h));
-
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = '#ff0';
-            ctx.fillStyle = '#ff0';
-            ctx.beginPath();
-            ctx.arc(pointBall.x, pointBall.y, pointBall.r, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = '#0ff';
-            ctx.fillStyle = '#0ff';
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.shadowBlur = 0;
         }
 
         window.addEventListener('resize', resize);
