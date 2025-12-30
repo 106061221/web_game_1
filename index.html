@@ -46,6 +46,7 @@
         body.vip-mode .score-tag { color: #ffdf00; }
         .cards-row { display: flex; gap: 8px; min-height: 90px; }
         
+        /* --- CARD & ANIMATION --- */
         .card {
             width: 55px; height: 80px; background: #111; border: 1px solid #fff;
             border-radius: 4px; position: relative; box-shadow: 0 0 5px rgba(255,255,255,0.2);
@@ -57,6 +58,12 @@
         .card-value { position: absolute; top: 3px; left: 5px; font-size: 14px; font-weight: bold; }
         .card-suit { font-size: 12px; display: block; }
         .card-back { background: #222; border-color: #444; }
+
+        @keyframes card-glide {
+            0% { transform: translateY(-500px) rotate(20deg); opacity: 0; }
+            100% { transform: translateY(0) rotate(0); opacity: 1; }
+        }
+        .card-animate { animation: card-glide 0.5s cubic-bezier(0.23, 1, 0.32, 1) both; }
 
         /* --- CRASH GRAPH --- */
         #crash-area { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; }
@@ -81,7 +88,7 @@
                 <button onclick="showGame('bj')">Blackjack</button>
                 <button onclick="showGame('csp')" style="border-color: #0f8; color: #0f8;">Caribbean Stud</button>
             </div>
-            <button onclick="showGame('crash')" style="border-color: #0ff; color: #0ff;">Neon Crash (Single Player)</button>
+            <button onclick="showGame('crash')" style="border-color: #0ff; color: #0ff;">Neon Crash</button>
         </div>
     </div>
 
@@ -133,6 +140,8 @@
     let crashPoint = 0, currentMult = 1.00, crashInterval = null;
     const SUITS = [{s:'♠',c:'cyan'}, {s:'♣',c:'cyan'}, {s:'♥',c:'magenta'}, {s:'♦',c:'magenta'}];
     const VALS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+
+    const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
     function updateVIP() {
         if (money >= 5000) { document.body.classList.add('vip-mode'); document.getElementById('main-title').innerHTML = "VIP NEON<br>CASINO"; }
@@ -187,13 +196,12 @@
 
     function renderCard(card, container, isHidden = false) {
         const div = document.createElement('div');
-        div.className = `card ${isHidden ? 'card-back' : card.color}`;
+        div.className = `card ${isHidden ? 'card-back' : card.color} card-animate`;
         if (!isHidden) div.innerHTML = `<div class="card-value">${card.v}<span class="card-suit">${card.s}</span></div>`;
         container.appendChild(div);
     }
 
     function startDeal() {
-        // --- DEFENSIVE LOGIC UPDATED ---
         const val = parseInt(document.getElementById('bet-val').value);
         if (isPlaying || isNaN(val) || val > money || val <= 0) {
             document.getElementById('ui-msg').innerText = 'INVALID AMOUNT';
@@ -208,21 +216,18 @@
         else { createDeck(); if (currentGame === 'bj') handleBJStart(); else handleCSPStart(); }
     }
 
-    // --- NEON CRASH (1.00x CONSISTENT) ---
+    // --- NEON CRASH (UNCHANGED) ---
     function handleCrashStart() {
         document.getElementById('bet-ui').classList.add('hidden');
         document.getElementById('crash-action-ui').classList.remove('hidden');
         document.getElementById('ui-msg').innerText = 'WATCHING...';
-        
         currentMult = 1.00;
         if (Math.random() < 0.03) crashPoint = 1.00;
         else crashPoint = (97 / (100 - Math.random() * 99)).toFixed(2);
-
         let startTime = Date.now();
         crashInterval = setInterval(() => {
             let elapsed = (Date.now() - startTime) / 1000;
             currentMult = Math.pow(1.08, elapsed * 2); 
-            
             if (currentMult >= crashPoint) {
                 currentMult = crashPoint;
                 document.getElementById('ui-multiplier').innerText = parseFloat(currentMult).toFixed(2) + 'x';
@@ -243,21 +248,26 @@
         resolveGame('WIN');
     }
 
-    // --- BLACKJACK (UNCHANGED) ---
+    // --- BLACKJACK (ANIMATED) ---
+    async function handleBJStart() {
+        pHand = [deck.pop(), deck.pop()]; dHand = [deck.pop(), deck.pop()];
+        document.getElementById('bet-ui').classList.add('hidden');
+        
+        // Sequential Dealing
+        renderCard(pHand[0], document.getElementById('player-cards')); await sleep(300);
+        renderCard(dHand[0], document.getElementById('dealer-cards')); await sleep(300);
+        renderCard(pHand[1], document.getElementById('player-cards')); await sleep(300);
+        renderCard(null, document.getElementById('dealer-cards'), true); 
+        
+        document.getElementById('bj-action-ui').classList.remove('hidden');
+        document.getElementById('ui-p-score').innerText = getBJScore(pHand);
+    }
+
     function getBJScore(hand) {
         let s = hand.reduce((a, b) => a + (b.w > 10 ? (b.v==='A'?11:10) : b.w), 0);
         let aces = hand.filter(c => c.v === 'A').length;
         while (s > 21 && aces > 0) { s -= 10; aces--; }
         return s;
-    }
-    function handleBJStart() {
-        pHand = [deck.pop(), deck.pop()]; dHand = [deck.pop(), deck.pop()];
-        document.getElementById('bet-ui').classList.add('hidden');
-        document.getElementById('bj-action-ui').classList.remove('hidden');
-        pHand.forEach(c => renderCard(c, document.getElementById('player-cards')));
-        renderCard(dHand[0], document.getElementById('dealer-cards'));
-        renderCard(null, document.getElementById('dealer-cards'), true);
-        document.getElementById('ui-p-score').innerText = getBJScore(pHand);
     }
     function handleHit() {
         if (!isPlaying) return;
@@ -280,19 +290,23 @@
         }; draw();
     }
 
-    // --- CARIBBEAN STUD (UNCHANGED) ---
-    function handleCSPStart() {
+    // --- CARIBBEAN STUD (ANIMATED) ---
+    async function handleCSPStart() {
         pHand = Array(5).fill().map(() => deck.pop()); dHand = Array(5).fill().map(() => deck.pop());
         document.getElementById('bet-ui').classList.add('hidden');
+        
+        // Fast Sequential Dealing
+        for(let i=0; i<5; i++) { renderCard(pHand[i], document.getElementById('player-cards')); await sleep(150); }
+        for(let i=0; i<4; i++) { renderCard(null, document.getElementById('dealer-cards'), true); await sleep(150); }
+        renderCard(dHand[4], document.getElementById('dealer-cards'));
+
         document.getElementById('csp-action-ui').classList.remove('hidden');
-        pHand.forEach(c => renderCard(c, document.getElementById('player-cards')));
-        renderCard(dHand[0], document.getElementById('dealer-cards'));
-        for(let i=0; i<4; i++) renderCard(null, document.getElementById('dealer-cards'), true);
         document.getElementById('ui-p-score').innerText = getPokerRank(pHand).name;
     }
+
     function handleCSPFold() { resolveGame('LOSE'); }
     function handleCSPRaise() {
-        if (money < bet * 2) { document.getElementById('ui-msg').innerText = 'INSUFFICIENT FUNDS'; return; }
+        if (money < bet * 2) { document.getElementById('ui-msg').innerText = 'INVALID AMOUNT'; return; }
         money -= bet * 2; document.getElementById('ui-money').innerText = money;
         document.getElementById('csp-action-ui').classList.add('hidden');
         const dRow = document.getElementById('dealer-cards'); dRow.innerHTML = '';
