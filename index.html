@@ -55,8 +55,7 @@
         }
         .card.cyan { border-color: #0ff; color: #0ff; box-shadow: 0 0 8px #0ff; }
         .card.magenta { border-color: #f0f; color: #f0f; box-shadow: 0 0 8px #f0f; }
-        .card.emerald { border-color: #0f8; color: #0f8; box-shadow: 0 0 8px #0f8; }
-        body.vip-mode .card.cyan, body.vip-mode .card.emerald { border-color: #ffdf00; color: #ffdf00; }
+        body.vip-mode .card.cyan { border-color: #ffdf00; color: #ffdf00; }
 
         .card-value { position: absolute; top: 3px; left: 5px; font-size: 14px; font-weight: bold; }
         .card-suit { font-size: 12px; display: block; }
@@ -90,7 +89,7 @@
 
         <div class="table">
             <div class="hand-area">
-                <div class="score-tag"><span id="ui-d-label">DEALER</span>: <span id="ui-d-score">?</span></div>
+                <div class="score-tag">DEALER: <span id="ui-d-score">?</span></div>
                 <div id="dealer-cards" class="cards-row"></div>
             </div>
             <div class="hand-area">
@@ -103,7 +102,7 @@
             <div id="ui-msg" class="msg-box"></div>
             <div id="bet-ui">
                 <input type="number" id="bet-val" class="bet-input" value="100" step="10">
-                <button id="deal-btn" onclick="startDeal()">DEAL</button>
+                <button onclick="startDeal()">DEAL</button>
             </div>
             <div id="bj-action-ui" class="hidden">
                 <button onclick="handleHit()">HIT</button>
@@ -122,23 +121,15 @@
     const VALS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
 
     function updateVIP() {
-        const title = document.getElementById('main-title');
-        if (money >= 5000) {
-            document.body.classList.add('vip-mode');
-            title.innerHTML = "VIP NEON<br>CASINO";
-        } else {
-            document.body.classList.remove('vip-mode');
-            title.innerHTML = "NEON<br>CASINO";
-        }
+        if (money >= 5000) { document.body.classList.add('vip-mode'); document.getElementById('main-title').innerHTML = "VIP NEON<br>CASINO"; }
+        else { document.body.classList.remove('vip-mode'); document.getElementById('main-title').innerHTML = "NEON<br>CASINO"; }
     }
 
     function showGame(type) {
         currentGame = type;
         document.getElementById('menu-screen').classList.add('hidden');
         document.getElementById('game-screen').classList.remove('hidden');
-        updateVIP();
-        resetTable();
-        isPlaying = false;
+        updateVIP(); resetTable(); isPlaying = false;
     }
 
     function exitToMenu() {
@@ -153,7 +144,7 @@
         document.getElementById('dealer-cards').innerHTML = '';
         document.getElementById('ui-p-score').innerText = '0';
         document.getElementById('ui-d-score').innerText = '?';
-        document.getElementById('ui-msg').innerText = 'PLACE YOUR ANTE' ;
+        document.getElementById('ui-msg').innerText = currentGame === 'bj' ? 'PLACE YOUR BET' : 'PLACE YOUR ANTE';
         document.getElementById('ui-msg').style.color = '#fff';
         document.getElementById('bet-ui').classList.remove('hidden');
         document.getElementById('bj-action-ui').classList.add('hidden');
@@ -163,10 +154,8 @@
     function createDeck() {
         deck = [];
         SUITS.forEach(s => VALS.forEach(v => {
-            let w = VALS.indexOf(v) + 2; 
-            if(v === 'A') w = 14; 
-            // 21點專用權重由函數處理，這裡存原始權重供撲克比牌
-            deck.push({v, s:s.s, color: (currentGame==='csp'?'emerald':s.c), w});
+            let w = VALS.indexOf(v) + 2; if(v === 'A') w = 14;
+            deck.push({v, s:s.s, color:s.c, w});
         }));
         deck.sort(() => Math.random() - 0.5);
     }
@@ -178,7 +167,6 @@
         container.appendChild(div);
     }
 
-    // --- GAME START ---
     function startDeal() {
         const val = parseInt(document.getElementById('bet-val').value);
         if (isPlaying || val > money || val <= 0 || money <= 0) {
@@ -190,40 +178,31 @@
         document.getElementById('ui-money').innerText = money;
         isPlaying = true;
         createDeck();
-        
-        if (currentGame === 'bj') handleBJStart();
-        else handleCSPStart();
+        if (currentGame === 'bj') handleBJStart(); else handleCSPStart();
     }
 
-    // --- BLACKJACK LOGIC (UNCHANGED) ---
+    // --- BLACKJACK (UNCHANGED) ---
     function getBJScore(hand) {
         let s = hand.reduce((a, b) => a + (b.w > 10 ? (b.v==='A'?11:10) : b.w), 0);
         let aces = hand.filter(c => c.v === 'A').length;
         while (s > 21 && aces > 0) { s -= 10; aces--; }
         return s;
     }
-
     function handleBJStart() {
         pHand = [deck.pop(), deck.pop()]; dHand = [deck.pop(), deck.pop()];
         document.getElementById('bet-ui').classList.add('hidden');
         document.getElementById('bj-action-ui').classList.remove('hidden');
-        document.getElementById('ui-msg').innerText = '';
-        renderCard(pHand[0], document.getElementById('player-cards'));
-        renderCard(pHand[1], document.getElementById('player-cards'));
+        pHand.forEach(c => renderCard(c, document.getElementById('player-cards')));
         renderCard(dHand[0], document.getElementById('dealer-cards'));
         renderCard(null, document.getElementById('dealer-cards'), true);
         document.getElementById('ui-p-score').innerText = getBJScore(pHand);
     }
-
     function handleHit() {
         if (!isPlaying) return;
-        const c = deck.pop(); pHand.push(c);
-        renderCard(c, document.getElementById('player-cards'));
-        const s = getBJScore(pHand);
-        document.getElementById('ui-p-score').innerText = s;
+        const c = deck.pop(); pHand.push(c); renderCard(c, document.getElementById('player-cards'));
+        const s = getBJScore(pHand); document.getElementById('ui-p-score').innerText = s;
         if (s > 21) resolveGame('BUST');
     }
-
     function handleStand() {
         if (!isPlaying) return;
         document.getElementById('bj-action-ui').classList.add('hidden');
@@ -234,18 +213,14 @@
             if (s < 17) { dHand.push(deck.pop()); dRow.innerHTML = ''; dHand.forEach(c=>renderCard(c, dRow)); setTimeout(draw, 500); }
             else { 
                 let ps = getBJScore(pHand);
-                if (s > 21 || ps > s) resolveGame('WIN');
-                else if (ps < s) resolveGame('LOSE');
-                else resolveGame('PUSH');
+                if (s > 21 || ps > s) resolveGame('WIN'); else if (ps < s) resolveGame('LOSE'); else resolveGame('PUSH');
             }
-        };
-        draw();
+        }; draw();
     }
 
-    // --- CARIBBEAN STUD LOGIC ---
+    // --- CARIBBEAN STUD (NEW - COLOR FIXED) ---
     function handleCSPStart() {
-        pHand = Array(5).fill().map(() => deck.pop());
-        dHand = Array(5).fill().map(() => deck.pop());
+        pHand = Array(5).fill().map(() => deck.pop()); dHand = Array(5).fill().map(() => deck.pop());
         document.getElementById('bet-ui').classList.add('hidden');
         document.getElementById('csp-action-ui').classList.remove('hidden');
         pHand.forEach(c => renderCard(c, document.getElementById('player-cards')));
@@ -253,49 +228,29 @@
         for(let i=0; i<4; i++) renderCard(null, document.getElementById('dealer-cards'), true);
         document.getElementById('ui-p-score').innerText = getPokerRank(pHand).name;
     }
-
-    function handleCSPFold() {
-        resolveGame('LOSE');
-    }
-
+    function handleCSPFold() { resolveGame('LOSE'); }
     function handleCSPRaise() {
-        if (money < bet * 2) { document.getElementById('ui-msg').innerText = 'INSUFFICIENT FOR RAISE'; return; }
-        money -= bet * 2;
-        document.getElementById('ui-money').innerText = money;
+        if (money < bet * 2) { document.getElementById('ui-msg').innerText = 'INSUFFICIENT FUNDS'; return; }
+        money -= bet * 2; document.getElementById('ui-money').innerText = money;
         document.getElementById('csp-action-ui').classList.add('hidden');
-        
         const dRow = document.getElementById('dealer-cards'); dRow.innerHTML = '';
         dHand.forEach(c => renderCard(c, dRow));
-        const dRank = getPokerRank(dHand);
-        document.getElementById('ui-d-score').innerText = dRank.name;
-
-        // Check Qualification (Dealer needs A+K or better)
+        const dRank = getPokerRank(dHand); document.getElementById('ui-d-score').innerText = dRank.name;
         const qualified = (dRank.score > 1) || (dHand.some(c=>c.v==='A') && dHand.some(c=>c.v==='K'));
-        
-        if (!qualified) {
-            money += (bet * 2) + (bet * 2); // Ante wins 1:1, Raise pushes
-            resolveGame('D-NOT QUALIFIED');
-        } else {
+        if (!qualified) { money += (bet * 2) + (bet * 2); resolveGame('D-NOT QUALIFIED'); }
+        else {
             const pRank = getPokerRank(pHand);
-            if (pRank.score > dRank.score) {
-                money += (bet * 2) + (bet * 2) + (bet * 2); // Simplified payout
-                resolveGame('WIN');
-            } else if (pRank.score < dRank.score) {
-                resolveGame('LOSE');
-            } else {
-                money += bet * 3;
-                resolveGame('PUSH');
-            }
+            if (pRank.score > dRank.score) { money += (bet * 6); resolveGame('WIN'); }
+            else if (pRank.score < dRank.score) resolveGame('LOSE');
+            else { money += bet * 3; resolveGame('PUSH'); }
         }
     }
-
     function getPokerRank(hand) {
         const counts = {}, values = hand.map(c => c.w).sort((a,b)=>b-a);
         values.forEach(v => counts[v] = (counts[v]||0)+1);
         const freq = Object.values(counts).sort((a,b)=>b-a);
         const isFlush = new Set(hand.map(c=>c.s)).size === 1;
         const isStraight = values.every((v,i) => i===0 || v === values[i-1]-1);
-        
         if (isStraight && isFlush) return {name: 'STR FLUSH', score: 9};
         if (freq[0] === 4) return {name: '4 KIND', score: 8};
         if (freq[0] === 3 && freq[1] === 2) return {name: 'FULL HOUSE', score: 7};
@@ -307,32 +262,19 @@
         return {name: 'HIGH CARD', score: 1};
     }
 
-    // --- UNIVERSAL RESOLVE & BANKRUPTCY ---
     function resolveGame(res) {
-        isPlaying = false;
-        const msg = document.getElementById('ui-msg');
-        msg.innerText = res;
-        msg.style.color = (res === 'WIN' || res.includes('QUALIFIED')) ? '#0ff' : (res === 'PUSH' ? '#fff' : '#f0f');
-        
-        document.getElementById('ui-money').innerText = money;
-        updateVIP();
-
+        isPlaying = false; const msg = document.getElementById('ui-msg');
+        msg.innerText = res; msg.style.color = (res === 'WIN' || res.includes('QUALIFIED')) ? '#0ff' : (res === 'PUSH' ? '#fff' : '#f0f');
+        document.getElementById('ui-money').innerText = money; updateVIP();
         if (money <= 0) {
             isPlaying = true;
-            document.getElementById('bj-action-ui').classList.add('hidden');
-            document.getElementById('csp-action-ui').classList.add('hidden');
+            document.getElementById('bj-action-ui').classList.add('hidden'); document.getElementById('csp-action-ui').classList.add('hidden');
             setTimeout(() => {
-                document.body.classList.add('flash-red');
-                msg.innerText = "YOU ARE NOT WELCOME HERE ANYMORE...";
+                document.body.classList.add('flash-red'); msg.innerText = "YOU ARE NOT WELCOME HERE ANYMORE...";
                 msg.style.color = "#ff0000";
-                setTimeout(() => {
-                    document.body.classList.remove('flash-red');
-                    exitToMenu();
-                }, 3000);
+                setTimeout(() => { document.body.classList.remove('flash-red'); exitToMenu(); }, 3000);
             }, 1000);
-        } else {
-            setTimeout(resetTable, 2500);
-        }
+        } else { setTimeout(resetTable, 2500); }
     }
 </script>
 </body>
