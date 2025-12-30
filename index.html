@@ -1,217 +1,345 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Fog Explorer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEON CASINO - TRIPLE</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; touch-action: none; font-family: 'Segoe UI', sans-serif; }
-        canvas { display: block; }
-        #ui {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            text-align: center; z-index: 20; background: rgba(0, 0, 0, 0.85);
-            padding: 40px; border-radius: 20px; border: 2px solid #0ff; width: 250px;
+        /* --- BASE & NEON THEME --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: #000; color: #fff;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            height: 100vh; display: flex; justify-content: center; align-items: center;
+            overflow: hidden; transition: background-color 0.5s;
         }
-        #msg { font-size: 1.8rem; color: #f0f; text-shadow: 0 0 10px #f0f; margin-bottom: 10px; }
-        #scoreDisplay { font-size: 1.2rem; color: #0ff; margin-bottom: 20px; }
+        .neon-title {
+            font-size: 3.5rem; color: #000; text-align: center; line-height: 1.2;
+            -webkit-text-stroke: 1px #0ff; text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
+            letter-spacing: 10px; margin-bottom: 2rem;
+        }
+        body.vip-mode .neon-title { -webkit-text-stroke: 1px #ffdf00; text-shadow: 0 0 10px #ffdf00; }
+        
         button {
-            padding: 15px 30px; font-size: 1.1rem; background: transparent; color: #0ff;
-            border: 2px solid #0ff; border-radius: 30px; cursor: pointer;
-            box-shadow: 0 0 15px #0ff; text-transform: uppercase;
+            background: transparent; border: 1px solid #ff00ff; color: #ff00ff;
+            padding: 12px 25px; cursor: pointer; font-size: 0.9rem; letter-spacing: 2px;
+            transition: 0.3s; text-transform: uppercase; margin: 5px;
         }
+        button:hover { background: #ff00ff; color: #000; box-shadow: 0 0 15px #ff00ff; }
+        body.vip-mode button { border-color: #ffdf00; color: #ffdf00; }
+        body.vip-mode button:hover { background: #ffdf00; box-shadow: 0 0 15px #ffdf00; }
+
+        .screen { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .hidden { display: none !important; }
+
+        .top-hud {
+            position: absolute; top: 20px; width: 90%;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #222; padding-bottom: 10px;
+        }
+        .money-label { color: #0ff; font-size: 1.2rem; }
+        body.vip-mode .money-label { color: #ffdf00; }
+
+        .table { display: flex; flex-direction: column; gap: 30px; width: 100%; align-items: center; }
+        .hand-area { display: flex; flex-direction: column; align-items: center; min-height: 130px; }
+        .score-tag { font-size: 0.7rem; letter-spacing: 2px; color: #0ff; margin-bottom: 8px; text-transform: uppercase; }
+        body.vip-mode .score-tag { color: #ffdf00; }
+        .cards-row { display: flex; gap: 8px; min-height: 90px; }
+        
+        .card {
+            width: 55px; height: 80px; background: #111; border: 1px solid #fff;
+            border-radius: 4px; position: relative; box-shadow: 0 0 5px rgba(255,255,255,0.2);
+        }
+        .card.cyan { border-color: #0ff; color: #0ff; box-shadow: 0 0 8px #0ff; }
+        .card.magenta { border-color: #f0f; color: #f0f; box-shadow: 0 0 8px #f0f; }
+        body.vip-mode .card.cyan { border-color: #ffdf00; color: #ffdf00; }
+
+        .card-value { position: absolute; top: 3px; left: 5px; font-size: 14px; font-weight: bold; }
+        .card-suit { font-size: 12px; display: block; }
+        .card-back { background: #222; border-color: #444; }
+
+        /* --- CRASH GRAPH --- */
+        #crash-area { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; }
+        .multiplier-text { font-size: 5rem; font-weight: bold; color: #0ff; text-shadow: 0 0 20px #0ff; transition: color 0.1s; }
+        .crashed-text { color: #ff0055 !important; text-shadow: 0 0 20px #ff0055 !important; }
+
+        .controls { position: absolute; bottom: 40px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        .msg-box { height: 30px; font-size: 1rem; letter-spacing: 1px; text-transform: uppercase; text-align: center; }
+        .bet-input { background: transparent; border: 1px solid #0ff; color: #0ff; padding: 8px; width: 80px; text-align: center; outline: none; }
+        body.vip-mode .bet-input { border-color: #ffdf00; color: #ffdf00; }
+
+        @keyframes bankrupt-flash { 0%, 100% { background-color: #000; } 50% { background-color: #600; } }
+        .flash-red { animation: bankrupt-flash 0.5s 4; }
     </style>
 </head>
 <body>
-    <div id="ui">
-        <div id="msg">NEON FOG</div>
-        <div id="scoreDisplay"></div>
-        <button id="startBtn">開始遊戲</button>
+
+    <div id="menu-screen" class="screen">
+        <h1 id="main-title" class="neon-title">NEON<br>CASINO</h1>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+            <div style="display: flex; gap: 10px;">
+                <button onclick="showGame('bj')">Blackjack</button>
+                <button onclick="showGame('csp')" style="border-color: #0f8; color: #0f8;">Caribbean Stud</button>
+            </div>
+            <button onclick="showGame('crash')" style="border-color: #0ff; color: #0ff;">Neon Crash (Multiplayer)</button>
+        </div>
     </div>
-    <canvas id="gameCanvas"></canvas>
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const ui = document.getElementById('ui');
-        const startBtn = document.getElementById('startBtn');
-        const msg = document.getElementById('msg');
-        const scoreDisplay = document.getElementById('scoreDisplay');
+    <div id="game-screen" class="screen hidden">
+        <div class="top-hud">
+            <div class="money-label">BALANCE: $<span id="ui-money">1000</span></div>
+            <button onclick="exitToMenu()" id="exit-btn" style="font-size: 0.6rem; border-color: #444; color: #666;">EXIT</button>
+        </div>
 
-        let isRunning = false;
-        let width, height, score = 0;
-        let ball = { x: 0, y: 0, vx: 0, vy: 0, r: 10 };
-        let pointBall = { x: 0, y: 0, r: 8 };
-        let obstacles = [];
-        let tilt = { x: 0, y: 0 };
-        const viewDist = 150; // 視野範圍
+        <div id="table-standard" class="table">
+            <div class="hand-area">
+                <div class="score-tag">DEALER: <span id="ui-d-score">?</span></div>
+                <div id="dealer-cards" class="cards-row"></div>
+            </div>
+            <div class="hand-area">
+                <div id="player-cards" class="cards-row"></div>
+                <div class="score-tag" style="margin-top:10px;">PLAYER: <span id="ui-p-score">0</span></div>
+            </div>
+        </div>
 
-        function resize() {
-            width = window.innerWidth;
-            height = window.innerHeight;
-            canvas.width = width * window.devicePixelRatio;
-            canvas.height = height * window.devicePixelRatio;
-            canvas.style.width = width + 'px';
-            canvas.style.height = height + 'px';
-            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-            if(!isRunning) resetLevel();
+        <div id="table-crash" class="table hidden">
+            <div id="crash-area">
+                <div id="ui-multiplier" class="multiplier-text">1.00x</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div id="ui-msg" class="msg-box"></div>
+            <div id="bet-ui">
+                <input type="number" id="bet-val" class="bet-input" value="100" step="10">
+                <button onclick="startDeal()">DEAL</button>
+            </div>
+            <div id="bj-action-ui" class="hidden">
+                <button onclick="handleHit()">HIT</button>
+                <button onclick="handleStand()">STAND</button>
+            </div>
+            <div id="csp-action-ui" class="hidden">
+                <button onclick="handleCSPFold()" style="border-color: #f0f; color: #f0f;">FOLD</button>
+                <button onclick="handleCSPRaise()" style="border-color: #0f8; color: #0f8;">RAISE (2x)</button>
+            </div>
+            <div id="crash-action-ui" class="hidden">
+                <button id="cashout-btn" onclick="handleCashOut()" style="border-color: #0ff; color: #0ff; padding: 20px 50px;">CASH OUT</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    let money = 1000, deck = [], pHand = [], dHand = [], bet = 0, isPlaying = false, currentGame = '';
+    let crashPoint = 0, currentMult = 1.00, crashInterval = null;
+    const SUITS = [{s:'♠',c:'cyan'}, {s:'♣',c:'cyan'}, {s:'♥',c:'magenta'}, {s:'♦',c:'magenta'}];
+    const VALS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+
+    function updateVIP() {
+        if (money >= 5000) { document.body.classList.add('vip-mode'); document.getElementById('main-title').innerHTML = "VIP NEON<br>CASINO"; }
+        else { document.body.classList.remove('vip-mode'); document.getElementById('main-title').innerHTML = "NEON<br>CASINO"; }
+    }
+
+    function showGame(type) {
+        currentGame = type;
+        document.getElementById('menu-screen').classList.add('hidden');
+        document.getElementById('game-screen').classList.remove('hidden');
+        if(type === 'crash') {
+            document.getElementById('table-standard').classList.add('hidden');
+            document.getElementById('table-crash').classList.remove('hidden');
+        } else {
+            document.getElementById('table-standard').classList.remove('hidden');
+            document.getElementById('table-crash').classList.add('hidden');
         }
+        updateVIP(); resetTable(); isPlaying = false;
+    }
 
-        function spawnPoint() {
-            let safe = false;
-            while(!safe) {
-                pointBall.x = 30 + Math.random() * (width - 60);
-                pointBall.y = 30 + Math.random() * (height - 60);
-                safe = true;
-                for(let ob of obstacles) {
-                    if(ob.type === 'circle') {
-                        if(Math.hypot(pointBall.x - ob.x, pointBall.y - ob.y) < ob.r + pointBall.r + 10) safe = false;
-                    } else {
-                        if(pointBall.x > ob.x - 15 && pointBall.x < ob.x + ob.w + 15 && 
-                           pointBall.y > ob.y - 15 && pointBall.y < ob.y + ob.h + 15) safe = false;
-                    }
-                }
-            }
+    function exitToMenu() {
+        if (isPlaying && money > 0) return;
+        clearInterval(crashInterval);
+        document.getElementById('game-screen').classList.add('hidden');
+        document.getElementById('menu-screen').classList.remove('hidden');
+    }
+
+    function resetTable() {
+        pHand = []; dHand = [];
+        document.getElementById('player-cards').innerHTML = '';
+        document.getElementById('dealer-cards').innerHTML = '';
+        document.getElementById('ui-p-score').innerText = '0';
+        document.getElementById('ui-d-score').innerText = '?';
+        document.getElementById('ui-multiplier').innerText = '1.00x';
+        document.getElementById('ui-multiplier').classList.remove('crashed-text');
+        document.getElementById('ui-msg').innerText = currentGame === 'crash' ? 'PLACE YOUR BET' : (currentGame === 'bj' ? 'PLACE YOUR BET' : 'PLACE YOUR ANTE');
+        document.getElementById('ui-msg').style.color = '#fff';
+        document.getElementById('bet-ui').classList.remove('hidden');
+        document.getElementById('bj-action-ui').classList.add('hidden');
+        document.getElementById('csp-action-ui').classList.add('hidden');
+        document.getElementById('crash-action-ui').classList.add('hidden');
+    }
+
+    function createDeck() {
+        deck = [];
+        SUITS.forEach(s => VALS.forEach(v => {
+            let w = VALS.indexOf(v) + 2; if(v === 'A') w = 14;
+            deck.push({v, s:s.s, color:s.c, w});
+        }));
+        deck.sort(() => Math.random() - 0.5);
+    }
+
+    function renderCard(card, container, isHidden = false) {
+        const div = document.createElement('div');
+        div.className = `card ${isHidden ? 'card-back' : card.color}`;
+        if (!isHidden) div.innerHTML = `<div class="card-value">${card.v}<span class="card-suit">${card.s}</span></div>`;
+        container.appendChild(div);
+    }
+
+    function startDeal() {
+        const val = parseInt(document.getElementById('bet-val').value);
+        if (isPlaying || val > money || val <= 0 || money <= 0) {
+            document.getElementById('ui-msg').innerText = 'INVALID AMOUNT';
+            document.getElementById('ui-msg').style.color = '#ff0000';
+            return;
         }
+        bet = val; money -= bet;
+        document.getElementById('ui-money').innerText = money;
+        isPlaying = true;
+        
+        if (currentGame === 'crash') handleCrashStart();
+        else { createDeck(); if (currentGame === 'bj') handleBJStart(); else handleCSPStart(); }
+    }
 
-        function resetLevel() {
-            score = 0;
-            ball.x = width / 2; ball.y = height / 2;
-            ball.vx = 0; ball.vy = 0;
-            obstacles = [];
-            for(let i=0; i<8; i++) {
-                let type = Math.random() > 0.5 ? 'circle' : 'rect';
-                if(type === 'circle') {
-                    obstacles.push({ type: 'circle', x: Math.random()*width, y: Math.random()*height, r: 25 + Math.random()*15 });
-                } else {
-                    obstacles.push({ type: 'rect', x: Math.random()*width, y: Math.random()*height, w: 40+Math.random()*40, h: 40+Math.random()*40 });
-                }
-            }
-            spawnPoint();
-        }
+    // --- NEON CRASH (NEW GAME) ---
+    function handleCrashStart() {
+        document.getElementById('bet-ui').classList.add('hidden');
+        document.getElementById('crash-action-ui').classList.remove('hidden');
+        document.getElementById('ui-msg').innerText = 'WATCHING...';
+        
+        currentMult = 1.00;
+        // 97% RTP Algorithm: 3% instant crash, others follow log distribution
+        if (Math.random() < 0.03) crashPoint = 1.00;
+        else crashPoint = (97 / (100 - Math.random() * 99)).toFixed(2);
 
-        function handleOrientation(event) {
-            tilt.x = event.gamma * 0.08;
-            tilt.y = event.beta * 0.08;
-        }
-
-        startBtn.addEventListener('click', async () => {
-            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                const p = await DeviceOrientationEvent.requestPermission();
-                if (p === 'granted') initGame();
-            } else { initGame(); }
-        });
-
-        function initGame() {
-            ui.style.display = 'none';
-            resetLevel();
-            isRunning = true;
-            window.addEventListener('deviceorientation', handleOrientation);
-            requestAnimationFrame(update);
-        }
-
-        function update() {
-            if(!isRunning) return;
-            ball.vx += tilt.x; ball.vy += tilt.y;
-            ball.vx *= 0.96; ball.vy *= 0.96;
-            ball.x += ball.vx; ball.y += ball.vy;
-
-            // 牆壁碰撞 (反彈)
-            if (ball.x < ball.r) { ball.x = ball.r; ball.vx *= -0.6; }
-            if (ball.x > width - ball.r) { ball.x = width - ball.r; ball.vx *= -0.6; }
-            if (ball.y < ball.r) { ball.y = ball.r; ball.vy *= -0.6; }
-            if (ball.y > height - ball.r) { ball.y = height - ball.r; ball.vy *= -0.6; }
-
-            obstacles.forEach(ob => {
-                if(ob.type === 'circle') {
-                    let d = Math.hypot(ball.x - ob.x, ball.y - ob.y);
-                    if(d < ob.r + ball.r) {
-                        let nx = (ball.x - ob.x) / d; let ny = (ball.y - ob.y) / d;
-                        ball.x = ob.x + nx * (ob.r + ball.r);
-                        let dot = ball.vx * nx + ball.vy * ny;
-                        ball.vx = (ball.vx - 2 * dot * nx) * 0.7;
-                        ball.vy = (ball.vy - 2 * dot * ny) * 0.7;
-                    }
-                } else {
-                    // 簡易矩形碰撞
-                    if(ball.x + ball.r > ob.x && ball.x - ball.r < ob.x + ob.w &&
-                       ball.y + ball.r > ob.y && ball.y - ball.r < ob.y + ob.h) {
-                        let prevX = ball.x - ball.vx;
-                        if (prevX + ball.r <= ob.x || prevX - ball.r >= ob.x + ob.w) {
-                            ball.vx *= -0.7; ball.x = (ball.x < ob.x) ? ob.x - ball.r : ob.x + ob.w + ball.r;
-                        } else {
-                            ball.vy *= -0.7; ball.y = (ball.y < ob.y) ? ob.y - ball.r : ob.y + ob.h + ball.r;
-                        }
-                    }
-                }
-            });
-
-            if(Math.hypot(ball.x - pointBall.x, ball.y - pointBall.y) < ball.r + pointBall.r) {
-                score++; if(window.navigator.vibrate) window.navigator.vibrate(20); spawnPoint();
-            }
-            draw();
-            requestAnimationFrame(update);
-        }
-
-        function draw() {
-            // 1. 繪製所有底層元素 (障礙物與點數球)
-            ctx.fillStyle = '#050510';
-            ctx.fillRect(0, 0, width, height);
-
-            obstacles.forEach(ob => {
-                ctx.strokeStyle = '#f0f'; ctx.lineWidth = 3;
-                ctx.beginPath();
-                if(ob.type === 'circle') ctx.arc(ob.x, ob.y, ob.r, 0, Math.PI*2);
-                else ctx.rect(ob.x, ob.y, ob.w, ob.h);
-                ctx.stroke();
-            });
-
-            ctx.fillStyle = '#ff0'; ctx.beginPath();
-            ctx.arc(pointBall.x, pointBall.y, pointBall.r, 0, Math.PI*2);
-            ctx.fill();
-
-            // 2. 製作動態遮罩
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
-            const tCtx = tempCanvas.getContext('2d');
-            tCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        let startTime = Date.now();
+        crashInterval = setInterval(() => {
+            let elapsed = (Date.now() - startTime) / 1000;
+            currentMult = Math.pow(1.08, elapsed * 2); // Exponential growth
             
-            // 填滿黑暗
-            tCtx.fillStyle = 'rgba(0,0,0,0.98)';
-            tCtx.fillRect(0, 0, width, height);
+            if (currentMult >= crashPoint) {
+                currentMult = crashPoint;
+                document.getElementById('ui-multiplier').innerText = currentMult + 'x';
+                document.getElementById('ui-multiplier').classList.add('crashed-text');
+                clearInterval(crashInterval);
+                resolveGame('CRASHED');
+            } else {
+                document.getElementById('ui-multiplier').innerText = currentMult.toFixed(2) + 'x';
+            }
+        }, 50);
+    }
 
-            // 挖洞 (手電筒效果)
-            tCtx.globalCompositeOperation = 'destination-out';
-            const grad = tCtx.createRadialGradient(ball.x, ball.y, 0, ball.x, ball.y, viewDist);
-            grad.addColorStop(0, 'rgba(255,255,255,1)');
-            grad.addColorStop(1, 'rgba(255,255,255,0)');
-            tCtx.fillStyle = grad;
-            tCtx.beginPath();
-            tCtx.arc(ball.x, ball.y, viewDist, 0, Math.PI*2);
-            tCtx.fill();
+    function handleCashOut() {
+        if (!isPlaying || currentMult >= crashPoint) return;
+        clearInterval(crashInterval);
+        let win = Math.floor(bet * currentMult);
+        money += win;
+        resolveGame('WIN');
+    }
 
-            ctx.drawImage(tempCanvas, 0, 0, width, height);
+    // --- BLACKJACK (UNCHANGED) ---
+    function getBJScore(hand) {
+        let s = hand.reduce((a, b) => a + (b.w > 10 ? (b.v==='A'?11:10) : b.w), 0);
+        let aces = hand.filter(c => c.v === 'A').length;
+        while (s > 21 && aces > 0) { s -= 10; aces--; }
+        return s;
+    }
+    function handleBJStart() {
+        pHand = [deck.pop(), deck.pop()]; dHand = [deck.pop(), deck.pop()];
+        document.getElementById('bet-ui').classList.add('hidden');
+        document.getElementById('bj-action-ui').classList.remove('hidden');
+        pHand.forEach(c => renderCard(c, document.getElementById('player-cards')));
+        renderCard(dHand[0], document.getElementById('dealer-cards'));
+        renderCard(null, document.getElementById('dealer-cards'), true);
+        document.getElementById('ui-p-score').innerText = getBJScore(pHand);
+    }
+    function handleHit() {
+        if (!isPlaying) return;
+        const c = deck.pop(); pHand.push(c); renderCard(c, document.getElementById('player-cards'));
+        const s = getBJScore(pHand); document.getElementById('ui-p-score').innerText = s;
+        if (s > 21) resolveGame('BUST');
+    }
+    function handleStand() {
+        if (!isPlaying) return;
+        document.getElementById('bj-action-ui').classList.add('hidden');
+        const dRow = document.getElementById('dealer-cards'); dRow.innerHTML = '';
+        renderCard(dHand[0], dRow); renderCard(dHand[1], dRow);
+        const draw = () => {
+            let s = getBJScore(dHand); document.getElementById('ui-d-score').innerText = s;
+            if (s < 17) { dHand.push(deck.pop()); dRow.innerHTML = ''; dHand.forEach(c=>renderCard(c, dRow)); setTimeout(draw, 500); }
+            else { 
+                let ps = getBJScore(pHand);
+                if (s > 21 || ps > s) resolveGame('WIN'); else if (ps < s) resolveGame('LOSE'); else resolveGame('PUSH');
+            }
+        }; draw();
+    }
 
-            // 3. 繪製玩家 (在遮罩上方)
-            ctx.shadowBlur = 15; ctx.shadowColor = '#0ff'; ctx.fillStyle = '#0ff';
-            ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2); ctx.fill();
-            ctx.shadowBlur = 0;
-
-            // 繪製分數
-            ctx.fillStyle = '#0ff'; ctx.font = '20px Arial';
-            ctx.textAlign = 'left'; ctx.fillText('Score: ' + score, 20, 40);
+    // --- CARIBBEAN STUD (UNCHANGED) ---
+    function handleCSPStart() {
+        pHand = Array(5).fill().map(() => deck.pop()); dHand = Array(5).fill().map(() => deck.pop());
+        document.getElementById('bet-ui').classList.add('hidden');
+        document.getElementById('csp-action-ui').classList.remove('hidden');
+        pHand.forEach(c => renderCard(c, document.getElementById('player-cards')));
+        renderCard(dHand[0], document.getElementById('dealer-cards'));
+        for(let i=0; i<4; i++) renderCard(null, document.getElementById('dealer-cards'), true);
+        document.getElementById('ui-p-score').innerText = getPokerRank(pHand).name;
+    }
+    function handleCSPFold() { resolveGame('LOSE'); }
+    function handleCSPRaise() {
+        if (money < bet * 2) { document.getElementById('ui-msg').innerText = 'INSUFFICIENT FUNDS'; return; }
+        money -= bet * 2; document.getElementById('ui-money').innerText = money;
+        document.getElementById('csp-action-ui').classList.add('hidden');
+        const dRow = document.getElementById('dealer-cards'); dRow.innerHTML = '';
+        dHand.forEach(c => renderCard(c, dRow));
+        const dRank = getPokerRank(dHand); document.getElementById('ui-d-score').innerText = dRank.name;
+        const qualified = (dRank.score > 1) || (dHand.some(c=>c.v==='A') && dHand.some(c=>c.v==='K'));
+        if (!qualified) { money += (bet * 2) + (bet * 2); resolveGame('D-NOT QUALIFIED'); }
+        else {
+            const pRank = getPokerRank(pHand);
+            if (pRank.score > dRank.score) { money += (bet * 6); resolveGame('WIN'); }
+            else if (pRank.score < dRank.score) resolveGame('LOSE');
+            else { money += bet * 3; resolveGame('PUSH'); }
         }
+    }
+    function getPokerRank(hand) {
+        const counts = {}, values = hand.map(c => c.w).sort((a,b)=>b-a);
+        values.forEach(v => counts[v] = (counts[v]||0)+1);
+        const freq = Object.values(counts).sort((a,b)=>b-a);
+        const isFlush = new Set(hand.map(c=>c.s)).size === 1;
+        const isStraight = values.every((v,i) => i===0 || v === values[i-1]-1);
+        if (isStraight && isFlush) return {name: 'STR FLUSH', score: 9};
+        if (freq[0] === 4) return {name: '4 KIND', score: 8};
+        if (freq[0] === 3 && freq[1] === 2) return {name: 'FULL HOUSE', score: 7};
+        if (isFlush) return {name: 'FLUSH', score: 6};
+        if (isStraight) return {name: 'STRAIGHT', score: 5};
+        if (freq[0] === 3) return {name: '3 KIND', score: 4};
+        if (freq[0] === 2 && freq[1] === 2) return {name: '2 PAIR', score: 3};
+        if (freq[0] === 2) return {name: 'PAIR', score: 2};
+        return {name: 'HIGH CARD', score: 1};
+    }
 
-        function gameOver() {
-            isRunning = false;
-            msg.innerText = "GAME OVER";
-            scoreDisplay.innerText = "最終分數: " + score;
-            startBtn.innerText = "重新開始";
-            ui.style.display = 'block';
-            window.removeEventListener('deviceorientation', handleOrientation);
-        }
-
-        window.addEventListener('resize', resize);
-        resize();
-    </script>
+    function resolveGame(res) {
+        isPlaying = false; const msg = document.getElementById('ui-msg');
+        msg.innerText = res; msg.style.color = (res === 'WIN' || res.includes('QUALIFIED')) ? '#0ff' : (res === 'PUSH' ? '#fff' : '#f0f');
+        document.getElementById('ui-money').innerText = money; updateVIP();
+        if (money <= 0) {
+            isPlaying = true;
+            document.getElementById('bj-action-ui').classList.add('hidden'); 
+            document.getElementById('csp-action-ui').classList.add('hidden');
+            document.getElementById('crash-action-ui').classList.add('hidden');
+            setTimeout(() => {
+                document.body.classList.add('flash-red'); msg.innerText = "YOU ARE NOT WELCOME HERE ANYMORE...";
+                msg.style.color = "#ff0000";
+                setTimeout(() => { document.body.classList.remove('flash-red'); exitToMenu(); }, 3000);
+            }, 1000);
+        } else { setTimeout(resetTable, 2500); }
+    }
+</script>
 </body>
 </html>
