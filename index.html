@@ -174,10 +174,11 @@
         document.getElementById('game-screen').classList.remove('hidden');
         updateVIP();
         resetTable();
+        isPlaying = false; // 確保重進遊戲時解鎖
     }
 
     function exitToMenu() {
-        if (isPlaying) return;
+        if (isPlaying && money > 0) return; // 破產時不受 isPlaying 限制，允許跳出
         document.getElementById('game-screen').classList.add('hidden');
         document.getElementById('menu-screen').classList.remove('hidden');
     }
@@ -220,7 +221,8 @@
 
     function handleDeal() {
         const val = parseInt(document.getElementById('bet-val').value);
-        if (val > money || val <= 0 || money <= 0) {
+        // 如果正在結算或金額異常，則攔截
+        if (isPlaying || val > money || val <= 0 || money <= 0) {
             document.getElementById('ui-msg').innerText = 'INVALID AMOUNT';
             document.getElementById('ui-msg').style.color = '#ff0000';
             return;
@@ -242,6 +244,7 @@
     }
 
     function handleHit() {
+        if (!isPlaying) return;
         const c = deck.pop(); pHand.push(c);
         renderCard(c, document.getElementById('player-cards'));
         const s = getScore(pHand);
@@ -250,6 +253,7 @@
     }
 
     function handleStand() {
+        if (!isPlaying) return;
         document.getElementById('action-ui').classList.add('hidden');
         const dRow = document.getElementById('dealer-cards');
         dRow.innerHTML = '';
@@ -281,6 +285,8 @@
         updateVIP();
 
         if (money <= 0) {
+            isPlaying = true; // 鎖定狀態，防止破產期間點擊 DEAL
+            document.getElementById('action-ui').classList.add('hidden'); // 隱藏動作按鈕
             setTimeout(() => {
                 document.body.classList.add('flash-red');
                 msg.innerText = "YOU ARE NOT WELCOME HERE ANYMORE...";
@@ -288,7 +294,6 @@
                 msg.style.fontSize = "0.8rem";
                 setTimeout(() => {
                     document.body.classList.remove('flash-red');
-                    // 這裡不再重置 money，保持為 0
                     exitToMenu();
                 }, 3000);
             }, 1000);
