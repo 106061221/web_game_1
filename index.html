@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEON CASINO - TRIPLE</title>
+    <title>NEON CASINO - PRO EDITION</title>
     <style>
         /* --- BASE & NEON THEME --- */
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -25,12 +25,18 @@
             padding: 12px 25px; cursor: pointer; font-size: 0.9rem; letter-spacing: 2px;
             transition: 0.3s; text-transform: uppercase; margin: 5px;
         }
-        button:hover { background: #ff00ff; color: #000; box-shadow: 0 0 15px #ff00ff; }
+        button:hover { 
+            background: #ff00ff !important; 
+            color: #000 !important; 
+            box-shadow: 0 0 15px #ff00ff !important; 
+        }
+
         body.vip-mode button { border-color: #ffdf00; color: #ffdf00; }
-        body.vip-mode button:hover { background: #ffdf00; box-shadow: 0 0 15px #ffdf00; }
+        body.vip-mode button:hover { background: #ffdf00 !important; box-shadow: 0 0 15px #ffdf00 !important; }
 
         .screen { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .hidden { display: none !important; }
+        .label-hidden { visibility: hidden; }
 
         .top-hud {
             position: absolute; top: 20px; width: 90%;
@@ -44,30 +50,29 @@
         .hand-area { display: flex; flex-direction: column; align-items: center; min-height: 130px; }
         .score-tag { font-size: 0.7rem; letter-spacing: 2px; color: #0ff; margin-bottom: 8px; text-transform: uppercase; }
         body.vip-mode .score-tag { color: #ffdf00; }
-        .cards-row { display: flex; gap: 8px; min-height: 90px; }
         
-        /* --- CARD & ANIMATION --- */
-        .card {
-            width: 55px; height: 80px; background: #111; border: 1px solid #fff;
-            border-radius: 4px; position: relative; box-shadow: 0 0 5px rgba(255,255,255,0.2);
-        }
-        .card.cyan { border-color: #0ff; color: #0ff; box-shadow: 0 0 8px #0ff; }
-        .card.magenta { border-color: #f0f; color: #f0f; box-shadow: 0 0 8px #f0f; }
-        body.vip-mode .card.cyan { border-color: #ffdf00; color: #ffdf00; }
-
+        .cards-row { display: flex; gap: 8px; min-height: 90px; transition: all 0.5s ease; }
+        
+        .card { width: 55px; height: 80px; perspective: 1000px; flex-shrink: 0; }
+        .card-inner { position: relative; width: 100%; height: 100%; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+        .card-front, .card-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 4px; border: 1px solid #fff; display: flex; align-items: center; justify-content: center; }
+        .card-back { background: #222; border-color: #444; }
+        .card-front { background: #111; transform: rotateY(180deg); }
+        .card.cyan .card-front { border-color: #0ff; color: #0ff; box-shadow: 0 0 8px #0ff; }
+        .card.magenta .card-front { border-color: #f0f; color: #f0f; box-shadow: 0 0 8px #f0f; }
+        body.vip-mode .card.cyan .card-front { border-color: #ffdf00; color: #ffdf00; }
         .card-value { position: absolute; top: 3px; left: 5px; font-size: 14px; font-weight: bold; }
         .card-suit { font-size: 12px; display: block; }
-        .card-back { background: #222; border-color: #444; }
 
-        @keyframes card-glide {
-            0% { transform: translateY(-500px) rotate(20deg); opacity: 0; }
-            100% { transform: translateY(0) rotate(0); opacity: 1; }
+        @keyframes card-smooth-entry {
+            0% { transform: translateY(-500px) rotate(20deg); opacity: 0; width: 0; margin-right: -8px; }
+            100% { transform: translateY(0) rotate(0); opacity: 1; width: 55px; margin-right: 0; }
         }
-        .card-animate { animation: card-glide 0.5s cubic-bezier(0.23, 1, 0.32, 1) both; }
+        .card-animate { animation: card-smooth-entry 0.6s cubic-bezier(0.23, 1, 0.32, 1) both; }
 
-        /* --- CRASH GRAPH --- */
-        #crash-area { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; }
-        .multiplier-text { font-size: 5rem; font-weight: bold; color: #0ff; text-shadow: 0 0 20px #0ff; transition: color 0.1s; }
+        #table-crash-area { height: 200px; display: flex; align-items: center; justify-content: center; }
+        .multiplier-text { font-size: 5rem; font-weight: bold; color: #0ff; text-shadow: 0 0 20px #0ff; }
         .crashed-text { color: #ff0055 !important; text-shadow: 0 0 20px #ff0055 !important; }
 
         .controls { position: absolute; bottom: 40px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
@@ -86,18 +91,23 @@
         <div style="display: flex; flex-direction: column; gap: 5px;">
             <div style="display: flex; gap: 10px;">
                 <button onclick="showGame('bj')">Blackjack</button>
-                <button onclick="showGame('csp')" style="border-color: #0f8; color: #0f8;">Caribbean Stud</button>
+                <button onclick="showGame('csp')" style="border-color: #0f8; color: #0f8;">Caribbean Stud Poker</button>
             </div>
-            <button onclick="showGame('crash')" style="border-color: #0ff; color: #0ff;">Neon Crash</button>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="showGame('crash')" style="border-color: #0ff; color: #0ff;">Neon Crash</button>
+                <button onclick="showGame('rd')" style="border-color: #ffaa00; color: #ffaa00;">Red Dog</button>
+            </div>
         </div>
     </div>
 
     <div id="game-screen" class="screen hidden">
         <div class="top-hud">
             <div class="money-label">BALANCE: $<span id="ui-money">1000</span></div>
-            <button onclick="exitToMenu()" id="exit-btn" style="font-size: 0.6rem; border-color: #444; color: #666;">EXIT</button>
+            <div style="display: flex; align-items: center;">
+                <button onclick="toggleInfo()" id="info-btn" style="font-size: 0.6rem; border-color: #0f8; color: #0f8; margin-right: 10px; display:none;">INFO</button>
+                <button onclick="exitToMenu()" id="exit-btn" style="font-size: 0.6rem; border-color: #444; color: #666;">EXIT</button>
+            </div>
         </div>
-
         <div id="table-standard" class="table">
             <div class="hand-area">
                 <div class="score-tag">DEALER: <span id="ui-d-score">?</span></div>
@@ -108,11 +118,15 @@
                 <div class="score-tag" style="margin-top:10px;">PLAYER: <span id="ui-p-score">0</span></div>
             </div>
         </div>
-
-        <div id="table-crash" class="table hidden">
-            <div id="crash-area">
+        <div id="table-crash-area" class="table hidden">
+            <div id="table-crash-ui">
                 <div id="ui-multiplier" class="multiplier-text">1.00x</div>
             </div>
+        </div>
+
+        <div id="info-overlay" class="hidden" style="position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.95); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; border: 1px solid #0f8;">
+            <div id="info-content" style="width:100%; display:flex; flex-direction:column; align-items:center;"></div>
+            <button onclick="toggleInfo()" style="margin-top: 20px; border-color: #fff; color: #fff;">CLOSE</button>
         </div>
 
         <div class="controls">
@@ -124,13 +138,18 @@
             <div id="bj-action-ui" class="hidden">
                 <button onclick="handleHit()">HIT</button>
                 <button onclick="handleStand()">STAND</button>
+                <button id="bj-double" onclick="handleBJDouble()" style="border-color: #0ff; color: #0ff;">DOUBLE</button>
             </div>
             <div id="csp-action-ui" class="hidden">
                 <button onclick="handleCSPFold()" style="border-color: #f0f; color: #f0f;">FOLD</button>
-                <button onclick="handleCSPRaise()" style="border-color: #0f8; color: #0f8;">RAISE (2x)</button>
+                <button onclick="handleCSPRaise()" style="border-color: #0f8; color: #0f8;">RAISE (ADD 2X)</button>
             </div>
             <div id="crash-action-ui" class="hidden">
-                <button id="cashout-btn" onclick="handleCashOut()" style="border-color: #0ff; color: #0ff; padding: 20px 50px;">CASH OUT</button>
+                <button onclick="handleCashOut()" style="border-color: #0ff; color: #0ff; padding: 20px 50px;">CASH OUT</button>
+            </div>
+            <div id="rd-action-ui" class="hidden">
+                <button onclick="handleRDCall()">CALL</button>
+                <button onclick="handleRDRaise()" style="border-color: #0ff; color: #0ff;">RAISE (ADD 1X)</button>
             </div>
         </div>
     </div>
@@ -138,9 +157,9 @@
 <script>
     let money = 1000, deck = [], pHand = [], dHand = [], bet = 0, isPlaying = false, currentGame = '';
     let crashPoint = 0, currentMult = 1.00, crashInterval = null;
+    let actionLocked = false; 
     const SUITS = [{s:'♠',c:'cyan'}, {s:'♣',c:'cyan'}, {s:'♥',c:'magenta'}, {s:'♦',c:'magenta'}];
     const VALS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-
     const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
     function updateVIP() {
@@ -152,206 +171,326 @@
         currentGame = type;
         document.getElementById('menu-screen').classList.add('hidden');
         document.getElementById('game-screen').classList.remove('hidden');
-        if(type === 'crash') {
-            document.getElementById('table-standard').classList.add('hidden');
-            document.getElementById('table-crash').classList.remove('hidden');
-        } else {
-            document.getElementById('table-standard').classList.remove('hidden');
-            document.getElementById('table-crash').classList.add('hidden');
+        const infoBtn = document.getElementById('info-btn');
+        
+        infoBtn.style.display = 'block';
+        if (type === 'bj') { infoBtn.style.borderColor = '#ff00ff'; infoBtn.style.color = '#ff00ff'; }
+        else if (type === 'csp') { infoBtn.style.borderColor = '#0f8'; infoBtn.style.color = '#0f8'; }
+        else if (type === 'crash') { infoBtn.style.borderColor = '#0ff'; infoBtn.style.color = '#0ff'; }
+        else { infoBtn.style.borderColor = '#ffaa00'; infoBtn.style.color = '#ffaa00'; }
+
+        const tags = document.querySelectorAll('.score-tag');
+        if(type === 'crash') { 
+            document.getElementById('table-standard').classList.add('hidden'); 
+            document.getElementById('table-crash-area').classList.remove('hidden'); 
+        } else { 
+            document.getElementById('table-standard').classList.remove('hidden'); 
+            document.getElementById('table-crash-area').classList.add('hidden');
+            tags.forEach(t => type === 'rd' ? t.classList.add('label-hidden') : t.classList.remove('label-hidden'));
         }
         updateVIP(); resetTable(); isPlaying = false;
     }
 
-    function exitToMenu() {
-        if (isPlaying && money > 0) return;
-        clearInterval(crashInterval);
-        document.getElementById('game-screen').classList.add('hidden');
-        document.getElementById('menu-screen').classList.remove('hidden');
+    function toggleInfo() {
+        const overlay = document.getElementById('info-overlay');
+        const content = document.getElementById('info-content');
+        if (!overlay.classList.contains('hidden')) { overlay.classList.add('hidden'); return; }
+
+        if (currentGame === 'bj') {
+            overlay.style.borderColor = '#f0f';
+            content.innerHTML = `
+                <h2 style="color: #f0f; margin-bottom: 15px; letter-spacing: 2px;">BLACKJACK RULES</h2>
+                <div style="font-size: 0.8rem; line-height: 1.4; text-align: left; margin-bottom: 20px; color: #ccc; max-width: 320px;">
+                    • <b style="color:#fff;">GOAL:</b> BEAT THE DEALER WITHOUT EXCEEDING 21.<br>
+                    • <b style="color:#f0f;">BUST:</b> IF TOTAL GOES OVER 21, YOU LOSE INSTANTLY.<br>
+                    • <b style="color:#fff;">DEALER:</b> STANDS ON 17. HITS ON 16 OR LESS.<br>
+                    • <b style="color:#fff;">DOUBLE:</b> 2X BET FOR EXACTLY ONE MORE CARD.
+                </div>
+                <table style="width: 100%; max-width: 300px; font-size: 0.75rem; border-collapse: collapse; color: #ff00ff;">
+                    <tr><td style="padding: 2px 0;">NATURAL BLACKJACK</td><td style="text-align:right;">3:2</td></tr>
+                    <tr><td style="padding: 2px 0;">STANDARD WIN</td><td style="text-align:right;">1:1</td></tr>
+                    <tr><td style="padding: 2px 0;">TIE (PUSH)</td><td style="text-align:right;">RETURN</td></tr>
+                </table>`;
+        } else if (currentGame === 'csp') {
+            overlay.style.borderColor = '#0f8';
+            content.innerHTML = `
+                <h2 style="color: #0f8; margin-bottom: 15px; letter-spacing: 2px;">CSP RULES & PAYOUTS</h2>
+                <div style="font-size: 0.8rem; line-height: 1.4; text-align: left; margin-bottom: 20px; color: #ccc; max-width: 320px;">
+                    • DEALER QUALIFIES WITH <b style="color:#fff;">ACE & KING</b> OR BETTER.<br>
+                    • IF DEALER NOT QUALIFIED: ANTE WINS 1:1, RAISE IS PUSH.<br>
+                    • IF DEALER QUALIFIED: HIGHER HAND WINS. RAISE PAYS BY TABLE:
+                </div>
+                <table style="width: 100%; max-width: 300px; font-size: 0.75rem; border-collapse: collapse; color: #0ff;">
+                    <tr><td style="padding: 2px 0;">ROYAL FLUSH</td><td style="text-align:right;">100:1</td></tr>
+                    <tr><td style="padding: 2px 0;">STR FLUSH</td><td style="text-align:right;">50:1</td></tr>
+                    <tr><td style="padding: 2px 0;">4 OF A KIND</td><td style="text-align:right;">20:1</td></tr>
+                    <tr><td style="padding: 2px 0;">FULL HOUSE</td><td style="text-align:right;">7:1</td></tr>
+                    <tr><td style="padding: 2px 0;">FLUSH</td><td style="text-align:right;">5:1</td></tr>
+                    <tr><td style="padding: 2px 0;">STRAIGHT</td><td style="text-align:right;">4:1</td></tr>
+                    <tr><td style="padding: 2px 0;">3 OF A KIND</td><td style="text-align:right;">3:1</td></tr>
+                    <tr><td style="padding: 2px 0;">2 PAIR</td><td style="text-align:right;">2:1</td></tr>
+                    <tr><td style="padding: 2px 0;">PAIR OR LESS</td><td style="text-align:right;">1:1</td></tr>
+                </table>`;
+        } else if (currentGame === 'crash') {
+            overlay.style.borderColor = '#0ff';
+            content.innerHTML = `
+                <h2 style="color: #0ff; margin-bottom: 15px; letter-spacing: 2px;">NEON CRASH RULES</h2>
+                <div style="font-size: 0.8rem; line-height: 1.4; text-align: left; margin-bottom: 20px; color: #ccc; max-width: 320px;">
+                    • <b style="color:#fff;">OBJECTIVE:</b> CASH OUT BEFORE THE MULTIPLIER CRASHES.<br>
+                    • <b style="color:#0ff;">GROWTH:</b> THE MULTIPLIER INCREASES EXPONENTIALLY OVER TIME.<br>
+                    • <b style="color:#fff;">CRASH:</b> IF IT CRASHES BEFORE YOU CASH OUT, YOU LOSE YOUR BET.<br>
+                    • <b style="color:#fff;">INSTA-CRASH:</b> THERE IS A 3% CHANCE TO CRASH AT 1.00X.
+                </div>
+                <table style="width: 100%; max-width: 300px; font-size: 0.75rem; border-collapse: collapse; color: #0ff;">
+                    <tr><td style="padding: 2px 0;">MAX MULTIPLIER</td><td style="text-align:right;">UNLIMITED</td></tr>
+                    <tr><td style="padding: 2px 0;">HOUSE EDGE</td><td style="text-align:right;">3%</td></tr>
+                </table>`;
+        } else if (currentGame === 'rd') {
+            overlay.style.borderColor = '#ffaa00';
+            content.innerHTML = `
+                <h2 style="color: #ffaa00; margin-bottom: 15px; letter-spacing: 2px;">RED DOG RULES</h2>
+                <div style="font-size: 0.8rem; line-height: 1.4; text-align: left; margin-bottom: 20px; color: #ccc; max-width: 320px;">
+                    • <b style="color:#fff;">SPREAD:</b> THE NUMBER OF VALUES BETWEEN TWO CARDS.<br>
+                    • <b style="color:#ffaa00;">WIN:</b> THIRD CARD FALLS BETWEEN THE FIRST TWO.<br>
+                    • <b style="color:#fff;">PAIRS:</b> IF 3RD CARD MAKES 3-OF-A-KIND, PAYS 11:1.<br>
+                    • <b style="color:#fff;">CONSECUTIVE:</b> CARDS LIKE 7 & 8 ARE A PUSH.
+                </div>
+                <table style="width: 100%; max-width: 300px; font-size: 0.75rem; border-collapse: collapse; color: #ffaa00;">
+                    <tr><td style="padding: 2px 0;">SPREAD 1</td><td style="text-align:right;">5:1</td></tr>
+                    <tr><td style="padding: 2px 0;">SPREAD 2</td><td style="text-align:right;">4:1</td></tr>
+                    <tr><td style="padding: 2px 0;">SPREAD 3</td><td style="text-align:right;">2:1</td></tr>
+                    <tr><td style="padding: 2px 0;">SPREAD 4+</td><td style="text-align:right;">1:1</td></tr>
+                </table>`;
+        }
+        overlay.classList.remove('hidden');
     }
 
+    function exitToMenu() { if (isPlaying && money > 0) return; clearInterval(crashInterval); document.getElementById('game-screen').classList.add('hidden'); document.getElementById('menu-screen').classList.remove('hidden'); }
+
     function resetTable() {
-        pHand = []; dHand = [];
-        document.getElementById('player-cards').innerHTML = '';
-        document.getElementById('dealer-cards').innerHTML = '';
-        document.getElementById('ui-p-score').innerText = '0';
-        document.getElementById('ui-d-score').innerText = '?';
-        document.getElementById('ui-multiplier').innerText = '1.00x';
-        document.getElementById('ui-multiplier').classList.remove('crashed-text');
-        document.getElementById('ui-msg').innerText = currentGame === 'crash' ? 'PLACE YOUR BET' : (currentGame === 'bj' ? 'PLACE YOUR BET' : 'PLACE YOUR ANTE');
-        document.getElementById('ui-msg').style.color = '#fff';
-        document.getElementById('bet-ui').classList.remove('hidden');
-        document.getElementById('bj-action-ui').classList.add('hidden');
-        document.getElementById('csp-action-ui').classList.add('hidden');
-        document.getElementById('crash-action-ui').classList.add('hidden');
+        pHand = []; dHand = []; actionLocked = false; 
+        document.getElementById('player-cards').innerHTML = ''; document.getElementById('dealer-cards').innerHTML = '';
+        document.getElementById('ui-p-score').innerText = '0'; document.getElementById('ui-d-score').innerText = '?';
+        if (currentGame !== 'rd') { document.querySelectorAll('.score-tag').forEach(t => t.classList.remove('label-hidden')); }
+        document.getElementById('ui-multiplier').innerText = '1.00x'; document.getElementById('ui-multiplier').classList.remove('crashed-text');
+        document.getElementById('ui-msg').innerText = 'PLACE YOUR BET'; document.getElementById('ui-msg').style.color = '#fff';
+        document.getElementById('bet-ui').classList.remove('hidden'); document.getElementById('bj-action-ui').classList.add('hidden');
+        document.getElementById('csp-action-ui').classList.add('hidden'); document.getElementById('crash-action-ui').classList.add('hidden');
+        document.getElementById('rd-action-ui').classList.add('hidden');
+        document.getElementById('info-overlay').classList.add('hidden');
     }
 
     function createDeck() {
-        deck = [];
-        SUITS.forEach(s => VALS.forEach(v => {
-            let w = VALS.indexOf(v) + 2; if(v === 'A') w = 14;
-            deck.push({v, s:s.s, color:s.c, w});
-        }));
+        deck = []; SUITS.forEach(s => VALS.forEach(v => { let w = VALS.indexOf(v) + 2; if(v === 'A') w = 14; deck.push({v, s:s.s, color:s.c, w}); }));
         deck.sort(() => Math.random() - 0.5);
     }
 
-    function renderCard(card, container, isHidden = false) {
+    function renderCard(card, container, isStartHidden = false) {
         const div = document.createElement('div');
-        div.className = `card ${isHidden ? 'card-back' : card.color} card-animate`;
-        if (!isHidden) div.innerHTML = `<div class="card-value">${card.v}<span class="card-suit">${card.s}</span></div>`;
-        container.appendChild(div);
+        div.className = `card ${card ? card.color : 'cyan'} card-animate ${!isStartHidden ? 'flipped' : ''}`;
+        div.innerHTML = `<div class="card-inner"><div class="card-back"></div><div class="card-front">${card ? `<div class="card-value">${card.v}<span class="card-suit">${card.s}</span></div>` : ''}</div></div>`;
+        container.appendChild(div); return div;
     }
 
     function startDeal() {
         const val = parseInt(document.getElementById('bet-val').value);
-        if (isPlaying || isNaN(val) || val > money || val <= 0) {
-            document.getElementById('ui-msg').innerText = 'INVALID AMOUNT';
-            document.getElementById('ui-msg').style.color = '#ff0000';
-            return;
-        }
-        bet = val; money -= bet;
-        document.getElementById('ui-money').innerText = money;
-        isPlaying = true;
+        if (isPlaying || isNaN(val) || val <= 0) return;
         
-        if (currentGame === 'crash') handleCrashStart();
-        else { createDeck(); if (currentGame === 'bj') handleBJStart(); else handleCSPStart(); }
+        if (currentGame === 'csp' && val > money / 3) { 
+            const msg = document.getElementById('ui-msg');
+            msg.innerText = `CSP MAX BET IS 1/3 OF BALANCE ($${Math.floor(money/3)})`; 
+            msg.style.color = '#ff0000';
+            return; 
+        }
+        if (currentGame === 'rd' && val > money / 2) { 
+            const msg = document.getElementById('ui-msg');
+            msg.innerText = `RED DOG MAX BET IS 1/2 OF BALANCE ($${Math.floor(money/2)})`; 
+            msg.style.color = '#ff0000';
+            return; 
+        }
+        
+        if (val > money) { 
+            const msg = document.getElementById('ui-msg');
+            msg.innerText = 'NOT ENOUGH MONEY'; 
+            msg.style.color = '#ff0000';
+            return; 
+        }
+        
+        bet = val; money -= bet; document.getElementById('ui-money').innerText = money; isPlaying = true;
+        document.getElementById('ui-msg').innerText = ''; 
+        if (currentGame === 'crash') handleCrashStart(); 
+        else { createDeck(); if (currentGame === 'bj') handleBJStart(); else if (currentGame === 'csp') handleCSPStart(); else handleRDStart(); }
     }
 
-    // --- NEON CRASH (UNCHANGED) ---
+    // --- CRASH ---
     function handleCrashStart() {
-        document.getElementById('bet-ui').classList.add('hidden');
-        document.getElementById('crash-action-ui').classList.remove('hidden');
-        document.getElementById('ui-msg').innerText = 'WATCHING...';
-        currentMult = 1.00;
-        if (Math.random() < 0.03) crashPoint = 1.00;
-        else crashPoint = (97 / (100 - Math.random() * 99)).toFixed(2);
-        let startTime = Date.now();
+        document.getElementById('bet-ui').classList.add('hidden'); document.getElementById('crash-action-ui').classList.remove('hidden');
+        currentMult = 1.00; crashPoint = (Math.random() < 0.03) ? 1.00 : (97 / (100 - Math.random() * 99)).toFixed(2);
+        let start = Date.now();
         crashInterval = setInterval(() => {
-            let elapsed = (Date.now() - startTime) / 1000;
-            currentMult = Math.pow(1.08, elapsed * 2); 
-            if (currentMult >= crashPoint) {
-                currentMult = crashPoint;
-                document.getElementById('ui-multiplier').innerText = parseFloat(currentMult).toFixed(2) + 'x';
-                document.getElementById('ui-multiplier').classList.add('crashed-text');
-                clearInterval(crashInterval);
-                resolveGame('CRASHED');
-            } else {
-                document.getElementById('ui-multiplier').innerText = currentMult.toFixed(2) + 'x';
-            }
+            currentMult = Math.pow(1.08, (Date.now() - start)/500);
+            if (currentMult >= crashPoint) { currentMult = crashPoint; clearInterval(crashInterval); document.getElementById('ui-multiplier').classList.add('crashed-text'); resolveGame('CRASHED'); }
+            document.getElementById('ui-multiplier').innerText = parseFloat(currentMult).toFixed(2) + 'x';
         }, 50);
     }
+    function handleCashOut() { if (!isPlaying || currentMult >= crashPoint) return; clearInterval(crashInterval); money += Math.floor(bet * currentMult); resolveGame('WIN'); }
 
-    function handleCashOut() {
-        if (!isPlaying || currentMult >= crashPoint) return;
-        clearInterval(crashInterval);
-        let win = Math.floor(bet * currentMult);
-        money += win;
-        resolveGame('WIN');
-    }
-
-    // --- BLACKJACK (ANIMATED) ---
+    // --- BLACKJACK ---
     async function handleBJStart() {
         pHand = [deck.pop(), deck.pop()]; dHand = [deck.pop(), deck.pop()];
         document.getElementById('bet-ui').classList.add('hidden');
-        
-        // Sequential Dealing
         renderCard(pHand[0], document.getElementById('player-cards')); await sleep(300);
         renderCard(dHand[0], document.getElementById('dealer-cards')); await sleep(300);
         renderCard(pHand[1], document.getElementById('player-cards')); await sleep(300);
-        renderCard(null, document.getElementById('dealer-cards'), true); 
-        
+        renderCard(dHand[1], document.getElementById('dealer-cards'), true);
+        let s = getBJScore(pHand); document.getElementById('ui-p-score').innerText = s;
         document.getElementById('bj-action-ui').classList.remove('hidden');
-        document.getElementById('ui-p-score').innerText = getBJScore(pHand);
+        document.getElementById('bj-double').style.display = (money >= bet) ? 'inline-block' : 'none';
+        if (s === 21) handleStand(); 
     }
-
-    function getBJScore(hand) {
-        let s = hand.reduce((a, b) => a + (b.w > 10 ? (b.v==='A'?11:10) : b.w), 0);
-        let aces = hand.filter(c => c.v === 'A').length;
-        while (s > 21 && aces > 0) { s -= 10; aces--; }
-        return s;
-    }
+    function getBJScore(h) { let s = h.reduce((a, b) => a + (b.w > 10 ? (b.v==='A'?11:10) : b.w), 0); let aces = h.filter(c => c.v === 'A').length; while (s > 21 && aces > 0) { s -= 10; aces--; } return s; }
     function handleHit() {
-        if (!isPlaying) return;
+        if (actionLocked || !isPlaying) return;
+        document.getElementById('bj-double').style.display = 'none';
         const c = deck.pop(); pHand.push(c); renderCard(c, document.getElementById('player-cards'));
-        const s = getBJScore(pHand); document.getElementById('ui-p-score').innerText = s;
-        if (s > 21) resolveGame('BUST');
+        let s = getBJScore(pHand); document.getElementById('ui-p-score').innerText = s;
+        if (s > 21) { actionLocked = true; document.getElementById('bj-action-ui').classList.add('hidden'); resolveGame('BUST'); }
     }
-    function handleStand() {
-        if (!isPlaying) return;
-        document.getElementById('bj-action-ui').classList.add('hidden');
-        const dRow = document.getElementById('dealer-cards'); dRow.innerHTML = '';
-        renderCard(dHand[0], dRow); renderCard(dHand[1], dRow);
-        const draw = () => {
+    async function handleBJDouble() {
+        if (actionLocked || !isPlaying) return;
+        actionLocked = true; money -= bet; bet *= 2; document.getElementById('ui-money').innerText = money;
+        const c = deck.pop(); pHand.push(c); renderCard(c, document.getElementById('player-cards'));
+        document.getElementById('ui-p-score').innerText = getBJScore(pHand);
+        if (getBJScore(pHand) > 21) { document.getElementById('bj-action-ui').classList.add('hidden'); resolveGame('BUST'); }
+        else { handleStand(); }
+    }
+    async function handleStand() {
+        actionLocked = true; document.getElementById('bj-action-ui').classList.add('hidden');
+        document.getElementById('dealer-cards').children[1].classList.add('flipped'); await sleep(600);
+        const draw = async () => {
             let s = getBJScore(dHand); document.getElementById('ui-d-score').innerText = s;
-            if (s < 17) { dHand.push(deck.pop()); dRow.innerHTML = ''; dHand.forEach(c=>renderCard(c, dRow)); setTimeout(draw, 500); }
-            else { 
-                let ps = getBJScore(pHand);
-                if (s > 21 || ps > s) resolveGame('WIN'); else if (ps < s) resolveGame('LOSE'); else resolveGame('PUSH');
+            if (s < 17) { let c = deck.pop(); dHand.push(c); renderCard(c, document.getElementById('dealer-cards')); await sleep(600); draw(); }
+            else {
+                let ps = getBJScore(pHand), ds = getBJScore(dHand);
+                if (ps === 21 && pHand.length === 2 && ds !== 21) { money += Math.floor(bet * 2.5); resolveGame('BLACKJACK!'); }
+                else if (ds > 21 || ps > ds) { money += bet * 2; resolveGame('WIN'); }
+                else if (ps < ds) resolveGame('LOSE'); else { money += bet; resolveGame('PUSH'); }
             }
         }; draw();
     }
 
-    // --- CARIBBEAN STUD (ANIMATED) ---
+    // --- CSP PRO LOGIC ---
+    const CSP_PAYOUT = { 'ROYAL FLUSH': 100, 'STR FLUSH': 50, '4 KIND': 20, 'FULL HOUSE': 7, 'FLUSH': 5, 'STRAIGHT': 4, '3 KIND': 3, '2 PAIR': 2, 'PAIR': 1, 'HIGH CARD': 1 };
+    
+    function comparePower(p1, p2) {
+        for (let i = 0; i < p1.length; i++) {
+            if (p1[i] > p2[i]) return 1;
+            if (p1[i] < p2[i]) return -1;
+        }
+        return 0;
+    }
+
     async function handleCSPStart() {
         pHand = Array(5).fill().map(() => deck.pop()); dHand = Array(5).fill().map(() => deck.pop());
         document.getElementById('bet-ui').classList.add('hidden');
-        
-        // Fast Sequential Dealing
         for(let i=0; i<5; i++) { renderCard(pHand[i], document.getElementById('player-cards')); await sleep(150); }
-        for(let i=0; i<4; i++) { renderCard(null, document.getElementById('dealer-cards'), true); await sleep(150); }
+        for(let i=0; i<4; i++) { renderCard(dHand[i], document.getElementById('dealer-cards'), true); await sleep(150); }
         renderCard(dHand[4], document.getElementById('dealer-cards'));
-
         document.getElementById('csp-action-ui').classList.remove('hidden');
         document.getElementById('ui-p-score').innerText = getPokerRank(pHand).name;
     }
-
-    function handleCSPFold() { resolveGame('LOSE'); }
-    function handleCSPRaise() {
-        if (money < bet * 2) { document.getElementById('ui-msg').innerText = 'INVALID AMOUNT'; return; }
-        money -= bet * 2; document.getElementById('ui-money').innerText = money;
+    function handleCSPFold() { if (actionLocked) return; actionLocked = true; document.getElementById('csp-action-ui').classList.add('hidden'); resolveGame('LOSE'); }
+    async function handleCSPRaise() {
+        if (actionLocked || !isPlaying) return;
+        if (money < bet * 2) { 
+            const msg = document.getElementById('ui-msg');
+            msg.innerText = 'INVALID AMOUNT'; 
+            msg.style.color = '#ff0000';
+            return; 
+        }
+        actionLocked = true; money -= bet * 2; document.getElementById('ui-money').innerText = money;
         document.getElementById('csp-action-ui').classList.add('hidden');
-        const dRow = document.getElementById('dealer-cards'); dRow.innerHTML = '';
-        dHand.forEach(c => renderCard(c, dRow));
-        const dRank = getPokerRank(dHand); document.getElementById('ui-d-score').innerText = dRank.name;
-        const qualified = (dRank.score > 1) || (dHand.some(c=>c.v==='A') && dHand.some(c=>c.v==='K'));
-        if (!qualified) { money += (bet * 2) + (bet * 2); resolveGame('D-NOT QUALIFIED'); }
+        for(let i=0; i<4; i++) { document.getElementById('dealer-cards').children[i].classList.add('flipped'); await sleep(100); }
+        await sleep(500);
+        let pRank = getPokerRank(pHand), dRank = getPokerRank(dHand);
+        document.getElementById('ui-d-score').innerText = dRank.name;
+        let qualified = (dRank.score > 1) || (dHand.some(c=>c.v==='A') && dHand.some(c=>c.v==='K'));
+        if (!qualified) { money += bet * 4; resolveGame('D-NOT QUALIFIED'); }
         else {
-            const pRank = getPokerRank(pHand);
-            if (pRank.score > dRank.score) { money += (bet * 6); resolveGame('WIN'); }
-            else if (pRank.score < dRank.score) resolveGame('LOSE');
-            else { money += bet * 3; resolveGame('PUSH'); }
+            let cp = comparePower(pRank.power, dRank.power);
+            if (pRank.score > dRank.score || (pRank.score === dRank.score && cp === 1)) {
+                money += bet * 2 + (bet * 2) + (bet * 2 * CSP_PAYOUT[pRank.name]); resolveGame('WIN');
+            } else if (pRank.score < dRank.score || (pRank.score === dRank.score && cp === -1)) {
+                resolveGame('LOSE');
+            } else {
+                money += bet * 3; resolveGame('PUSH');
+            }
         }
     }
-    function getPokerRank(hand) {
-        const counts = {}, values = hand.map(c => c.w).sort((a,b)=>b-a);
+
+    function getPokerRank(h) {
+        const counts = {}, values = h.map(c => c.w).sort((a,b)=>b-a);
         values.forEach(v => counts[v] = (counts[v]||0)+1);
-        const freq = Object.values(counts).sort((a,b)=>b-a);
-        const isFlush = new Set(hand.map(c=>c.s)).size === 1;
+        const sortedRanks = Object.keys(counts).sort((a,b) => (counts[b] !== counts[a]) ? counts[b] - counts[a] : b - a).map(Number);
+        const isFlush = new Set(h.map(c=>c.s)).size === 1;
         const isStraight = values.every((v,i) => i===0 || v === values[i-1]-1);
-        if (isStraight && isFlush) return {name: 'STR FLUSH', score: 9};
-        if (freq[0] === 4) return {name: '4 KIND', score: 8};
-        if (freq[0] === 3 && freq[1] === 2) return {name: 'FULL HOUSE', score: 7};
-        if (isFlush) return {name: 'FLUSH', score: 6};
-        if (isStraight) return {name: 'STRAIGHT', score: 5};
-        if (freq[0] === 3) return {name: '3 KIND', score: 4};
-        if (freq[0] === 2 && freq[1] === 2) return {name: '2 PAIR', score: 3};
-        if (freq[0] === 2) return {name: 'PAIR', score: 2};
-        return {name: 'HIGH CARD', score: 1};
+        
+        if (isStraight && isFlush) return {name: values[0] === 14 ? 'ROYAL FLUSH' : 'STR FLUSH', score: 10, power: values};
+        if (Object.values(counts).includes(4)) return {name: '4 KIND', score: 9, power: sortedRanks};
+        if (Object.values(counts).includes(3) && Object.values(counts).includes(2)) return {name: 'FULL HOUSE', score: 8, power: sortedRanks};
+        if (isFlush) return {name: 'FLUSH', score: 7, power: values};
+        if (isStraight) return {name: 'STRAIGHT', score: 6, power: values};
+        if (Object.values(counts).includes(3)) return {name: '3 KIND', score: 5, power: sortedRanks};
+        if (Object.values(counts).filter(v=>v===2).length === 2) return {name: '2 PAIR', score: 4, power: sortedRanks};
+        if (Object.values(counts).includes(2)) return {name: 'PAIR', score: 3, power: sortedRanks};
+        return {name: 'HIGH CARD', score: 2, power: values};
+    }
+
+    // --- RED DOG LOGIC ---
+    let rdCards = [], rdSpread = 0;
+    async function handleRDStart() {
+        rdCards = [deck.pop(), deck.pop()];
+        document.getElementById('bet-ui').classList.add('hidden');
+        renderCard(rdCards[0], document.getElementById('player-cards')); await sleep(400);
+        renderCard(rdCards[1], document.getElementById('dealer-cards')); await sleep(400);
+        
+        let v1 = rdCards[0].w, v2 = rdCards[1].w;
+        if (v1 > v2) [v1, v2] = [v2, v1];
+        rdSpread = v2 - v1 - 1;
+
+        if (rdSpread === -1) { // Pair
+            document.getElementById('ui-msg').innerText = "PAIR! WAITING FOR 3RD CARD...";
+            await sleep(1000); let c3 = deck.pop(); renderCard(c3, document.getElementById('player-cards'));
+            if (c3.w === v1) { money += bet * 12; resolveGame('11:1 THREE OF A KIND!'); }
+            else { money += bet; resolveGame('PUSH'); }
+        } else if (rdSpread === 0) { // Consecutive
+            resolveGame('PUSH (CONSECUTIVE)'); money += bet;
+        } else {
+            document.getElementById('ui-msg').innerText = `SPREAD: ${rdSpread}`;
+            document.getElementById('rd-action-ui').classList.remove('hidden');
+        }
+    }
+    function handleRDCall() { executeRDResult(); }
+    function handleRDRaise() { money -= bet; bet *= 2; document.getElementById('ui-money').innerText = money; executeRDResult(); }
+    async function executeRDResult() {
+        actionLocked = true; document.getElementById('rd-action-ui').classList.add('hidden');
+        let c3 = deck.pop(); renderCard(c3, document.getElementById('player-cards'));
+        let v1 = rdCards[0].w, v2 = rdCards[1].w;
+        if (v1 > v2) [v1, v2] = [v2, v1];
+        if (c3.w > v1 && c3.w < v2) {
+            let pay = 1;
+            if (rdSpread === 1) pay = 5; else if (rdSpread === 2) pay = 4; else if (rdSpread === 3) pay = 2;
+            money += bet + (bet * pay); resolveGame(`WIN (${pay}:1)`);
+        } else { resolveGame('LOSE'); }
     }
 
     function resolveGame(res) {
         isPlaying = false; const msg = document.getElementById('ui-msg');
-        msg.innerText = res; msg.style.color = (res === 'WIN' || res.includes('QUALIFIED')) ? '#0ff' : (res === 'PUSH' ? '#fff' : '#f0f');
+        msg.innerText = res; msg.style.color = (res.includes('WIN') || res.includes('!')) ? '#0ff' : (res.includes('PUSH') || res.includes('QUALIFIED') ? '#fff' : '#f0f');
         document.getElementById('ui-money').innerText = money; updateVIP();
         if (money <= 0) {
-            isPlaying = true;
-            document.getElementById('bj-action-ui').classList.add('hidden'); 
-            document.getElementById('csp-action-ui').classList.add('hidden');
-            document.getElementById('crash-action-ui').classList.add('hidden');
-            setTimeout(() => {
-                document.body.classList.add('flash-red'); msg.innerText = "YOU ARE NOT WELCOME HERE ANYMORE...";
-                msg.style.color = "#ff0000";
-                setTimeout(() => { document.body.classList.remove('flash-red'); exitToMenu(); }, 3000);
-            }, 1000);
+            isPlaying = true; document.querySelectorAll('.hidden').forEach(e => e.classList.add('hidden'));
+            setTimeout(() => { document.body.classList.add('flash-red'); msg.innerText = "GAME OVER"; setTimeout(() => { document.body.classList.remove('flash-red'); exitToMenu(); }, 3000); }, 1000);
         } else { setTimeout(resetTable, 2500); }
     }
 </script>
