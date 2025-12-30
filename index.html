@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Tilt Ball</title>
+    <title>Neon Infinity Collector</title>
     <style>
         body {
             margin: 0;
@@ -25,6 +25,10 @@
             position: absolute;
             text-align: center;
             z-index: 10;
+            background: rgba(5, 5, 16, 0.8);
+            padding: 40px;
+            border-radius: 20px;
+            border: 1px solid #0ff;
         }
         button {
             padding: 15px 30px;
@@ -37,19 +41,25 @@
             box-shadow: 0 0 15px #0ff;
             text-transform: uppercase;
             letter-spacing: 2px;
+            margin-top: 20px;
         }
         #msg {
-            margin-bottom: 20px;
             font-size: 1.5rem;
             text-shadow: 0 0 10px #f0f;
             color: #f0f;
+        }
+        #scoreDisplay {
+            font-size: 1rem;
+            color: #0ff;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <div id="msg">NEON TILT</div>
+        <div id="msg">NEON DRIFT</div>
+        <div id="scoreDisplay"></div>
         <button id="startBtn">開始遊戲</button>
     </div>
 
@@ -61,16 +71,16 @@
         const ui = document.getElementById('ui');
         const startBtn = document.getElementById('startBtn');
         const msg = document.getElementById('msg');
+        const scoreDisplay = document.getElementById('scoreDisplay');
 
-        // 遊戲狀態
         let isRunning = false;
         let width, height;
+        let score = 0;
         let ball = { x: 0, y: 0, vx: 0, vy: 0, r: 12 };
-        let goal = { x: 0, y: 0, r: 25 };
+        let pointBall = { x: 0, y: 0, r: 8 };
         let holes = [];
         let tilt = { x: 0, y: 0 };
 
-        // 初始化畫布尺寸
         function resize() {
             width = window.innerWidth;
             height = window.innerHeight;
@@ -79,40 +89,40 @@
             canvas.style.width = width + 'px';
             canvas.style.height = height + 'px';
             ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-            resetLevel();
+            if(!isRunning) resetLevel();
+        }
+
+        function spawnPoint() {
+            // 確保得分球不會生在太靠近邊緣的地方
+            pointBall.x = 40 + Math.random() * (width - 80);
+            pointBall.y = 40 + Math.random() * (height - 80);
         }
 
         function resetLevel() {
-            // 起點設在上方
+            score = 0;
             ball.x = width / 2;
-            ball.y = 80;
+            ball.y = height / 2;
             ball.vx = 0;
             ball.vy = 0;
+            
+            spawnPoint();
 
-            // 終點設在下方
-            goal.x = width / 2;
-            goal.y = height - 100;
-
-            // 隨機生成幾個洞
             holes = [];
-            for (let i = 0; i < 5; i++) {
+            // 固定生成 6 個洞，並增加間距判斷
+            for (let i = 0; i < 6; i++) {
                 holes.push({
                     x: Math.random() * (width - 60) + 30,
-                    y: Math.random() * (height - 300) + 150,
-                    r: 20
+                    y: Math.random() * (height - 60) + 30,
+                    r: 25 + Math.random() * 10
                 });
             }
         }
 
-        // 監聽傾斜事件
         function handleOrientation(event) {
-            // Beta: 前後傾斜 (-180 to 180) -> 對應 Y 加速度
-            // Gamma: 左右傾斜 (-90 to 90) -> 對應 X 加速度
-            tilt.x = event.gamma * 0.1; 
-            tilt.y = event.beta * 0.1;
+            tilt.x = event.gamma * 0.12; 
+            tilt.y = event.beta * 0.12;
         }
 
-        // 開始授權與運行
         startBtn.addEventListener('click', async () => {
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                 try {
@@ -130,6 +140,7 @@
 
         function initGame() {
             ui.style.display = 'none';
+            resetLevel();
             isRunning = true;
             window.addEventListener('deviceorientation', handleOrientation);
             requestAnimationFrame(update);
@@ -138,73 +149,86 @@
         function update() {
             if (!isRunning) return;
 
-            // 物理更新
             ball.vx += tilt.x;
             ball.vy += tilt.y;
-            ball.vx *= 0.97; // 摩擦力
-            ball.vy *= 0.97;
+            ball.vx *= 0.98; 
+            ball.vy *= 0.98;
             ball.x += ball.vx;
             ball.y += ball.vy;
 
-            // 邊界碰撞
             if (ball.x < ball.r) { ball.x = ball.r; ball.vx *= -0.5; }
             if (ball.x > width - ball.r) { ball.x = width - ball.r; ball.vx *= -0.5; }
             if (ball.y < ball.r) { ball.y = ball.r; ball.vy *= -0.5; }
             if (ball.y > height - ball.r) { ball.y = height - ball.r; ball.vy *= -0.5; }
 
-            // 偵測是否進洞
+            // 碰撞洞穴
             holes.forEach(h => {
                 const dist = Math.hypot(ball.x - h.x, ball.y - h.y);
-                if (dist < h.r + ball.r * 0.7) {
-                    gameOver("掉入深淵...");
+                if (dist < h.r) {
+                    gameOver();
                 }
             });
 
-            // 偵測是否抵達終點
-            const distToGoal = Math.hypot(ball.x - goal.x, ball.y - goal.y);
-            if (distToGoal < goal.r) {
-                gameOver("抵達終點！");
+            // 碰撞得分球
+            const distToPoint = Math.hypot(ball.x - pointBall.x, ball.y - pointBall.y);
+            if (distToPoint < ball.r + pointBall.r) {
+                score++;
+                if (window.navigator.vibrate) window.navigator.vibrate(20);
+                spawnPoint();
             }
 
             draw();
             requestAnimationFrame(update);
         }
 
-        function gameOver(text) {
+        function gameOver() {
             isRunning = false;
-            msg.innerText = text;
+            msg.innerText = "遊戲結束";
+            scoreDisplay.innerText = "最終得分: " + score;
+            startBtn.innerText = "回到主畫面";
             ui.style.display = 'block';
-            startBtn.innerText = '再試一次';
             window.removeEventListener('deviceorientation', handleOrientation);
+        }
+
+        function drawHole(h) {
+            // 建立徑向漸層讓洞更有深度感
+            const grad = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, h.r);
+            grad.addColorStop(0, '#000');
+            grad.addColorStop(0.7, '#000');
+            grad.addColorStop(1, '#f0f'); // 邊緣霓虹紫
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(h.x, h.y, h.r, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 畫一圈外發光邊線
+            ctx.strokeStyle = '#f0f';
+            ctx.lineWidth = 2;
+            ctx.stroke();
         }
 
         function draw() {
             ctx.fillStyle = '#050510';
             ctx.fillRect(0, 0, width, height);
 
-            // 繪製洞穴
+            // 畫分數
+            ctx.fillStyle = "rgba(0, 255, 255, 0.3)";
+            ctx.font = "bold 80px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(score, width / 2, height / 2 + 30);
+
+            holes.forEach(h => drawHole(h));
+
+            // 畫得分小球
             ctx.shadowBlur = 15;
-            ctx.shadowColor = '#f0f';
-            ctx.strokeStyle = '#f0f';
-            ctx.lineWidth = 2;
-            holes.forEach(h => {
-                ctx.beginPath();
-                ctx.arc(h.x, h.y, h.r, 0, Math.PI * 2);
-                ctx.stroke();
-                // 內縮圓增加層次感
-                ctx.beginPath();
-                ctx.arc(h.x, h.y, h.r * 0.5, 0, Math.PI * 2);
-                ctx.stroke();
-            });
-
-            // 繪製終點
-            ctx.shadowColor = '#0f0';
-            ctx.strokeStyle = '#0f0';
+            ctx.shadowColor = '#ff0';
+            ctx.fillStyle = '#ff0';
             ctx.beginPath();
-            ctx.arc(goal.x, goal.y, goal.r, 0, Math.PI * 2);
-            ctx.stroke();
+            ctx.arc(pointBall.x, pointBall.y, pointBall.r, 0, Math.PI * 2);
+            ctx.fill();
 
-            // 繪製球體
+            // 畫玩家球
             ctx.shadowBlur = 20;
             ctx.shadowColor = '#0ff';
             ctx.fillStyle = '#0ff';
@@ -212,7 +236,6 @@
             ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
             ctx.fill();
 
-            // 重置 Shadow 以免影響效能
             ctx.shadowBlur = 0;
         }
 
