@@ -224,7 +224,7 @@
                     • IF DEALER NOT QUALIFIED: ANTE WINS 1:1, RAISE IS PUSH.<br>
                     • IF DEALER QUALIFIED: HIGHER HAND WINS. RAISE PAYS BY TABLE:
                 </div>
-                <table style="width: 100%; max-width: 300px; font-size: 0.75rem; border-collapse: collapse; color: #0ff;">
+                <table style="width: 100%; max-width: 300px; font-size: 0.75rem; border-collapse: collapse; color: #0f8;">
                     <tr><td style="padding: 2px 0;">ROYAL FLUSH</td><td style="text-align:right;">100:1</td></tr>
                     <tr><td style="padding: 2px 0;">STR FLUSH</td><td style="text-align:right;">50:1</td></tr>
                     <tr><td style="padding: 2px 0;">4 OF A KIND</td><td style="text-align:right;">20:1</td></tr>
@@ -295,12 +295,11 @@
         const val = parseInt(document.getElementById('bet-val').value);
         if (isPlaying || isNaN(val) || val <= 0) return;
         
-        // 恢復下注安全檢查
-        if (currentGame === 'csp' && val > money / 3) { 
+        if (currentGame === 'csp' && val > (money / 3)) { 
             document.getElementById('ui-msg').innerText = `CSP MAX BET IS 1/3 OF BALANCE ($${Math.floor(money/3)})`; 
             return; 
         }
-        if (currentGame === 'rd' && val > money / 2) { 
+        if (currentGame === 'rd' && val > (money / 2)) { 
             document.getElementById('ui-msg').innerText = `RED DOG MAX BET IS 1/2 OF BALANCE ($${Math.floor(money/2)})`; 
             return; 
         }
