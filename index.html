@@ -81,7 +81,7 @@
                 <button onclick="showGame('bj')">Blackjack</button>
                 <button onclick="showGame('csp')" style="border-color: #0f8; color: #0f8;">Caribbean Stud</button>
             </div>
-            <button onclick="showGame('crash')" style="border-color: #0ff; color: #0ff;">Neon Crash (Multiplayer)</button>
+            <button onclick="showGame('crash')" style="border-color: #0ff; color: #0ff;">Neon Crash (Single Player)</button>
         </div>
     </div>
 
@@ -193,8 +193,9 @@
     }
 
     function startDeal() {
+        // --- DEFENSIVE LOGIC UPDATED ---
         const val = parseInt(document.getElementById('bet-val').value);
-        if (isPlaying || val > money || val <= 0 || money <= 0) {
+        if (isPlaying || isNaN(val) || val > money || val <= 0) {
             document.getElementById('ui-msg').innerText = 'INVALID AMOUNT';
             document.getElementById('ui-msg').style.color = '#ff0000';
             return;
@@ -207,25 +208,24 @@
         else { createDeck(); if (currentGame === 'bj') handleBJStart(); else handleCSPStart(); }
     }
 
-    // --- NEON CRASH (NEW GAME) ---
+    // --- NEON CRASH (1.00x CONSISTENT) ---
     function handleCrashStart() {
         document.getElementById('bet-ui').classList.add('hidden');
         document.getElementById('crash-action-ui').classList.remove('hidden');
         document.getElementById('ui-msg').innerText = 'WATCHING...';
         
         currentMult = 1.00;
-        // 97% RTP Algorithm: 3% instant crash, others follow log distribution
         if (Math.random() < 0.03) crashPoint = 1.00;
         else crashPoint = (97 / (100 - Math.random() * 99)).toFixed(2);
 
         let startTime = Date.now();
         crashInterval = setInterval(() => {
             let elapsed = (Date.now() - startTime) / 1000;
-            currentMult = Math.pow(1.08, elapsed * 2); // Exponential growth
+            currentMult = Math.pow(1.08, elapsed * 2); 
             
             if (currentMult >= crashPoint) {
                 currentMult = crashPoint;
-                document.getElementById('ui-multiplier').innerText = currentMult + 'x';
+                document.getElementById('ui-multiplier').innerText = parseFloat(currentMult).toFixed(2) + 'x';
                 document.getElementById('ui-multiplier').classList.add('crashed-text');
                 clearInterval(crashInterval);
                 resolveGame('CRASHED');
