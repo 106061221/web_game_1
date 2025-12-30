@@ -3,136 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEON CASINO - BLACKJACK</title>
+    <title>NEON CASINO - MULTI</title>
     <style>
-        /* --- BASE --- */
+        /* --- BASE & NEON THEME --- */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background-color: #000;
-            color: #fff;
+            background-color: #000; color: #fff;
             font-family: 'Segoe UI', Arial, sans-serif;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            transition: background-color 0.5s;
+            height: 100vh; display: flex; justify-content: center; align-items: center;
+            overflow: hidden; transition: background-color 0.5s;
         }
-
-        /* --- NEON UI & VIP THEME --- */
         .neon-title {
-            font-size: 3.5rem;
-            color: #000;
-            -webkit-text-stroke: 1px #0ff;
-            text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
-            letter-spacing: 10px;
-            margin-bottom: 2rem;
-            text-align: center;
-            line-height: 1.2;
+            font-size: 3.5rem; color: #000; text-align: center; line-height: 1.2;
+            -webkit-text-stroke: 1px #0ff; text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
+            letter-spacing: 10px; margin-bottom: 2rem;
         }
-
-        /* VIP CSS Override */
-        body.vip-mode .neon-title {
-            -webkit-text-stroke: 1px #ffdf00;
-            text-shadow: 0 0 10px #ffdf00, 0 0 20px #ffdf00;
-        }
-        body.vip-mode button { border-color: #ffdf00; color: #ffdf00; }
-        body.vip-mode button:hover { background: #ffdf00; color: #000; box-shadow: 0 0 15px #ffdf00; }
-        body.vip-mode .money-label, body.vip-mode .score-tag { color: #ffdf00; }
-
+        body.vip-mode .neon-title { -webkit-text-stroke: 1px #ffdf00; text-shadow: 0 0 10px #ffdf00; }
+        
         button {
-            background: transparent;
-            border: 1px solid #ff00ff;
-            color: #ff00ff;
-            padding: 12px 30px;
-            cursor: pointer;
-            font-size: 1rem;
-            letter-spacing: 2px;
-            transition: 0.3s;
-            text-transform: uppercase;
+            background: transparent; border: 1px solid #ff00ff; color: #ff00ff;
+            padding: 12px 25px; cursor: pointer; font-size: 0.9rem; letter-spacing: 2px;
+            transition: 0.3s; text-transform: uppercase; margin: 5px;
         }
         button:hover { background: #ff00ff; color: #000; box-shadow: 0 0 15px #ff00ff; }
+        body.vip-mode button { border-color: #ffdf00; color: #ffdf00; }
+        body.vip-mode button:hover { background: #ffdf00; box-shadow: 0 0 15px #ffdf00; }
 
         /* --- SCREENS --- */
-        #menu-screen, #game-screen {
-            position: absolute;
-            width: 100%; height: 100%;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            background: transparent;
-        }
+        .screen { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .hidden { display: none !important; }
 
-        /* --- GAME LAYOUT --- */
+        /* --- HUD --- */
         .top-hud {
             position: absolute; top: 20px; width: 90%;
             display: flex; justify-content: space-between; align-items: center;
             border-bottom: 1px solid #222; padding-bottom: 10px;
         }
-        .money-label { color: #0ff; font-size: 1.2rem; transition: color 0.5s; }
+        .money-label { color: #0ff; font-size: 1.2rem; }
+        body.vip-mode .money-label { color: #ffdf00; }
 
-        .table {
-            display: flex; flex-direction: column; gap: 40px;
-            width: 100%; align-items: center;
-        }
-
-        .hand-area { display: flex; flex-direction: column; align-items: center; min-height: 120px; }
-        .score-tag { font-size: 0.8rem; letter-spacing: 2px; color: #0ff; margin-bottom: 8px; }
-
-        .cards-row { display: flex; gap: 10px; min-height: 90px; }
+        /* --- TABLE & CARDS --- */
+        .table { display: flex; flex-direction: column; gap: 30px; width: 100%; align-items: center; }
+        .hand-area { display: flex; flex-direction: column; align-items: center; min-height: 130px; }
+        .score-tag { font-size: 0.7rem; letter-spacing: 2px; color: #0ff; margin-bottom: 8px; text-transform: uppercase; }
+        body.vip-mode .score-tag { color: #ffdf00; }
+        .cards-row { display: flex; gap: 8px; min-height: 90px; }
+        
         .card {
-            width: 60px; height: 85px;
-            background: #111; border: 1px solid #fff;
-            border-radius: 4px; position: relative;
-            box-shadow: 0 0 5px rgba(255,255,255,0.2);
+            width: 55px; height: 80px; background: #111; border: 1px solid #fff;
+            border-radius: 4px; position: relative; box-shadow: 0 0 5px rgba(255,255,255,0.2);
         }
-        .card.cyan { border-color: #0ff; box-shadow: 0 0 8px #0ff; color: #0ff; }
-        .card.magenta { border-color: #f0f; box-shadow: 0 0 8px #f0f; color: #f0f; }
-        body.vip-mode .card.cyan { border-color: #ffdf00; box-shadow: 0 0 8px #ffdf00; color: #ffdf00; }
+        .card.cyan { border-color: #0ff; color: #0ff; box-shadow: 0 0 8px #0ff; }
+        .card.magenta { border-color: #f0f; color: #f0f; box-shadow: 0 0 8px #f0f; }
+        .card.emerald { border-color: #0f8; color: #0f8; box-shadow: 0 0 8px #0f8; }
+        body.vip-mode .card.cyan, body.vip-mode .card.emerald { border-color: #ffdf00; color: #ffdf00; }
 
-        .card-value {
-            position: absolute; top: 3px; left: 5px;
-            font-size: 14px; font-weight: bold; line-height: 1;
-        }
-        .card-suit { font-size: 12px; margin-top: 2px; display: block; }
+        .card-value { position: absolute; top: 3px; left: 5px; font-size: 14px; font-weight: bold; }
+        .card-suit { font-size: 12px; display: block; }
         .card-back { background: #222; border-color: #444; }
 
-        .controls {
-            position: absolute; bottom: 40px;
-            display: flex; flex-direction: column; align-items: center; gap: 15px;
-        }
-        .msg-box { height: 25px; font-size: 1.1rem; letter-spacing: 1px; text-transform: uppercase; text-align: center; }
-        .bet-input {
-            background: transparent; border: 1px solid #0ff; color: #0ff;
-            padding: 8px; width: 80px; text-align: center; font-size: 1.1rem; outline: none;
-        }
+        /* --- CONTROLS --- */
+        .controls { position: absolute; bottom: 40px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        .msg-box { height: 30px; font-size: 1rem; letter-spacing: 1px; text-transform: uppercase; text-align: center; }
+        .bet-input { background: transparent; border: 1px solid #0ff; color: #0ff; padding: 8px; width: 80px; text-align: center; outline: none; }
         body.vip-mode .bet-input { border-color: #ffdf00; color: #ffdf00; }
 
-        @keyframes bankrupt-flash {
-            0% { background-color: #000; }
-            50% { background-color: #600; }
-            100% { background-color: #000; }
-        }
+        @keyframes bankrupt-flash { 0%, 100% { background-color: #000; } 50% { background-color: #600; } }
         .flash-red { animation: bankrupt-flash 0.5s 4; }
-
     </style>
 </head>
 <body>
 
-    <div id="menu-screen">
+    <div id="menu-screen" class="screen">
         <h1 id="main-title" class="neon-title">NEON<br>CASINO</h1>
-        <button onclick="showGame()">Blackjack</button>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="showGame('bj')">Blackjack</button>
+            <button onclick="showGame('csp')" style="border-color: #0f8; color: #0f8;">Caribbean Stud</button>
+        </div>
     </div>
 
-    <div id="game-screen" class="hidden">
+    <div id="game-screen" class="screen hidden">
         <div class="top-hud">
             <div class="money-label">BALANCE: $<span id="ui-money">1000</span></div>
-            <button onclick="exitToMenu()" id="exit-btn" style="font-size: 0.7rem; border-color: #444; color: #666;">EXIT</button>
+            <button onclick="exitToMenu()" id="exit-btn" style="font-size: 0.6rem; border-color: #444; color: #666;">EXIT</button>
         </div>
 
         <div class="table">
             <div class="hand-area">
-                <div class="score-tag">DEALER: <span id="ui-d-score">?</span></div>
+                <div class="score-tag"><span id="ui-d-label">DEALER</span>: <span id="ui-d-score">?</span></div>
                 <div id="dealer-cards" class="cards-row"></div>
             </div>
             <div class="hand-area">
@@ -145,40 +103,46 @@
             <div id="ui-msg" class="msg-box"></div>
             <div id="bet-ui">
                 <input type="number" id="bet-val" class="bet-input" value="100" step="10">
-                <button onclick="handleDeal()">DEAL</button>
+                <button id="deal-btn" onclick="startDeal()">DEAL</button>
             </div>
-            <div id="action-ui" class="hidden">
+            <div id="bj-action-ui" class="hidden">
                 <button onclick="handleHit()">HIT</button>
                 <button onclick="handleStand()">STAND</button>
+            </div>
+            <div id="csp-action-ui" class="hidden">
+                <button onclick="handleCSPFold()" style="border-color: #f0f; color: #f0f;">FOLD</button>
+                <button onclick="handleCSPRaise()" style="border-color: #0f8; color: #0f8;">RAISE (2x)</button>
             </div>
         </div>
     </div>
 
 <script>
-    let money = 1000, deck = [], pHand = [], dHand = [], bet = 0, isPlaying = false;
+    let money = 1000, deck = [], pHand = [], dHand = [], bet = 0, isPlaying = false, currentGame = '';
     const SUITS = [{s:'♠',c:'cyan'}, {s:'♣',c:'cyan'}, {s:'♥',c:'magenta'}, {s:'♦',c:'magenta'}];
     const VALS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
 
     function updateVIP() {
+        const title = document.getElementById('main-title');
         if (money >= 5000) {
             document.body.classList.add('vip-mode');
-            document.getElementById('main-title').innerHTML = "VIP NEON<br>CASINO";
+            title.innerHTML = "VIP NEON<br>CASINO";
         } else {
             document.body.classList.remove('vip-mode');
-            document.getElementById('main-title').innerHTML = "NEON<br>CASINO";
+            title.innerHTML = "NEON<br>CASINO";
         }
     }
 
-    function showGame() {
+    function showGame(type) {
+        currentGame = type;
         document.getElementById('menu-screen').classList.add('hidden');
         document.getElementById('game-screen').classList.remove('hidden');
         updateVIP();
         resetTable();
-        isPlaying = false; // 確保重進遊戲時解鎖
+        isPlaying = false;
     }
 
     function exitToMenu() {
-        if (isPlaying && money > 0) return; // 破產時不受 isPlaying 限制，允許跳出
+        if (isPlaying && money > 0) return;
         document.getElementById('game-screen').classList.add('hidden');
         document.getElementById('menu-screen').classList.remove('hidden');
     }
@@ -189,27 +153,22 @@
         document.getElementById('dealer-cards').innerHTML = '';
         document.getElementById('ui-p-score').innerText = '0';
         document.getElementById('ui-d-score').innerText = '?';
-        document.getElementById('ui-msg').innerText = 'PLACE YOUR BET';
+        document.getElementById('ui-msg').innerText = 'PLACE YOUR ANTE' ;
         document.getElementById('ui-msg').style.color = '#fff';
         document.getElementById('bet-ui').classList.remove('hidden');
-        document.getElementById('action-ui').classList.add('hidden');
+        document.getElementById('bj-action-ui').classList.add('hidden');
+        document.getElementById('csp-action-ui').classList.add('hidden');
     }
 
     function createDeck() {
         deck = [];
         SUITS.forEach(s => VALS.forEach(v => {
-            let w = parseInt(v);
-            if(['J','Q','K'].includes(v)) w = 10; else if(v === 'A') w = 11;
-            deck.push({v, s:s.s, color:s.c, w});
+            let w = VALS.indexOf(v) + 2; 
+            if(v === 'A') w = 14; 
+            // 21點專用權重由函數處理，這裡存原始權重供撲克比牌
+            deck.push({v, s:s.s, color: (currentGame==='csp'?'emerald':s.c), w});
         }));
         deck.sort(() => Math.random() - 0.5);
-    }
-
-    function getScore(hand) {
-        let s = hand.reduce((a, b) => a + b.w, 0);
-        let aces = hand.filter(c => c.v === 'A').length;
-        while (s > 21 && aces > 0) { s -= 10; aces--; }
-        return s;
     }
 
     function renderCard(card, container, isHidden = false) {
@@ -219,9 +178,9 @@
         container.appendChild(div);
     }
 
-    function handleDeal() {
+    // --- GAME START ---
+    function startDeal() {
         const val = parseInt(document.getElementById('bet-val').value);
-        // 如果正在結算或金額異常，則攔截
         if (isPlaying || val > money || val <= 0 || money <= 0) {
             document.getElementById('ui-msg').innerText = 'INVALID AMOUNT';
             document.getElementById('ui-msg').style.color = '#ff0000';
@@ -231,41 +190,50 @@
         document.getElementById('ui-money').innerText = money;
         isPlaying = true;
         createDeck();
-        pHand = [deck.pop(), deck.pop()];
-        dHand = [deck.pop(), deck.pop()];
+        
+        if (currentGame === 'bj') handleBJStart();
+        else handleCSPStart();
+    }
+
+    // --- BLACKJACK LOGIC (UNCHANGED) ---
+    function getBJScore(hand) {
+        let s = hand.reduce((a, b) => a + (b.w > 10 ? (b.v==='A'?11:10) : b.w), 0);
+        let aces = hand.filter(c => c.v === 'A').length;
+        while (s > 21 && aces > 0) { s -= 10; aces--; }
+        return s;
+    }
+
+    function handleBJStart() {
+        pHand = [deck.pop(), deck.pop()]; dHand = [deck.pop(), deck.pop()];
         document.getElementById('bet-ui').classList.add('hidden');
-        document.getElementById('action-ui').classList.remove('hidden');
+        document.getElementById('bj-action-ui').classList.remove('hidden');
         document.getElementById('ui-msg').innerText = '';
         renderCard(pHand[0], document.getElementById('player-cards'));
         renderCard(pHand[1], document.getElementById('player-cards'));
         renderCard(dHand[0], document.getElementById('dealer-cards'));
         renderCard(null, document.getElementById('dealer-cards'), true);
-        document.getElementById('ui-p-score').innerText = getScore(pHand);
+        document.getElementById('ui-p-score').innerText = getBJScore(pHand);
     }
 
     function handleHit() {
         if (!isPlaying) return;
         const c = deck.pop(); pHand.push(c);
         renderCard(c, document.getElementById('player-cards'));
-        const s = getScore(pHand);
+        const s = getBJScore(pHand);
         document.getElementById('ui-p-score').innerText = s;
         if (s > 21) resolveGame('BUST');
     }
 
     function handleStand() {
         if (!isPlaying) return;
-        document.getElementById('action-ui').classList.add('hidden');
-        const dRow = document.getElementById('dealer-cards');
-        dRow.innerHTML = '';
+        document.getElementById('bj-action-ui').classList.add('hidden');
+        const dRow = document.getElementById('dealer-cards'); dRow.innerHTML = '';
         renderCard(dHand[0], dRow); renderCard(dHand[1], dRow);
         const draw = () => {
-            let s = getScore(dHand);
-            document.getElementById('ui-d-score').innerText = s;
-            if (s < 17) {
-                const c = deck.pop(); dHand.push(c); renderCard(c, dRow);
-                setTimeout(draw, 500);
-            } else {
-                let ps = getScore(pHand);
+            let s = getBJScore(dHand); document.getElementById('ui-d-score').innerText = s;
+            if (s < 17) { dHand.push(deck.pop()); dRow.innerHTML = ''; dHand.forEach(c=>renderCard(c, dRow)); setTimeout(draw, 500); }
+            else { 
+                let ps = getBJScore(pHand);
                 if (s > 21 || ps > s) resolveGame('WIN');
                 else if (ps < s) resolveGame('LOSE');
                 else resolveGame('PUSH');
@@ -274,31 +242,96 @@
         draw();
     }
 
+    // --- CARIBBEAN STUD LOGIC ---
+    function handleCSPStart() {
+        pHand = Array(5).fill().map(() => deck.pop());
+        dHand = Array(5).fill().map(() => deck.pop());
+        document.getElementById('bet-ui').classList.add('hidden');
+        document.getElementById('csp-action-ui').classList.remove('hidden');
+        pHand.forEach(c => renderCard(c, document.getElementById('player-cards')));
+        renderCard(dHand[0], document.getElementById('dealer-cards'));
+        for(let i=0; i<4; i++) renderCard(null, document.getElementById('dealer-cards'), true);
+        document.getElementById('ui-p-score').innerText = getPokerRank(pHand).name;
+    }
+
+    function handleCSPFold() {
+        resolveGame('LOSE');
+    }
+
+    function handleCSPRaise() {
+        if (money < bet * 2) { document.getElementById('ui-msg').innerText = 'INSUFFICIENT FOR RAISE'; return; }
+        money -= bet * 2;
+        document.getElementById('ui-money').innerText = money;
+        document.getElementById('csp-action-ui').classList.add('hidden');
+        
+        const dRow = document.getElementById('dealer-cards'); dRow.innerHTML = '';
+        dHand.forEach(c => renderCard(c, dRow));
+        const dRank = getPokerRank(dHand);
+        document.getElementById('ui-d-score').innerText = dRank.name;
+
+        // Check Qualification (Dealer needs A+K or better)
+        const qualified = (dRank.score > 1) || (dHand.some(c=>c.v==='A') && dHand.some(c=>c.v==='K'));
+        
+        if (!qualified) {
+            money += (bet * 2) + (bet * 2); // Ante wins 1:1, Raise pushes
+            resolveGame('D-NOT QUALIFIED');
+        } else {
+            const pRank = getPokerRank(pHand);
+            if (pRank.score > dRank.score) {
+                money += (bet * 2) + (bet * 2) + (bet * 2); // Simplified payout
+                resolveGame('WIN');
+            } else if (pRank.score < dRank.score) {
+                resolveGame('LOSE');
+            } else {
+                money += bet * 3;
+                resolveGame('PUSH');
+            }
+        }
+    }
+
+    function getPokerRank(hand) {
+        const counts = {}, values = hand.map(c => c.w).sort((a,b)=>b-a);
+        values.forEach(v => counts[v] = (counts[v]||0)+1);
+        const freq = Object.values(counts).sort((a,b)=>b-a);
+        const isFlush = new Set(hand.map(c=>c.s)).size === 1;
+        const isStraight = values.every((v,i) => i===0 || v === values[i-1]-1);
+        
+        if (isStraight && isFlush) return {name: 'STR FLUSH', score: 9};
+        if (freq[0] === 4) return {name: '4 KIND', score: 8};
+        if (freq[0] === 3 && freq[1] === 2) return {name: 'FULL HOUSE', score: 7};
+        if (isFlush) return {name: 'FLUSH', score: 6};
+        if (isStraight) return {name: 'STRAIGHT', score: 5};
+        if (freq[0] === 3) return {name: '3 KIND', score: 4};
+        if (freq[0] === 2 && freq[1] === 2) return {name: '2 PAIR', score: 3};
+        if (freq[0] === 2) return {name: 'PAIR', score: 2};
+        return {name: 'HIGH CARD', score: 1};
+    }
+
+    // --- UNIVERSAL RESOLVE & BANKRUPTCY ---
     function resolveGame(res) {
         isPlaying = false;
         const msg = document.getElementById('ui-msg');
-        if (res === 'WIN') { money += bet * 2; msg.innerText = 'YOU WIN'; msg.style.color = '#0ff'; }
-        else if (res === 'PUSH') { money += bet; msg.innerText = 'PUSH'; msg.style.color = '#fff'; }
-        else { msg.innerText = res === 'BUST' ? 'PLAYER BUST' : 'DEALER WINS'; msg.style.color = '#f0f'; }
+        msg.innerText = res;
+        msg.style.color = (res === 'WIN' || res.includes('QUALIFIED')) ? '#0ff' : (res === 'PUSH' ? '#fff' : '#f0f');
         
         document.getElementById('ui-money').innerText = money;
         updateVIP();
 
         if (money <= 0) {
-            isPlaying = true; // 鎖定狀態，防止破產期間點擊 DEAL
-            document.getElementById('action-ui').classList.add('hidden'); // 隱藏動作按鈕
+            isPlaying = true;
+            document.getElementById('bj-action-ui').classList.add('hidden');
+            document.getElementById('csp-action-ui').classList.add('hidden');
             setTimeout(() => {
                 document.body.classList.add('flash-red');
                 msg.innerText = "YOU ARE NOT WELCOME HERE ANYMORE...";
                 msg.style.color = "#ff0000";
-                msg.style.fontSize = "0.8rem";
                 setTimeout(() => {
                     document.body.classList.remove('flash-red');
                     exitToMenu();
                 }, 3000);
             }, 1000);
         } else {
-            setTimeout(resetTable, 2000);
+            setTimeout(resetTable, 2500);
         }
     }
 </script>
