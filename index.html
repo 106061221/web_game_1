@@ -2,179 +2,189 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>工具裝箱大師 - 智慧跳關版</title>
+    <title>工具裝箱大師 - 進度解鎖版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; background: #2c3e50; font-family: sans-serif; touch-action: none; }
-        .controls { margin-bottom: 10px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-        .status { color: #ecf0f1; margin-bottom: 5px; font-weight: bold; }
-        button { padding: 10px 15px; font-size: 14px; font-weight: bold; cursor: pointer; background: #27ae60; color: white; border: none; border-radius: 6px; box-shadow: 0 4px #1e8449; }
-        button:active { box-shadow: 0 0px #1e8449; transform: translateY(2px); }
-        button.level-btn { background: #3498db; box-shadow: 0 4px #2980b9; }
-        button.reset { background: #e67e22; box-shadow: 0 4px #d35400; }
-        canvas { background: #ecf0f1; border: 5px solid #34495e; border-radius: 4px; }
+        :root { --bg: #2c3e50; --panel: #34495e; --accent: #27ae60; --text: #ecf0f1; }
+        body { margin: 0; display: flex; flex-direction: column; align-items: center; height: 100vh; background: var(--bg); font-family: sans-serif; overflow: hidden; touch-action: none; }
+        
+        /* 置頂 UI */
+        .top-bar { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; box-sizing: border-box; background: var(--panel); color: var(--text); z-index: 10; }
+        .menu-btn { padding: 8px 15px; background: #3498db; border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: bold; }
+        
+        /* 關卡選單 */
+        #menuLayer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; flex-direction: column; justify-content: center; align-items: center; }
+        .menu-content { background: var(--panel); padding: 30px; border-radius: 12px; text-align: center; min-width: 250px; }
+        .level-option { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 8px; font-size: 18px; cursor: pointer; transition: 0.3s; }
+        .level-locked { background: #7f8c8d !important; cursor: not-allowed; opacity: 0.6; }
+        .level-unlocked { background: #2ecc71; color: white; }
+
+        /* 過關內建提示 UI */
+        #winNotice { display: none; position: fixed; top: 50px; background: var(--accent); color: white; padding: 15px 30px; border-radius: 50px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 50; animation: slideDown 0.5s ease; }
+        @keyframes slideDown { from { transform: translateY(-100px); } to { transform: translateY(0); } }
+
+        canvas { background: #ecf0f1; border: 5px solid var(--panel); border-radius: 4px; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-<div class="status" id="levelDisplay">第 1 關</div>
-<div class="controls">
-    <button class="level-btn" onclick="loadLevel(0)">1</button>
-    <button class="level-btn" onclick="loadLevel(1)">2</button>
-    <button class="level-btn" onclick="loadLevel(2)">3</button>
-    <button onclick="showSolution()">公佈答案</button>
-    <button class="reset" onclick="location.reload()">重新開始</button>
+<div class="top-bar">
+    <button class="menu-btn" onclick="toggleMenu()">☰ 關卡選擇</button>
+    <div id="currentLabel">第 1 關</div>
+    <button class="menu-btn" style="background:#e67e22" onclick="showSolution()">公佈答案</button>
 </div>
-<canvas id="gameCanvas" width="400" height="650"></canvas>
+
+<div id="winNotice">
+    🎉 完美裝箱！ <button onclick="nextLevel()" style="margin-left:10px; padding:5px 10px; border:none; border-radius:4px; cursor:pointer; font-weight:bold">進入下一關</button>
+</div>
+
+<div id="menuLayer" onclick="toggleMenu()">
+    <div class="menu-content" onclick="event.stopPropagation()">
+        <h2 style="color:white">選擇關卡</h2>
+        <div id="levelButtons"></div>
+        <button onclick="toggleMenu()" style="margin-top:20px; background:none; border:1px solid white; color:white; padding:5px 10px; border-radius:4px">關閉</button>
+    </div>
+</div>
+
+<canvas id="gameCanvas" width="380" height="600"></canvas>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const GRID_SIZE = 42;
-const BOARD_POS = { x: 33, y: 40 };
+const GRID_SIZE = 40;
+const BOARD_POS = { x: 30, y: 30 };
 
 let currentLevelIndex = 0;
-let isAutoSolving = false; // 防錯標記：是否正處於「公佈答案」狀態
+let unlockedLevel = 0; // 已解鎖的最高關卡索引
+let isAutoSolving = false;
 
 const allLevels = [
-    // Level 1: 連通入門
     [['S','S','S','S','S','S','S','S'],['H','H','H','B','B','B','B','B'],['P','H','P','P','D','D','D','B'],['P','H','P','R','R','R','D','B'],['P','P','P','R','K','K','D','B'],['W','W','W','R','K','K','D','B'],['W','W','W','R','K','K','K','K'],['W','W','W','R','K','K','K','K']],
-    // Level 2: 碎片挑戰
     [['A','A','B','B','C','C','C','C'],['A','E','E','B','B','F','F','C'],['A','E','G','G','G','F','F','C'],['H','E','G','I','I','I','F','D'],['H','E','G','I','J','J','F','D'],['H','H','G','I','J','D','D','D'],['H','K','K','K','J','J','D','D'],['K','K','K','K','J','J','J','D']],
-    // Level 3: 蛇形封鎖
     [['A','A','A','B','B','C','C','C'],['D','D','A','B','E','E','C','F'],['D','G','G','B','E','H','H','F'],['D','G','I','I','E','H','J','F'],['K','G','I','L','L','H','J','F'],['K','G','I','L','M','M','J','F'],['K','G','I','L','M','N','N','N'],['K','K','I','L','M','M','N','N']]
 ];
 
-const colors = {
-    'A': '#E74C3C', 'B': '#273c75', 'C': '#95A5A6', 'D': '#F1C40F', 'E': '#1ABC9C', 'F': '#3498DB', 'G': '#8E44AD', 'H': '#D35400', 'I': '#2ecc71', 'J': '#e84393', 'K': '#74b9ff', 'L': '#a29bfe', 'M': '#fdcb6e', 'N': '#fab1a0', 'S': '#636e72', 'P': '#00b894', 'R': '#fd79a8', 'W': '#ffeaa7'
-};
+const colors = { 'A':'#E74C3C','B':'#273c75','C':'#95A5A6','D':'#F1C40F','E':'#1ABC9C','F':'#3498DB','G':'#8E44AD','H':'#D35400','I':'#2ecc71','J':'#e84393','K':'#74b9ff','L':'#a29bfe','M':'#fdcb6e','N':'#fab1a0','S':'#636e72','P':'#00b894','R':'#fd79a8','W':'#ffeaa7' };
 
 let pieces = [];
 let activePiece = null;
 let offset = { x: 0, y: 0 };
 
+function toggleMenu() {
+    const layer = document.getElementById('menuLayer');
+    if (layer.style.display === 'flex') {
+        layer.style.display = 'none';
+    } else {
+        updateMenuButtons();
+        layer.style.display = 'flex';
+    }
+}
+
+function updateMenuButtons() {
+    const container = document.getElementById('levelButtons');
+    container.innerHTML = '';
+    allLevels.forEach((lv, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'level-option ' + (i <= unlockedLevel ? 'level-unlocked' : 'level-locked');
+        btn.innerHTML = i <= unlockedLevel ? `第 ${i+1} 關` : `第 ${i+1} 關 🔒`;
+        btn.onclick = () => { if(i <= unlockedLevel) { loadLevel(i); toggleMenu(); } };
+        container.appendChild(btn);
+    });
+}
+
 function loadLevel(index) {
     currentLevelIndex = index;
-    isAutoSolving = false; // 重置狀態
-    document.getElementById('levelDisplay').innerText = "第 " + (index + 1) + " 關";
+    isAutoSolving = false;
+    document.getElementById('currentLabel').innerText = "第 " + (index + 1) + " 關";
+    document.getElementById('winNotice').style.display = 'none';
     const layout = allLevels[index];
     let tempPieces = {};
     for(let y=0; y<8; y++) {
         for(let x=0; x<8; x++) {
             let char = layout[y][x];
             if(!tempPieces[char]) {
-                tempPieces[char] = { 
-                    name: char, color: colors[char] || '#000', 
-                    sol: {x: x, y: y}, shape: [],
-                    x: Math.random()*250 + 20, y: 400 + Math.random()*150 
-                };
+                tempPieces[char] = { name:char, color:colors[char], sol:{x:x, y:y}, shape:[], x:Math.random()*250, y:380 + Math.random()*120 };
             }
-            tempPieces[char].shape.push({ x: x - tempPieces[char].sol.x, y: y - tempPieces[char].sol.y });
+            tempPieces[char].shape.push({ x:x - tempPieces[char].sol.x, y:y - tempPieces[char].sol.y });
         }
     }
     pieces = Object.values(tempPieces);
 }
 
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(BOARD_POS.x, BOARD_POS.y, 8*GRID_SIZE, 8*GRID_SIZE);
-    ctx.strokeStyle = '#bdc3c7';
-    for(let i=0; i<=8; i++) {
-        ctx.beginPath(); ctx.moveTo(BOARD_POS.x, BOARD_POS.y + i*GRID_SIZE); ctx.lineTo(BOARD_POS.x + 8*GRID_SIZE, BOARD_POS.y + i*GRID_SIZE); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(BOARD_POS.x + i*GRID_SIZE, BOARD_POS.y); ctx.lineTo(BOARD_POS.x + i*GRID_SIZE, BOARD_POS.y + 8*GRID_SIZE); ctx.stroke();
-    }
-    pieces.forEach(p => { if (p !== activePiece) drawPiece(p); });
-    if (activePiece) drawPiece(activePiece);
-    requestAnimationFrame(draw);
-}
-
-function drawPiece(p) {
-    ctx.fillStyle = p.color; ctx.strokeStyle = "#2c3e50"; ctx.lineWidth = 2;
-    p.shape.forEach(cell => {
-        ctx.fillRect(p.x + cell.x*GRID_SIZE, p.y + cell.y*GRID_SIZE, GRID_SIZE, GRID_SIZE);
-        ctx.strokeRect(p.x + cell.x*GRID_SIZE, p.y + cell.y*GRID_SIZE, GRID_SIZE, GRID_SIZE);
-    });
-}
-
-function getPos(e) {
-    const rect = canvas.getBoundingClientRect();
-    const cx = e.touches ? e.touches[0].clientX : e.clientX;
-    const cy = e.touches ? e.touches[0].clientY : e.clientY;
-    return { x: cx - rect.left, y: cy - rect.top };
-}
-
-canvas.addEventListener('mousedown', e => {
-    isAutoSolving = false; // 只要玩家動手，就恢復偵測
-    const pos = getPos(e);
-    for (let i = pieces.length - 1; i >= 0; i--) {
-        const p = pieces[i];
-        for (let cell of p.shape) {
-            const cx = p.x + cell.x*GRID_SIZE; const cy = p.y + cell.y*GRID_SIZE;
-            if (pos.x >= cx && pos.x <= cx + GRID_SIZE && pos.y >= cy && pos.y <= cy + GRID_SIZE) {
-                activePiece = p; offset.x = pos.x - p.x; offset.y = pos.y - p.y; return;
-            }
-        }
-    }
-});
-
-window.addEventListener('mousemove', e => {
-    if (!activePiece) return;
-    const pos = getPos(e);
-    activePiece.x = pos.x - offset.x; activePiece.y = pos.y - offset.y;
-});
-
-window.addEventListener('mouseup', () => {
-    if (!activePiece) return;
-    if (activePiece.x > BOARD_POS.x - GRID_SIZE && activePiece.x < BOARD_POS.x + 8 * GRID_SIZE) {
-        activePiece.x = Math.round((activePiece.x - BOARD_POS.x)/GRID_SIZE)*GRID_SIZE + BOARD_POS.x;
-        activePiece.y = Math.round((activePiece.y - BOARD_POS.y)/GRID_SIZE)*GRID_SIZE + BOARD_POS.y;
-    }
-    checkWin();
-    activePiece = null;
-});
-
 function checkWin() {
-    // 只有在非公佈答案的狀態下才觸發過關
     if (isAutoSolving) return;
-
-    const win = pieces.every(p => 
-        Math.abs(p.x - (BOARD_POS.x + p.sol.x * GRID_SIZE)) < 1 &&
-        Math.abs(p.y - (BOARD_POS.y + p.sol.y * GRID_SIZE)) < 1
-    );
-
+    const win = pieces.every(p => Math.abs(p.x - (BOARD_POS.x + p.sol.x * GRID_SIZE)) < 1 && Math.abs(p.y - (BOARD_POS.y + p.sol.y * GRID_SIZE)) < 1);
     if(win) {
-        setTimeout(() => {
-            if (currentLevelIndex < allLevels.length - 1) {
-                alert("太棒了！準備進入下一關！");
-                loadLevel(currentLevelIndex + 1);
-            } else {
-                alert("恭喜！你已通關所有關卡！");
-            }
-        }, 200);
+        if (currentLevelIndex === unlockedLevel && unlockedLevel < allLevels.length - 1) {
+            unlockedLevel++; // 解鎖下一關
+        }
+        document.getElementById('winNotice').style.display = 'block';
+    }
+}
+
+function nextLevel() {
+    if (currentLevelIndex < allLevels.length - 1) {
+        loadLevel(currentLevelIndex + 1);
     }
 }
 
 function showSolution() {
-    isAutoSolving = true; // 進入自動演示模式，禁用 checkWin 中的彈窗
-    pieces.forEach(p => {
-        p.x = BOARD_POS.x + p.sol.x * GRID_SIZE;
-        p.y = BOARD_POS.y + p.sol.y * GRID_SIZE;
-    });
+    isAutoSolving = true;
+    pieces.forEach(p => { p.x = BOARD_POS.x + p.sol.x * GRID_SIZE; p.y = BOARD_POS.y + p.sol.y * GRID_SIZE; });
 }
 
+// 繪製與輸入邏輯 (保持穩定)
+function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle="#fff"; ctx.fillRect(BOARD_POS.x, BOARD_POS.y, 8*GRID_SIZE, 8*GRID_SIZE);
+    ctx.strokeStyle='#bdc3c7'; ctx.lineWidth=1;
+    for(let i=0;i<=8;i++){
+        ctx.beginPath(); ctx.moveTo(BOARD_POS.x, BOARD_POS.y+i*GRID_SIZE); ctx.lineTo(BOARD_POS.x+8*GRID_SIZE, BOARD_POS.y+i*GRID_SIZE); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(BOARD_POS.x+i*GRID_SIZE, BOARD_POS.y); ctx.lineTo(BOARD_POS.x+i*GRID_SIZE, BOARD_POS.y+8*GRID_SIZE); ctx.stroke();
+    }
+    pieces.forEach(p => { if(p!==activePiece) drawP(p); });
+    if(activePiece) drawP(activePiece);
+    requestAnimationFrame(draw);
+}
+function drawP(p){
+    ctx.fillStyle=p.color; ctx.strokeStyle="#2c3e50"; ctx.lineWidth=2;
+    p.shape.forEach(c => {
+        ctx.fillRect(p.x+c.x*GRID_SIZE, p.y+c.y*GRID_SIZE, GRID_SIZE, GRID_SIZE);
+        ctx.strokeRect(p.x+c.x*GRID_SIZE, p.y+c.y*GRID_SIZE, GRID_SIZE, GRID_SIZE);
+    });
+}
+function getP(e){
+    const r = canvas.getBoundingClientRect();
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x:cx-r.left, y:cy-r.top };
+}
+canvas.onmousedown = e => {
+    isAutoSolving = false; const pos = getP(e);
+    for(let i=pieces.length-1; i>=0; i--){
+        const p = pieces[i];
+        for(let c of p.shape){
+            const cx=p.x+c.x*GRID_SIZE, cy=p.y+c.y*GRID_SIZE;
+            if(pos.x>=cx && pos.x<=cx+GRID_SIZE && pos.y>=cy && pos.y<=cy+GRID_SIZE){
+                activePiece=p; offset.x=pos.x-p.x; offset.y=pos.y-p.y; return;
+            }
+        }
+    }
+};
+window.onmousemove = e => { if(activePiece){ const pos=getP(e); activePiece.x=pos.x-offset.x; activePiece.y=pos.y-offset.y; } };
+window.onmouseup = () => {
+    if(activePiece){
+        if(activePiece.x>BOARD_POS.x-20 && activePiece.x<BOARD_POS.x+8*GRID_SIZE){
+            activePiece.x=Math.round((activePiece.x-BOARD_POS.x)/GRID_SIZE)*GRID_SIZE+BOARD_POS.x;
+            activePiece.y=Math.round((activePiece.y-BOARD_POS.y)/GRID_SIZE)*GRID_SIZE+BOARD_POS.y;
+        }
+        checkWin(); activePiece=null;
+    }
+};
 // 觸控支援
-canvas.addEventListener('touchstart', (e) => { 
-    if(e.cancelable) e.preventDefault();
-    const mEvent = new MouseEvent("mousedown", { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
-    canvas.dispatchEvent(mEvent);
-}, {passive: false});
-window.addEventListener('touchmove', (e) => {
-    if(e.cancelable) e.preventDefault();
-    const mEvent = new MouseEvent("mousemove", { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
-    window.dispatchEvent(mEvent);
-}, {passive: false});
-window.addEventListener('touchend', () => window.dispatchEvent(new MouseEvent("mouseup", {})));
+canvas.ontouchstart = e => { if(e.cancelable) e.preventDefault(); canvas.onmousedown(e); };
+window.ontouchmove = e => { if(e.cancelable) e.preventDefault(); window.onmousemove(e); };
+window.ontouchend = () => window.onmouseup();
 
 loadLevel(0);
 draw();
