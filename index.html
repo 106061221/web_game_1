@@ -2,21 +2,26 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>工具裝箱挑戰 - 完美連通版</title>
+    <title>工具裝箱大師 - 多關卡挑戰</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
         body { margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; background: #2c3e50; font-family: sans-serif; touch-action: none; }
-        .controls { margin-bottom: 15px; display: flex; gap: 10px; }
-        button { padding: 12px 24px; font-size: 16px; font-weight: bold; cursor: pointer; background: #27ae60; color: white; border: none; border-radius: 8px; box-shadow: 0 4px #1e8449; }
-        button:active { box-shadow: 0 0px #1e8449; transform: translateY(4px); }
-        canvas { background: #ecf0f1; border: 5px solid #34495e; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .controls { margin-bottom: 10px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        button { padding: 10px 15px; font-size: 14px; font-weight: bold; cursor: pointer; background: #27ae60; color: white; border: none; border-radius: 6px; box-shadow: 0 4px #1e8449; }
+        button:active { box-shadow: 0 0px #1e8449; transform: translateY(2px); }
+        button.level-btn { background: #3498db; box-shadow: 0 4px #2980b9; }
+        button.reset { background: #e67e22; box-shadow: 0 4px #d35400; }
+        canvas { background: #ecf0f1; border: 5px solid #34495e; border-radius: 4px; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
     </style>
 </head>
 <body>
 
 <div class="controls">
+    <button class="level-btn" onclick="loadLevel(0)">第一關</button>
+    <button class="level-btn" onclick="loadLevel(1)">第二關</button>
+    <button class="level-btn" onclick="loadLevel(2)">第三關</button>
     <button onclick="showSolution()">公佈答案</button>
-    <button style="background:#e67e22; box-shadow:0 4px #d35400" onclick="location.reload()">重新開始</button>
+    <button class="reset" onclick="location.reload()">重置</button>
 </div>
 <canvas id="gameCanvas" width="400" height="650"></canvas>
 
@@ -26,53 +31,44 @@ const ctx = canvas.getContext('2d');
 const GRID_SIZE = 42;
 const BOARD_POS = { x: 33, y: 40 };
 
-// 經過嚴格校對的連通性矩陣 (8x8)
-const layout = [
-    ['S','S','S','S','S','S','S','S'],
-    ['H','H','H','B','B','B','B','B'],
-    ['P','H','P','P','D','D','D','B'],
-    ['P','H','P','R','R','R','D','B'],
-    ['P','P','P','R','K','K','D','B'],
-    ['W','W','W','R','K','K','D','B'],
-    ['W','W','W','R','K','K','K','K'],
-    ['W','W','W','R','K','K','K','K']
+const allLevels = [
+    // Level 1: 連通入門
+    [['S','S','S','S','S','S','S','S'],['H','H','H','B','B','B','B','B'],['P','H','P','P','D','D','D','B'],['P','H','P','R','R','R','D','B'],['P','P','P','R','K','K','D','B'],['W','W','W','R','K','K','D','B'],['W','W','W','R','K','K','K','K'],['W','W','W','R','K','K','K','K']],
+    // Level 2: 碎片挑戰
+    [['A','A','B','B','C','C','C','C'],['A','E','E','B','B','F','F','C'],['A','E','G','G','G','F','F','C'],['H','E','G','I','I','I','F','D'],['H','E','G','I','J','J','F','D'],['H','H','G','I','J','D','D','D'],['H','K','K','K','J','J','D','D'],['K','K','K','K','J','J','J','D']],
+    // Level 3: 蛇形封鎖
+    [['A','A','A','B','B','C','C','C'],['D','D','A','B','E','E','C','F'],['D','G','G','B','E','H','H','F'],['D','G','I','I','E','H','J','F'],['K','G','I','L','L','H','J','F'],['K','G','I','L','M','M','J','F'],['K','G','I','L','M','N','N','N'],['K','K','I','L','M','M','N','N']]
 ];
 
 const colors = {
-    'S': '#95A5A6', 'H': '#E74C3C', 'B': '#273c75',
-    'P': '#1ABC9C', 'D': '#3498DB', 'R': '#8E44AD',
-    'K': '#D35400', 'W': '#F1C40F'
+    'A': '#E74C3C', 'B': '#273c75', 'C': '#95A5A6', 'D': '#F1C40F', 'E': '#1ABC9C', 'F': '#3498DB', 'G': '#8E44AD', 'H': '#D35400', 'I': '#2ecc71', 'J': '#e84393', 'K': '#74b9ff', 'L': '#a29bfe', 'M': '#fdcb6e', 'N': '#fab1a0', 'S': '#636e72', 'P': '#00b894', 'R': '#fd79a8', 'W': '#ffeaa7'
 };
 
-function parseLayout(layout) {
+let pieces = [];
+let activePiece = null;
+let offset = { x: 0, y: 0 };
+
+function loadLevel(index) {
+    const layout = allLevels[index];
     let tempPieces = {};
     for(let y=0; y<8; y++) {
         for(let x=0; x<8; x++) {
             let char = layout[y][x];
             if(!tempPieces[char]) {
                 tempPieces[char] = { 
-                    name: char, color: colors[char], 
+                    name: char, color: colors[char] || '#000', 
                     sol: {x: x, y: y}, shape: [],
-                    x: Math.random()*280, y: 420 + Math.random()*120 
+                    x: Math.random()*250 + 20, y: 400 + Math.random()*150 
                 };
             }
-            tempPieces[char].shape.push({
-                x: x - tempPieces[char].sol.x,
-                y: y - tempPieces[char].sol.y
-            });
+            tempPieces[char].shape.push({ x: x - tempPieces[char].sol.x, y: y - tempPieces[char].sol.y });
         }
     }
-    return Object.values(tempPieces);
+    pieces = Object.values(tempPieces);
 }
-
-let pieces = parseLayout(layout);
-let activePiece = null;
-let offset = { x: 0, y: 0 };
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // 繪製箱子
     ctx.fillStyle = "#fff";
     ctx.fillRect(BOARD_POS.x, BOARD_POS.y, 8*GRID_SIZE, 8*GRID_SIZE);
     ctx.strokeStyle = '#bdc3c7';
@@ -80,14 +76,11 @@ function draw() {
         ctx.beginPath(); ctx.moveTo(BOARD_POS.x, BOARD_POS.y + i*GRID_SIZE); ctx.lineTo(BOARD_POS.x + 8*GRID_SIZE, BOARD_POS.y + i*GRID_SIZE); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(BOARD_POS.x + i*GRID_SIZE, BOARD_POS.y); ctx.lineTo(BOARD_POS.x + i*GRID_SIZE, BOARD_POS.y + 8*GRID_SIZE); ctx.stroke();
     }
-
-    // 繪製工具
     pieces.forEach(p => {
         if (p === activePiece) return;
         drawPiece(p);
     });
     if (activePiece) drawPiece(activePiece);
-
     requestAnimationFrame(draw);
 }
 
@@ -96,10 +89,8 @@ function drawPiece(p) {
     ctx.strokeStyle = "#2c3e50";
     ctx.lineWidth = 2;
     p.shape.forEach(cell => {
-        const px = p.x + cell.x*GRID_SIZE;
-        const py = p.y + cell.y*GRID_SIZE;
-        ctx.fillRect(px, py, GRID_SIZE, GRID_SIZE);
-        ctx.strokeRect(px, py, GRID_SIZE, GRID_SIZE);
+        ctx.fillRect(p.x + cell.x*GRID_SIZE, p.y + cell.y*GRID_SIZE, GRID_SIZE, GRID_SIZE);
+        ctx.strokeRect(p.x + cell.x*GRID_SIZE, p.y + cell.y*GRID_SIZE, GRID_SIZE, GRID_SIZE);
     });
 }
 
@@ -115,9 +106,8 @@ canvas.addEventListener('mousedown', e => {
     for (let i = pieces.length - 1; i >= 0; i--) {
         const p = pieces[i];
         for (let cell of p.shape) {
-            const cx = p.x + cell.x*GRID_SIZE;
-            const cy = p.y + cell.y*GRID_SIZE;
-            if (pos.x >= cx && pos.x <= cx + GRID_SIZE && pos.y >= cy && pos.y <= cy + GRID_SIZE) {
+            if (pos.x >= p.x + cell.x*GRID_SIZE && pos.x <= p.x + cell.x*GRID_SIZE + GRID_SIZE &&
+                pos.y >= p.y + cell.y*GRID_SIZE && pos.y <= p.y + cell.y*GRID_SIZE + GRID_SIZE) {
                 activePiece = p;
                 offset.x = pos.x - p.x; offset.y = pos.y - p.y;
                 return;
@@ -128,7 +118,6 @@ canvas.addEventListener('mousedown', e => {
 
 window.addEventListener('mousemove', e => {
     if (!activePiece) return;
-    if (e.cancelable) e.preventDefault();
     const pos = getPos(e);
     activePiece.x = pos.x - offset.x; activePiece.y = pos.y - offset.y;
 });
@@ -149,7 +138,7 @@ function checkWin() {
         Math.abs(p.x - (BOARD_POS.x + p.sol.x * GRID_SIZE)) < 1 &&
         Math.abs(p.y - (BOARD_POS.y + p.sol.y * GRID_SIZE)) < 1
     );
-    if(win) setTimeout(() => alert("過關！工具已完美裝入箱子！"), 200);
+    if(win) setTimeout(() => alert("過關！你真是個裝箱大師！"), 200);
 }
 
 function showSolution() {
@@ -159,19 +148,25 @@ function showSolution() {
     });
 }
 
-// 觸控支援
-canvas.addEventListener('touchstart', e => {
-    const mouseEvent = new MouseEvent("mousedown", { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
-    canvas.dispatchEvent(mouseEvent);
+// 支援觸控
+canvas.addEventListener('touchstart', (e) => { 
+    if(e.cancelable) e.preventDefault();
+    const pos = getPos(e);
+    const mousedownEvent = new MouseEvent("mousedown", { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+    canvas.dispatchEvent(mousedownEvent);
 }, {passive: false});
-window.addEventListener('touchmove', e => {
-    const mouseEvent = new MouseEvent("mousemove", { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
-    window.dispatchEvent(mouseEvent);
+
+window.addEventListener('touchmove', (e) => {
+    if(e.cancelable) e.preventDefault();
+    const moveEvent = new MouseEvent("mousemove", { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+    window.dispatchEvent(moveEvent);
 }, {passive: false});
+
 window.addEventListener('touchend', () => {
     window.dispatchEvent(new MouseEvent("mouseup", {}));
 });
 
+loadLevel(0); // 預設載入第一關
 draw();
 </script>
 </body>
