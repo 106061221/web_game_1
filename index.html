@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>工具裝箱大師 - 五關進階版</title>
+    <title>工具裝箱大師 - 自由解法版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
         :root { --bg: #2c3e50; --panel: #34495e; --accent: #27ae60; --text: #ecf0f1; }
@@ -21,7 +21,7 @@
 <body>
 
 <div class="top-bar">
-    <button class="menu-btn" onclick="toggleMenu()">☰ 關卡清單</button>
+    <button class="menu-btn" onclick="toggleMenu()">☰ 關卡選擇</button>
     <div id="currentLabel">第 1 關</div>
     <button class="menu-btn" style="background:#e67e22" onclick="showSolution()">公佈答案</button>
 </div>
@@ -32,13 +32,13 @@
 
 <div id="menuLayer" onclick="toggleMenu()">
     <div class="menu-content" onclick="event.stopPropagation()">
-        <h2 style="color:white">選擇關卡 (5關模式)</h2>
+        <h2 style="color:white">選擇關卡</h2>
         <div id="levelButtons"></div>
-        <button onclick="toggleMenu()" style="margin-top:20px; background:none; border:1px solid white; color:white; padding:5px 10px; border-radius:4px">關閉</button>
+        <button onclick="toggleMenu()" style="margin-top:20px; background:none; border:1px solid white; color:white; padding:5px 10px; border-radius:4px">返回遊戲</button>
     </div>
 </div>
 
-<canvas id="gameCanvas" width="380" height="600"></canvas>
+<canvas id="gameCanvas" width="380" height="620"></canvas>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
@@ -51,11 +51,11 @@ let unlockedLevel = 0;
 let isAutoSolving = false;
 
 const allLevels = [
-    [['A','A','A','A','B','B','B','B'],['A','A','A','A','B','B','B','B'],['A','A','A','A','B','B','B','B'],['C','C','C','C','B','B','B','B'],['C','C','C','C','D','D','D','D'],['E','E','E','E','D','D','D','D'],['E','E','E','E','D','D','D','D'],['E','E','E','E','D','D','D','D']],
-    [['A','A','A','B','B','C','C','C'],['A','A','A','B','B','C','C','C'],['D','D','D','B','B','E','E','E'],['D','D','D','F','F','E','E','E'],['D','D','D','F','F','E','E','E'],['G','G','G','F','F','G','G','G'],['G','G','G','F','F','G','G','G'],['G','G','G','G','G','G','G','G']],
-    [['A','A','B','B','C','C','D','D'],['A','A','B','B','C','C','D','D'],['E','E','E','E','F','F','F','F'],['E','E','E','E','F','F','F','F'],['G','G','H','H','I','I','D','D'],['G','G','H','H','I','I','D','D'],['G','G','H','H','I','I','B','B'],['G','G','H','H','I','I','B','B']],
-    [['A','A','B','B','C','C','D','E'],['A','A','B','B','C','C','D','E'],['F','F','G','G','H','H','D','E'],['F','F','G','G','H','H','D','E'],['I','I','I','J','J','J','K','K'],['I','I','I','J','J','J','K','K'],['A','A','B','B','C','C','K','K'],['F','F','G','G','H','H','K','K']],
-    [['A','A','B','B','C','C','D','D'],['E','E','F','F','G','G','H','H'],['I','I','J','J','K','K','L','L'],['M','M','A','B','C','D','E','F'],['G','H','I','J','K','L','M','A'],['B','C','D','E','F','G','H','I'],['J','K','L','M','A','B','C','D'],['E','F','G','H','I','J','K','L']]
+    [['A','A','A','A','B','B','B','B'],['A','A','A','A','B','B','B','B'],['C','C','C','C','B','B','B','B'],['C','C','C','C','B','B','B','B'],['D','D','D','D','E','E','E','E'],['D','D','D','D','E','E','E','E'],['D','D','D','D','E','E','E','E'],['D','D','D','D','E','E','E','E']],
+    [['A','A','A','A','A','A','B','B'],['C','C','C','C','D','D','B','B'],['C','C','C','C','D','D','B','B'],['E','E','E','E','D','D','F','F'],['E','E','E','E','G','G','F','F'],['G','G','G','G','G','G','F','F'],['G','G','G','G','G','G','F','F'],['G','G','G','G','G','G','F','F']],
+    [['A','A','A','B','B','B','C','C'],['A','A','D','D','B','B','C','C'],['E','E','D','D','D','F','F','C'],['E','E','E','G','G','F','F','F'],['H','H','G','G','G','I','I','I'],['H','H','H','A','A','A','I','I'],['B','B','B','C','C','D','D','E'],['F','F','G','G','H','H','I','I']],
+    [['A','A','B','B','C','C','D','D'],['A','E','E','B','F','F','C','D'],['G','E','E','H','F','F','I','I'],['G','G','H','H','H','J','J','I'],['K','G','L','L','L','J','J','I'],['K','K','L','M','M','M','J','B'],['K','A','C','D','E','F','G','H'],['I','J','K','L','M','A','B','C']],
+    [['A','A','B','B','C','C','D','D'],['E','E','F','F','G','G','H','H'],['I','I','J','J','K','K','L','L'],['M','M','M','M','M','A','B','C'],['D','E','F','G','H','I','J','K'],['L','L','A','A','B','B','C','C'],['D','D','E','E','F','F','G','G'],['H','H','I','I','J','J','K','K']]
 ];
 
 const colors = { 'A':'#E74C3C','B':'#273c75','C':'#95A5A6','D':'#F1C40F','E':'#1ABC9C','F':'#3498DB','G':'#8E44AD','H':'#D35400','I':'#2ecc71','J':'#e84393','K':'#74b9ff','L':'#a29bfe','M':'#fdcb6e' };
@@ -66,8 +66,8 @@ let offset = { x: 0, y: 0 };
 
 function toggleMenu() {
     const layer = document.getElementById('menuLayer');
-    if (layer.style.display === 'flex') { layer.style.display = 'none'; } 
-    else { updateMenuButtons(); layer.style.display = 'flex'; }
+    layer.style.display = (layer.style.display === 'flex') ? 'none' : 'flex';
+    if(layer.style.display === 'flex') updateMenuButtons();
 }
 
 function updateMenuButtons() {
@@ -93,7 +93,7 @@ function loadLevel(index) {
         for(let x=0; x<8; x++) {
             let char = layout[y][x];
             if(!tempPieces[char]) {
-                tempPieces[char] = { name:char, color:colors[char], sol:{x:x, y:y}, shape:[], x:Math.random()*240+20, y:360 + Math.random()*150 };
+                tempPieces[char] = { name:char, color:colors[char], sol:{x:x, y:y}, shape:[], x:Math.random()*240+20, y:380 + Math.random()*150 };
             }
             tempPieces[char].shape.push({ x:x - tempPieces[char].sol.x, y:y - tempPieces[char].sol.y });
         }
@@ -103,8 +103,28 @@ function loadLevel(index) {
 
 function checkWin() {
     if (isAutoSolving) return;
-    const win = pieces.every(p => Math.abs(p.x - (BOARD_POS.x + p.sol.x * GRID_SIZE)) < 1 && Math.abs(p.y - (BOARD_POS.y + p.sol.y * GRID_SIZE)) < 1);
-    if(win) {
+    
+    // 建立 8x8 格點掃描
+    let grid = Array(8).fill().map(() => Array(8).fill(false));
+    let fillCount = 0;
+
+    pieces.forEach(p => {
+        let gx = Math.round((p.x - BOARD_POS.x) / GRID_SIZE);
+        let gy = Math.round((p.y - BOARD_POS.y) / GRID_SIZE);
+
+        p.shape.forEach(cell => {
+            let tx = gx + cell.x;
+            let ty = gy + cell.y;
+            if (tx >= 0 && tx < 8 && ty >= 0 && ty < 8) {
+                if (!grid[ty][tx]) {
+                    grid[ty][tx] = true;
+                    fillCount++;
+                }
+            }
+        });
+    });
+
+    if(fillCount === 64) {
         if (currentLevelIndex === unlockedLevel && unlockedLevel < allLevels.length - 1) { unlockedLevel++; }
         document.getElementById('winNotice').style.display = 'block';
         document.getElementById('nextBtn').onclick = () => {
@@ -149,7 +169,8 @@ canvas.onmousedown = e => {
     for(let i=pieces.length-1; i>=0; i--){
         const p = pieces[i];
         for(let c of p.shape){
-            if(pos.x>=p.x+c.x*GRID_SIZE && pos.x<=p.x+c.x*GRID_SIZE+GRID_SIZE && pos.y>=p.y+c.y*GRID_SIZE && pos.y<=p.y+c.y*GRID_SIZE+GRID_SIZE){
+            const px=p.x+c.x*GRID_SIZE, py=p.y+c.y*GRID_SIZE;
+            if(pos.x>=px && pos.x<=px+GRID_SIZE && pos.y>=py && pos.y<=py+GRID_SIZE){
                 activePiece=p; offset.x=pos.x-p.x; offset.y=pos.y-p.y; return;
             }
         }
@@ -158,7 +179,7 @@ canvas.onmousedown = e => {
 window.onmousemove = e => { if(activePiece){ const pos=getP(e); activePiece.x=pos.x-offset.x; activePiece.y=pos.y-offset.y; } };
 window.onmouseup = () => {
     if(activePiece){
-        if(activePiece.x>BOARD_POS.x-20 && activePiece.x<BOARD_POS.x+8*GRID_SIZE){
+        if(activePiece.x>BOARD_POS.x-20 && activePiece.x<BOARD_POS.x+8*GRID_SIZE && activePiece.y>BOARD_POS.y-20 && activePiece.y<BOARD_POS.y+8*GRID_SIZE){
             activePiece.x=Math.round((activePiece.x-BOARD_POS.x)/GRID_SIZE)*GRID_SIZE+BOARD_POS.x;
             activePiece.y=Math.round((activePiece.y-BOARD_POS.y)/GRID_SIZE)*GRID_SIZE+BOARD_POS.y;
         }
