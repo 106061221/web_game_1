@@ -2,167 +2,81 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>工具裝箱大師 - 實體寫實版</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>實體工具大師</title>
     <style>
-        :root { --bg: #1a1a1a; --panel: #2d2d2d; --accent: #e67e22; --text: #ecf0f1; }
-        body { margin: 0; display: flex; flex-direction: column; align-items: center; height: 100vh; background: var(--bg); font-family: sans-serif; overflow: hidden; touch-action: none; color: var(--text); }
-        .top-bar { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; box-sizing: border-box; background: var(--panel); border-bottom: 2px solid #444; }
-        #winNotice { display: none; position: fixed; top: 80px; background: var(--accent); color: white; padding: 15px 40px; border-radius: 4px; font-weight: bold; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 100; font-size: 20px; }
-        canvas { background: #333; border: 10px solid #222; border-radius: 8px; margin-top: 20px; cursor: grab; box-shadow: inset 0 0 50px rgba(0,0,0,0.8); }
-        canvas:active { cursor: grabbing; }
+        body { margin: 0; background: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
+        canvas { background: #222; border: 5px solid #333; box-shadow: inset 0 0 30px #000; cursor: grab; }
     </style>
 </head>
 <body>
-
-<div class="top-bar">
-    <div style="font-weight:bold; font-size:1.2em;">🔧 工具收納系統 - 第一關</div>
-    <div id="status">載入工具中...</div>
-</div>
-
-<div id="winNotice">🎉 收納完成！工具歸位。</div>
-
-<canvas id="gameCanvas" width="380" height="600"></canvas>
-
+<canvas id="g" width="380" height="600"></canvas>
 <script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-
-// 工具實體配置：包含真實照片來源與收納目標
-const toolsConfig = [
-    { name: 'Hammer', url: 'https://i.imgur.com/vH9ZJ4n.png', w: 180, h: 90, targetX: 100, targetY: 50 },
-    { name: 'Wrench', url: 'https://i.imgur.com/r6TzV0k.png', w: 150, h: 50, targetX: 110, targetY: 180 },
-    { name: 'Screwdriver', url: 'https://i.imgur.com/S8M4sO0.png', w: 140, h: 40, targetX: 50, targetY: 280 },
-    { name: 'Pliers', url: 'https://i.imgur.com/pYxY1rO.png', w: 120, h: 80, targetX: 210, targetY: 260 },
-    { name: 'Saw', url: 'https://i.imgur.com/Psh5Xn6.png', w: 220, h: 100, targetX: 80, targetY: 400 }
+const cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
+let pieces = [
+    { name: 'Hammer', x: 50, y: 450, tx: 90, ty: 80, w: 180, h: 60, color: '#888' },
+    { name: 'Wrench', x: 200, y: 500, tx: 100, ty: 200, w: 150, h: 40, color: '#aaa' }
 ];
+let active = null, off = { x: 0, y: 0 };
 
-let pieces = [];
-let activePiece = null;
-let offset = { x: 0, y: 0 };
-let imagesLoaded = 0;
-
-// 初始化：載入寫實照片素材
-function init() {
-    toolsConfig.forEach(config => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.src = config.url;
-        img.onload = () => {
-            imagesLoaded++;
-            pieces.push({
-                ...config,
-                img: img,
-                x: Math.random() * 150 + 50,
-                y: 480 + Math.random() * 50,
-                isLocked: false
-            });
-            if (imagesLoaded === toolsConfig.length) {
-                document.getElementById('status').innerText = "就緒";
-                draw();
-            }
-        };
-    });
-}
-
-function checkWin() {
-    const allLocked = pieces.every(p => {
-        const dist = Math.sqrt(Math.pow(p.x - p.targetX, 2) + Math.pow(p.y - p.targetY, 2));
-        return dist < 15; // 判定距離誤差在 15px 內
-    });
-    if (allLocked) {
-        document.getElementById('winNotice').style.display = 'block';
-    }
-}
-
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 1. 繪製箱底收納凹槽 (影子板視覺)
-    pieces.forEach(p => {
-        ctx.save();
-        ctx.globalAlpha = 0.2;
-        ctx.filter = 'brightness(0)';
-        ctx.drawImage(p.img, p.targetX, p.targetY, p.w, p.h);
-        ctx.restore();
-    });
-
-    // 2. 繪製實體工具（帶立體陰影與材質感）
-    pieces.forEach(p => {
-        if (p === activePiece) return;
-        renderPiece(p);
-    });
-
-    if (activePiece) renderPiece(activePiece);
-
-    requestAnimationFrame(draw);
-}
-
-function renderPiece(p) {
+function drawTool(p, isShadow = false) {
     ctx.save();
-    // 物理投影，模擬工具離底部的厚度
-    ctx.shadowColor = "rgba(0,0,0,0.6)";
-    ctx.shadowBlur = 15;
-    ctx.shadowOffsetX = 5;
-    ctx.shadowOffsetY = 8;
-    
-    ctx.drawImage(p.img, p.x, p.y, p.w, p.h);
-    
-    // 微亮高光層：增強金屬反光感
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.08;
-    ctx.drawImage(p.img, p.x, p.y, p.w, p.h);
+    ctx.translate(p.x, p.y);
+    if (isShadow) { ctx.filter = 'brightness(0)'; ctx.globalAlpha = 0.3; }
+    else {
+        ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 5;
+    }
+
+    if (p.name === 'Hammer') {
+        // 鎚頭：金屬漸層
+        let g = ctx.createLinearGradient(0, 0, 60, 0);
+        g.addColorStop(0, '#444'); g.addColorStop(0.5, '#eee'); g.addColorStop(1, '#444');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, 60, 40); // 鎚頭主體
+        ctx.fillStyle = '#b52'; // 木柄
+        ctx.fillRect(20, 40, 20, 100); 
+    } else if (p.name === 'Wrench') {
+        // 扳手：鋼鐵質感
+        ctx.fillStyle = '#999';
+        ctx.fillRect(30, 10, 100, 20); // 柄
+        ctx.beginPath(); ctx.arc(30, 20, 20, 0, 7); ctx.fill(); // 頭
+        ctx.clearRect(15, 15, 15, 10); // 扳手開口
+    }
     ctx.restore();
 }
 
-// 互動邏輯：像素邊界選取
-function getMousePos(e) {
-    const r = canvas.getBoundingClientRect();
-    const cx = e.touches ? e.touches[0].clientX : e.clientX;
-    const cy = e.touches ? e.touches[0].clientY : e.clientY;
-    return { x: cx - r.left, y: cy - r.top };
+function render() {
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+    // 畫凹槽
+    pieces.forEach(p => { 
+        let temp = {...p, x: p.tx, y: p.ty};
+        drawTool(temp, true);
+    });
+    // 畫實體
+    pieces.forEach(p => drawTool(p));
+    requestAnimationFrame(render);
 }
 
-canvas.onmousedown = e => {
-    const pos = getMousePos(e);
-    for (let i = pieces.length - 1; i >= 0; i--) {
-        const p = pieces[i];
-        if (pos.x >= p.x && pos.x <= p.x + p.w && pos.y >= p.y && pos.y <= p.y + p.h) {
-            activePiece = p;
-            offset.x = pos.x - p.x;
-            offset.y = pos.y - p.y;
-            return;
-        }
-    }
+cvs.onmousedown = e => {
+    const r = cvs.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+    active = pieces.find(p => px > p.x && px < p.x + p.w && py > p.y && py < p.y + p.h);
+    if (active) { off.x = px - active.x; off.y = py - active.y; }
 };
-
 window.onmousemove = e => {
-    if (activePiece) {
-        const pos = getMousePos(e);
-        activePiece.x = pos.x - offset.x;
-        activePiece.y = pos.y - offset.y;
+    if (active) {
+        const r = cvs.getBoundingClientRect();
+        active.x = e.clientX - r.left - off.x;
+        active.y = e.clientY - r.top - off.y;
     }
 };
-
 window.onmouseup = () => {
-    if (activePiece) {
-        // 自動吸附邏輯：靠近凹槽時自動歸位
-        const dist = Math.sqrt(Math.pow(activePiece.x - activePiece.targetX, 2) + Math.pow(activePiece.y - activePiece.targetY, 2));
-        if (dist < 30) {
-            activePiece.x = activePiece.targetX;
-            activePiece.y = activePiece.targetY;
+    if (active) {
+        if (Math.abs(active.x - active.tx) < 20 && Math.abs(active.y - active.ty) < 20) {
+            active.x = active.tx; active.y = active.ty;
         }
-        checkWin();
-        activePiece = null;
+        active = null;
     }
 };
-
-// 支援手機觸控
-canvas.ontouchstart = e => { if(e.cancelable) e.preventDefault(); canvas.onmousedown(e); };
-window.ontouchmove = e => { if(e.cancelable) e.preventDefault(); window.onmousemove(e); };
-window.ontouchend = () => window.onmouseup();
-
-init();
+render();
 </script>
 </body>
 </html>
