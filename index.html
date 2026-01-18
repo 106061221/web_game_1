@@ -2,45 +2,37 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>工具裝箱大師 - 進度解鎖版</title>
+    <title>工具裝箱大師 - 五關進階版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
         :root { --bg: #2c3e50; --panel: #34495e; --accent: #27ae60; --text: #ecf0f1; }
         body { margin: 0; display: flex; flex-direction: column; align-items: center; height: 100vh; background: var(--bg); font-family: sans-serif; overflow: hidden; touch-action: none; }
-        
-        /* 置頂 UI */
         .top-bar { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; box-sizing: border-box; background: var(--panel); color: var(--text); z-index: 10; }
         .menu-btn { padding: 8px 15px; background: #3498db; border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: bold; }
-        
-        /* 關卡選單 */
         #menuLayer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; flex-direction: column; justify-content: center; align-items: center; }
         .menu-content { background: var(--panel); padding: 30px; border-radius: 12px; text-align: center; min-width: 250px; }
-        .level-option { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 8px; font-size: 18px; cursor: pointer; transition: 0.3s; }
+        .level-option { width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; transition: 0.3s; }
         .level-locked { background: #7f8c8d !important; cursor: not-allowed; opacity: 0.6; }
         .level-unlocked { background: #2ecc71; color: white; }
-
-        /* 過關內建提示 UI */
-        #winNotice { display: none; position: fixed; top: 50px; background: var(--accent); color: white; padding: 15px 30px; border-radius: 50px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 50; animation: slideDown 0.5s ease; }
-        @keyframes slideDown { from { transform: translateY(-100px); } to { transform: translateY(0); } }
-
-        canvas { background: #ecf0f1; border: 5px solid var(--panel); border-radius: 4px; margin-top: 20px; }
+        #winNotice { display: none; position: fixed; top: 60px; background: var(--accent); color: white; padding: 15px 30px; border-radius: 50px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 50; }
+        canvas { background: #ecf0f1; border: 5px solid var(--panel); border-radius: 4px; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <div class="top-bar">
-    <button class="menu-btn" onclick="toggleMenu()">☰ 關卡選擇</button>
+    <button class="menu-btn" onclick="toggleMenu()">☰ 關卡清單</button>
     <div id="currentLabel">第 1 關</div>
     <button class="menu-btn" style="background:#e67e22" onclick="showSolution()">公佈答案</button>
 </div>
 
 <div id="winNotice">
-    🎉 完美裝箱！ <button onclick="nextLevel()" style="margin-left:10px; padding:5px 10px; border:none; border-radius:4px; cursor:pointer; font-weight:bold">進入下一關</button>
+    🎉 完美裝箱！ <button id="nextBtn" style="margin-left:10px; padding:5px 10px; border:none; border-radius:4px; cursor:pointer; font-weight:bold">進入下一關</button>
 </div>
 
 <div id="menuLayer" onclick="toggleMenu()">
     <div class="menu-content" onclick="event.stopPropagation()">
-        <h2 style="color:white">選擇關卡</h2>
+        <h2 style="color:white">選擇關卡 (5關模式)</h2>
         <div id="levelButtons"></div>
         <button onclick="toggleMenu()" style="margin-top:20px; background:none; border:1px solid white; color:white; padding:5px 10px; border-radius:4px">關閉</button>
     </div>
@@ -55,16 +47,18 @@ const GRID_SIZE = 40;
 const BOARD_POS = { x: 30, y: 30 };
 
 let currentLevelIndex = 0;
-let unlockedLevel = 0; // 已解鎖的最高關卡索引
+let unlockedLevel = 0;
 let isAutoSolving = false;
 
 const allLevels = [
-    [['S','S','S','S','S','S','S','S'],['H','H','H','B','B','B','B','B'],['P','H','P','P','D','D','D','B'],['P','H','P','R','R','R','D','B'],['P','P','P','R','K','K','D','B'],['W','W','W','R','K','K','D','B'],['W','W','W','R','K','K','K','K'],['W','W','W','R','K','K','K','K']],
-    [['A','A','B','B','C','C','C','C'],['A','E','E','B','B','F','F','C'],['A','E','G','G','G','F','F','C'],['H','E','G','I','I','I','F','D'],['H','E','G','I','J','J','F','D'],['H','H','G','I','J','D','D','D'],['H','K','K','K','J','J','D','D'],['K','K','K','K','J','J','J','D']],
-    [['A','A','A','B','B','C','C','C'],['D','D','A','B','E','E','C','F'],['D','G','G','B','E','H','H','F'],['D','G','I','I','E','H','J','F'],['K','G','I','L','L','H','J','F'],['K','G','I','L','M','M','J','F'],['K','G','I','L','M','N','N','N'],['K','K','I','L','M','M','N','N']]
+    [['A','A','A','A','B','B','B','B'],['A','A','A','A','B','B','B','B'],['A','A','A','A','B','B','B','B'],['C','C','C','C','B','B','B','B'],['C','C','C','C','D','D','D','D'],['E','E','E','E','D','D','D','D'],['E','E','E','E','D','D','D','D'],['E','E','E','E','D','D','D','D']],
+    [['A','A','A','B','B','C','C','C'],['A','A','A','B','B','C','C','C'],['D','D','D','B','B','E','E','E'],['D','D','D','F','F','E','E','E'],['D','D','D','F','F','E','E','E'],['G','G','G','F','F','G','G','G'],['G','G','G','F','F','G','G','G'],['G','G','G','G','G','G','G','G']],
+    [['A','A','B','B','C','C','D','D'],['A','A','B','B','C','C','D','D'],['E','E','E','E','F','F','F','F'],['E','E','E','E','F','F','F','F'],['G','G','H','H','I','I','D','D'],['G','G','H','H','I','I','D','D'],['G','G','H','H','I','I','B','B'],['G','G','H','H','I','I','B','B']],
+    [['A','A','B','B','C','C','D','E'],['A','A','B','B','C','C','D','E'],['F','F','G','G','H','H','D','E'],['F','F','G','G','H','H','D','E'],['I','I','I','J','J','J','K','K'],['I','I','I','J','J','J','K','K'],['A','A','B','B','C','C','K','K'],['F','F','G','G','H','H','K','K']],
+    [['A','A','B','B','C','C','D','D'],['E','E','F','F','G','G','H','H'],['I','I','J','J','K','K','L','L'],['M','M','A','B','C','D','E','F'],['G','H','I','J','K','L','M','A'],['B','C','D','E','F','G','H','I'],['J','K','L','M','A','B','C','D'],['E','F','G','H','I','J','K','L']]
 ];
 
-const colors = { 'A':'#E74C3C','B':'#273c75','C':'#95A5A6','D':'#F1C40F','E':'#1ABC9C','F':'#3498DB','G':'#8E44AD','H':'#D35400','I':'#2ecc71','J':'#e84393','K':'#74b9ff','L':'#a29bfe','M':'#fdcb6e','N':'#fab1a0','S':'#636e72','P':'#00b894','R':'#fd79a8','W':'#ffeaa7' };
+const colors = { 'A':'#E74C3C','B':'#273c75','C':'#95A5A6','D':'#F1C40F','E':'#1ABC9C','F':'#3498DB','G':'#8E44AD','H':'#D35400','I':'#2ecc71','J':'#e84393','K':'#74b9ff','L':'#a29bfe','M':'#fdcb6e' };
 
 let pieces = [];
 let activePiece = null;
@@ -72,12 +66,8 @@ let offset = { x: 0, y: 0 };
 
 function toggleMenu() {
     const layer = document.getElementById('menuLayer');
-    if (layer.style.display === 'flex') {
-        layer.style.display = 'none';
-    } else {
-        updateMenuButtons();
-        layer.style.display = 'flex';
-    }
+    if (layer.style.display === 'flex') { layer.style.display = 'none'; } 
+    else { updateMenuButtons(); layer.style.display = 'flex'; }
 }
 
 function updateMenuButtons() {
@@ -103,7 +93,7 @@ function loadLevel(index) {
         for(let x=0; x<8; x++) {
             let char = layout[y][x];
             if(!tempPieces[char]) {
-                tempPieces[char] = { name:char, color:colors[char], sol:{x:x, y:y}, shape:[], x:Math.random()*250, y:380 + Math.random()*120 };
+                tempPieces[char] = { name:char, color:colors[char], sol:{x:x, y:y}, shape:[], x:Math.random()*240+20, y:360 + Math.random()*150 };
             }
             tempPieces[char].shape.push({ x:x - tempPieces[char].sol.x, y:y - tempPieces[char].sol.y });
         }
@@ -115,16 +105,12 @@ function checkWin() {
     if (isAutoSolving) return;
     const win = pieces.every(p => Math.abs(p.x - (BOARD_POS.x + p.sol.x * GRID_SIZE)) < 1 && Math.abs(p.y - (BOARD_POS.y + p.sol.y * GRID_SIZE)) < 1);
     if(win) {
-        if (currentLevelIndex === unlockedLevel && unlockedLevel < allLevels.length - 1) {
-            unlockedLevel++; // 解鎖下一關
-        }
+        if (currentLevelIndex === unlockedLevel && unlockedLevel < allLevels.length - 1) { unlockedLevel++; }
         document.getElementById('winNotice').style.display = 'block';
-    }
-}
-
-function nextLevel() {
-    if (currentLevelIndex < allLevels.length - 1) {
-        loadLevel(currentLevelIndex + 1);
+        document.getElementById('nextBtn').onclick = () => {
+            if (currentLevelIndex < allLevels.length - 1) loadLevel(currentLevelIndex + 1);
+            else document.getElementById('winNotice').style.display = 'none';
+        };
     }
 }
 
@@ -133,11 +119,10 @@ function showSolution() {
     pieces.forEach(p => { p.x = BOARD_POS.x + p.sol.x * GRID_SIZE; p.y = BOARD_POS.y + p.sol.y * GRID_SIZE; });
 }
 
-// 繪製與輸入邏輯 (保持穩定)
 function draw() {
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.fillStyle="#fff"; ctx.fillRect(BOARD_POS.x, BOARD_POS.y, 8*GRID_SIZE, 8*GRID_SIZE);
-    ctx.strokeStyle='#bdc3c7'; ctx.lineWidth=1;
+    ctx.strokeStyle='#bdc3c7';
     for(let i=0;i<=8;i++){
         ctx.beginPath(); ctx.moveTo(BOARD_POS.x, BOARD_POS.y+i*GRID_SIZE); ctx.lineTo(BOARD_POS.x+8*GRID_SIZE, BOARD_POS.y+i*GRID_SIZE); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(BOARD_POS.x+i*GRID_SIZE, BOARD_POS.y); ctx.lineTo(BOARD_POS.x+i*GRID_SIZE, BOARD_POS.y+8*GRID_SIZE); ctx.stroke();
@@ -164,8 +149,7 @@ canvas.onmousedown = e => {
     for(let i=pieces.length-1; i>=0; i--){
         const p = pieces[i];
         for(let c of p.shape){
-            const cx=p.x+c.x*GRID_SIZE, cy=p.y+c.y*GRID_SIZE;
-            if(pos.x>=cx && pos.x<=cx+GRID_SIZE && pos.y>=cy && pos.y<=cy+GRID_SIZE){
+            if(pos.x>=p.x+c.x*GRID_SIZE && pos.x<=p.x+c.x*GRID_SIZE+GRID_SIZE && pos.y>=p.y+c.y*GRID_SIZE && pos.y<=p.y+c.y*GRID_SIZE+GRID_SIZE){
                 activePiece=p; offset.x=pos.x-p.x; offset.y=pos.y-p.y; return;
             }
         }
@@ -181,7 +165,6 @@ window.onmouseup = () => {
         checkWin(); activePiece=null;
     }
 };
-// 觸控支援
 canvas.ontouchstart = e => { if(e.cancelable) e.preventDefault(); canvas.onmousedown(e); };
 window.ontouchmove = e => { if(e.cancelable) e.preventDefault(); window.onmousemove(e); };
 window.ontouchend = () => window.onmouseup();
