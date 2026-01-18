@@ -2,26 +2,28 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>工具裝箱大師 - 多關卡挑戰</title>
+    <title>工具裝箱大師 - 智慧跳關版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
         body { margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; background: #2c3e50; font-family: sans-serif; touch-action: none; }
         .controls { margin-bottom: 10px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        .status { color: #ecf0f1; margin-bottom: 5px; font-weight: bold; }
         button { padding: 10px 15px; font-size: 14px; font-weight: bold; cursor: pointer; background: #27ae60; color: white; border: none; border-radius: 6px; box-shadow: 0 4px #1e8449; }
         button:active { box-shadow: 0 0px #1e8449; transform: translateY(2px); }
         button.level-btn { background: #3498db; box-shadow: 0 4px #2980b9; }
         button.reset { background: #e67e22; box-shadow: 0 4px #d35400; }
-        canvas { background: #ecf0f1; border: 5px solid #34495e; border-radius: 4px; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+        canvas { background: #ecf0f1; border: 5px solid #34495e; border-radius: 4px; }
     </style>
 </head>
 <body>
 
+<div class="status" id="levelDisplay">第 1 關</div>
 <div class="controls">
-    <button class="level-btn" onclick="loadLevel(0)">第一關</button>
-    <button class="level-btn" onclick="loadLevel(1)">第二關</button>
-    <button class="level-btn" onclick="loadLevel(2)">第三關</button>
+    <button class="level-btn" onclick="loadLevel(0)">1</button>
+    <button class="level-btn" onclick="loadLevel(1)">2</button>
+    <button class="level-btn" onclick="loadLevel(2)">3</button>
     <button onclick="showSolution()">公佈答案</button>
-    <button class="reset" onclick="location.reload()">重置</button>
+    <button class="reset" onclick="location.reload()">重新開始</button>
 </div>
 <canvas id="gameCanvas" width="400" height="650"></canvas>
 
@@ -30,6 +32,9 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const GRID_SIZE = 42;
 const BOARD_POS = { x: 33, y: 40 };
+
+let currentLevelIndex = 0;
+let isAutoSolving = false; // 防錯標記：是否正處於「公佈答案」狀態
 
 const allLevels = [
     // Level 1: 連通入門
@@ -49,6 +54,9 @@ let activePiece = null;
 let offset = { x: 0, y: 0 };
 
 function loadLevel(index) {
+    currentLevelIndex = index;
+    isAutoSolving = false; // 重置狀態
+    document.getElementById('levelDisplay').innerText = "第 " + (index + 1) + " 關";
     const layout = allLevels[index];
     let tempPieces = {};
     for(let y=0; y<8; y++) {
@@ -76,18 +84,13 @@ function draw() {
         ctx.beginPath(); ctx.moveTo(BOARD_POS.x, BOARD_POS.y + i*GRID_SIZE); ctx.lineTo(BOARD_POS.x + 8*GRID_SIZE, BOARD_POS.y + i*GRID_SIZE); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(BOARD_POS.x + i*GRID_SIZE, BOARD_POS.y); ctx.lineTo(BOARD_POS.x + i*GRID_SIZE, BOARD_POS.y + 8*GRID_SIZE); ctx.stroke();
     }
-    pieces.forEach(p => {
-        if (p === activePiece) return;
-        drawPiece(p);
-    });
+    pieces.forEach(p => { if (p !== activePiece) drawPiece(p); });
     if (activePiece) drawPiece(activePiece);
     requestAnimationFrame(draw);
 }
 
 function drawPiece(p) {
-    ctx.fillStyle = p.color;
-    ctx.strokeStyle = "#2c3e50";
-    ctx.lineWidth = 2;
+    ctx.fillStyle = p.color; ctx.strokeStyle = "#2c3e50"; ctx.lineWidth = 2;
     p.shape.forEach(cell => {
         ctx.fillRect(p.x + cell.x*GRID_SIZE, p.y + cell.y*GRID_SIZE, GRID_SIZE, GRID_SIZE);
         ctx.strokeRect(p.x + cell.x*GRID_SIZE, p.y + cell.y*GRID_SIZE, GRID_SIZE, GRID_SIZE);
@@ -102,15 +105,14 @@ function getPos(e) {
 }
 
 canvas.addEventListener('mousedown', e => {
+    isAutoSolving = false; // 只要玩家動手，就恢復偵測
     const pos = getPos(e);
     for (let i = pieces.length - 1; i >= 0; i--) {
         const p = pieces[i];
         for (let cell of p.shape) {
-            if (pos.x >= p.x + cell.x*GRID_SIZE && pos.x <= p.x + cell.x*GRID_SIZE + GRID_SIZE &&
-                pos.y >= p.y + cell.y*GRID_SIZE && pos.y <= p.y + cell.y*GRID_SIZE + GRID_SIZE) {
-                activePiece = p;
-                offset.x = pos.x - p.x; offset.y = pos.y - p.y;
-                return;
+            const cx = p.x + cell.x*GRID_SIZE; const cy = p.y + cell.y*GRID_SIZE;
+            if (pos.x >= cx && pos.x <= cx + GRID_SIZE && pos.y >= cy && pos.y <= cy + GRID_SIZE) {
+                activePiece = p; offset.x = pos.x - p.x; offset.y = pos.y - p.y; return;
             }
         }
     }
@@ -124,8 +126,7 @@ window.addEventListener('mousemove', e => {
 
 window.addEventListener('mouseup', () => {
     if (!activePiece) return;
-    if (activePiece.x > BOARD_POS.x - GRID_SIZE && activePiece.x < BOARD_POS.x + 8 * GRID_SIZE &&
-        activePiece.y > BOARD_POS.y - GRID_SIZE && activePiece.y < BOARD_POS.y + 8 * GRID_SIZE) {
+    if (activePiece.x > BOARD_POS.x - GRID_SIZE && activePiece.x < BOARD_POS.x + 8 * GRID_SIZE) {
         activePiece.x = Math.round((activePiece.x - BOARD_POS.x)/GRID_SIZE)*GRID_SIZE + BOARD_POS.x;
         activePiece.y = Math.round((activePiece.y - BOARD_POS.y)/GRID_SIZE)*GRID_SIZE + BOARD_POS.y;
     }
@@ -134,39 +135,48 @@ window.addEventListener('mouseup', () => {
 });
 
 function checkWin() {
+    // 只有在非公佈答案的狀態下才觸發過關
+    if (isAutoSolving) return;
+
     const win = pieces.every(p => 
         Math.abs(p.x - (BOARD_POS.x + p.sol.x * GRID_SIZE)) < 1 &&
         Math.abs(p.y - (BOARD_POS.y + p.sol.y * GRID_SIZE)) < 1
     );
-    if(win) setTimeout(() => alert("過關！你真是個裝箱大師！"), 200);
+
+    if(win) {
+        setTimeout(() => {
+            if (currentLevelIndex < allLevels.length - 1) {
+                alert("太棒了！準備進入下一關！");
+                loadLevel(currentLevelIndex + 1);
+            } else {
+                alert("恭喜！你已通關所有關卡！");
+            }
+        }, 200);
+    }
 }
 
 function showSolution() {
+    isAutoSolving = true; // 進入自動演示模式，禁用 checkWin 中的彈窗
     pieces.forEach(p => {
         p.x = BOARD_POS.x + p.sol.x * GRID_SIZE;
         p.y = BOARD_POS.y + p.sol.y * GRID_SIZE;
     });
 }
 
-// 支援觸控
+// 觸控支援
 canvas.addEventListener('touchstart', (e) => { 
     if(e.cancelable) e.preventDefault();
-    const pos = getPos(e);
-    const mousedownEvent = new MouseEvent("mousedown", { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
-    canvas.dispatchEvent(mousedownEvent);
+    const mEvent = new MouseEvent("mousedown", { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+    canvas.dispatchEvent(mEvent);
 }, {passive: false});
-
 window.addEventListener('touchmove', (e) => {
     if(e.cancelable) e.preventDefault();
-    const moveEvent = new MouseEvent("mousemove", { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
-    window.dispatchEvent(moveEvent);
+    const mEvent = new MouseEvent("mousemove", { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+    window.dispatchEvent(mEvent);
 }, {passive: false});
+window.addEventListener('touchend', () => window.dispatchEvent(new MouseEvent("mouseup", {})));
 
-window.addEventListener('touchend', () => {
-    window.dispatchEvent(new MouseEvent("mouseup", {}));
-});
-
-loadLevel(0); // 預設載入第一關
+loadLevel(0);
 draw();
 </script>
 </body>
