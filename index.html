@@ -1,43 +1,84 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-    <title>工具箱挑戰 - 8x8 完美填滿</title>
+    <meta charset="UTF-8">
+    <title>工具裝箱挑戰 - 8x8 完美填充</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; background: #2c3e50; font-family: sans-serif; touch-action: none; }
-        canvas { background: #ecf0f1; border: 4px solid #34495e; box-shadow: 0 10px 20px rgba(0,0,0,0.3); max-width: 95vw; max-height: 80vh; }
-        .hint { color: white; margin-bottom: 10px; }
+        body { 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            background: #2c3e50; 
+            font-family: "Microsoft JhengHei", sans-serif; 
+            touch-action: none; 
+        }
+        .controls { 
+            margin-bottom: 15px; 
+            display: flex; 
+            gap: 10px; 
+        }
+        button { 
+            padding: 12px 24px; 
+            font-size: 16px; 
+            font-weight: bold;
+            cursor: pointer; 
+            background: #27ae60; 
+            color: white; 
+            border: none; 
+            border-radius: 8px;
+            box-shadow: 0 4px #1e8449;
+        }
+        button:active {
+            box-shadow: 0 0px #1e8449;
+            transform: translateY(4px);
+        }
+        button.reset { background: #e67e22; box-shadow: 0 4px #d35400; }
+        canvas { 
+            background: #ecf0f1; 
+            border: 5px solid #34495e; 
+            border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 95vw; 
+            max-height: 75vh; 
+        }
     </style>
 </head>
 <body>
 
-<div class="hint">目標：將所有工具放入 8x8 箱子內</div>
-<canvas id="gameCanvas" width="400" height="650"></canvas>
+<div class="controls">
+    <button onclick="showSolution()">公佈答案</button>
+    <button class="reset" onclick="resetGame()">重新開始</button>
+</div>
+<canvas id="gameCanvas" width="400" height="640"></canvas>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-const GRID_SIZE = 45;
-const BOARD_POS = { x: 20, y: 50 };
+const GRID_SIZE = 42;
+const BOARD_POS = { x: 33, y: 40 };
 const BOARD_DIM = { rows: 8, cols: 8 };
 
-// 定義工具物件與形狀 (總共 64 格)
+// 嚴格設計的工具形狀與解法位置，總計 64 格
 let pieces = [
-    { name: "大槌子", color: "#E74C3C", x: 20, y: 430, isDragging: false, 
-      shape: [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:0,y:1},{x:1,y:1},{x:2,y:1},{x:1,y:2},{x:1,y:3},{x:1,y:4},{x:1,y:5}] }, // 10格
-    { name: "長扳手", color: "#F1C40F", x: 180, y: 430, isDragging: false, 
-      shape: [{x:0,y:0},{x:0,y:1},{x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1},{x:4,y:0},{x:2,y:2}] }, // 8格
-    { name: "鋸子", color: "#95A5A6", x: 20, y: 530, isDragging: false, 
-      shape: [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:4,y:0},{x:0,y:1},{x:1,y:1},{x:2,y:1},{x:3,y:1},{x:0,y:2},{x:1,y:2},{x:2,y:2}] }, // 12格
-    { name: "螺絲起子", color: "#3498DB", x: 280, y: 430, isDragging: false, 
-      shape: [{x:0,y:0},{x:0,y:1},{x:0,y:2},{x:0,y:3},{x:0,y:4},{x:0,y:5}] }, // 6格
-    { name: "鉗子", color: "#1ABC9C", x: 180, y: 530, isDragging: false, 
-      shape: [{x:0,y:0},{x:1,y:0},{x:0,y:1},{x:1,y:1},{x:0,y:2},{x:1,y:2},{x:0,y:3},{x:1,y:3}] }, // 8格
-    { name: "美工刀", color: "#D35400", x: 280, y: 530, isDragging: false, 
-      shape: [{x:0,y:0},{x:1,y:0},{x:0,y:1},{x:1,y:1},{x:0,y:2},{x:1,y:2},{x:0,y:3},{x:1,y:3},{x:0,y:4},{x:1,y:4}] }, // 10格
-    { name: "L型尺", color: "#8E44AD", x: 10, y: 430, isDragging: false, 
-      shape: [{x:0,y:0},{x:0,y:1},{x:0,y:2},{x:0,y:3},{x:1,y:3},{x:2,y:3},{x:3,y:3},{x:4,y:3},{x:5,y:3},{x:6,y:3}] } // 10格
+    { name: "大槌子", color: "#E74C3C", x: 20, y: 420, sol: {x:0, y:0}, 
+      shape: [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:1,y:1},{x:1,y:2},{x:1,y:3},{x:1,y:4},{x:1,y:5}] },
+    { name: "鋸子", color: "#95A5A6", x: 160, y: 420, sol: {x:3, y:0}, 
+      shape: [{x:0,y:0},{x:1,y:0},{x:0,y:1},{x:1,y:1},{x:0,y:2},{x:1,y:2},{x:0,y:3},{x:1,y:3},{x:0,y:4},{x:1,y:4}] },
+    { name: "扳手", color: "#F1C40F", x: 260, y: 420, sol: {x:0, y:6}, 
+      shape: [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:4,y:0},{x:5,y:0},{x:6,y:0},{x:7,y:0},{x:0,y:1},{x:7,y:1}] },
+    { name: "螺絲起子", color: "#3498DB", x: 20, y: 530, sol: {x:5, y:0}, 
+      shape: [{x:0,y:0},{x:0,y:1},{x:0,y:2},{x:0,y:3},{x:0,y:4},{x:0,y:5},{x:0,y:6},{x:0,y:7}] },
+    { name: "鉗子", color: "#1ABC9C", x: 100, y: 530, sol: {x:6, y:0}, 
+      shape: [{x:0,y:0},{x:1,y:0},{x:0,y:1},{x:1,y:1},{x:0,y:2},{x:1,y:2},{x:0,y:3},{x:1,y:3},{x:0,y:4},{x:1,y:4}] },
+    { name: "美工刀", color: "#D35400", x: 210, y: 530, sol: {x:2, y:1}, 
+      shape: [{x:0,y:0},{x:0,y:1},{x:0,y:2},{x:0,y:3},{x:0,y:4},{x:1,y:4},{x:2,y:4},{x:2,y:3},{x:2,y:2}] },
+    { name: "L型尺", color: "#8E44AD", x: 320, y: 500, sol: {x:3, y:5}, 
+      shape: [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:4,y:0},{x:0,y:1},{x:0,y:2},{x:1,y:2},{x:2,y:2}] }
 ];
 
 let activePiece = null;
@@ -46,8 +87,8 @@ let offset = { x: 0, y: 0 };
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. 繪製箱子網格
-    ctx.fillStyle = "#fff";
+    // 1. 繪製 8x8 箱子網格
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(BOARD_POS.x, BOARD_POS.y, BOARD_DIM.cols * GRID_SIZE, BOARD_DIM.rows * GRID_SIZE);
     ctx.strokeStyle = '#bdc3c7';
     ctx.lineWidth = 1;
@@ -64,7 +105,7 @@ function draw() {
         ctx.stroke();
     }
 
-    // 2. 繪製所有物件 (先畫沒被抓取的， activePiece 最後畫以免被遮擋)
+    // 2. 繪製所有工具
     pieces.forEach(p => {
         if (p === activePiece) return;
         drawPiece(p);
@@ -86,6 +127,7 @@ function drawPiece(p) {
     });
 }
 
+// 事件邏輯
 function getPos(e) {
     const rect = canvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -95,7 +137,6 @@ function getPos(e) {
 
 function handleStart(e) {
     const pos = getPos(e);
-    // 逆向遍歷，確保抓到最上層的物件
     for (let i = pieces.length - 1; i >= 0; i--) {
         const p = pieces[i];
         for (let cell of p.shape) {
@@ -113,7 +154,7 @@ function handleStart(e) {
 
 function handleMove(e) {
     if (!activePiece) return;
-    e.preventDefault();
+    if (e.cancelable) e.preventDefault();
     const pos = getPos(e);
     activePiece.x = pos.x - offset.x;
     activePiece.y = pos.y - offset.y;
@@ -121,21 +162,33 @@ function handleMove(e) {
 
 function handleEnd() {
     if (!activePiece) return;
-    
-    // 簡易吸附與範圍判定
-    // 判斷是否靠近箱子
-    if (activePiece.x > BOARD_POS.x - GRID_SIZE && activePiece.x < BOARD_POS.x + BOARD_DIM.cols * GRID_SIZE) {
+    // 吸附邏輯
+    if (activePiece.x > BOARD_POS.x - GRID_SIZE && 
+        activePiece.x < BOARD_POS.x + BOARD_DIM.cols * GRID_SIZE &&
+        activePiece.y > BOARD_POS.y - GRID_SIZE &&
+        activePiece.y < BOARD_POS.y + BOARD_DIM.rows * GRID_SIZE) {
+        
         activePiece.x = Math.round((activePiece.x - BOARD_POS.x) / GRID_SIZE) * GRID_SIZE + BOARD_POS.x;
         activePiece.y = Math.round((activePiece.y - BOARD_POS.y) / GRID_SIZE) * GRID_SIZE + BOARD_POS.y;
     }
-    
     activePiece = null;
+}
+
+function showSolution() {
+    pieces.forEach(p => {
+        p.x = BOARD_POS.x + p.sol.x * GRID_SIZE;
+        p.y = BOARD_POS.y + p.sol.y * GRID_SIZE;
+    });
+}
+
+function resetGame() {
+    location.reload();
 }
 
 canvas.addEventListener('mousedown', handleStart);
 window.addEventListener('mousemove', handleMove);
 window.addEventListener('mouseup', handleEnd);
-canvas.addEventListener('touchstart', handleStart);
+canvas.addEventListener('touchstart', handleStart, { passive: false });
 window.addEventListener('touchmove', handleMove, { passive: false });
 window.addEventListener('touchend', handleEnd);
 
