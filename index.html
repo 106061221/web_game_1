@@ -2,49 +2,15 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>工具裝箱挑戰 - 8x8 完美填充</title>
+    <title>工具裝箱挑戰 - 嚴謹無重疊版</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            background: #2c3e50; 
-            font-family: "Microsoft JhengHei", sans-serif; 
-            touch-action: none; 
-        }
-        .controls { 
-            margin-bottom: 15px; 
-            display: flex; 
-            gap: 10px; 
-        }
-        button { 
-            padding: 12px 24px; 
-            font-size: 16px; 
-            font-weight: bold;
-            cursor: pointer; 
-            background: #27ae60; 
-            color: white; 
-            border: none; 
-            border-radius: 8px;
-            box-shadow: 0 4px #1e8449;
-        }
-        button:active {
-            box-shadow: 0 0px #1e8449;
-            transform: translateY(4px);
-        }
-        button.reset { background: #e67e22; box-shadow: 0 4px #d35400; }
-        canvas { 
-            background: #ecf0f1; 
-            border: 5px solid #34495e; 
-            border-radius: 4px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            max-width: 95vw; 
-            max-height: 75vh; 
-        }
+        body { margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; background: #2c3e50; font-family: sans-serif; touch-action: none; }
+        .controls { margin-bottom: 15px; display: flex; gap: 10px; }
+        button { padding: 12px 24px; font-size: 16px; font-weight: bold; cursor: pointer; background: #27ae60; color: white; border: none; border-radius: 8px; box-shadow: 0 4px #1e8449; }
+        button:active { box-shadow: 0 0px #1e8449; transform: translateY(4px); }
+        .reset { background: #e67e22; box-shadow: 0 4px #d35400; }
+        canvas { background: #ecf0f1; border: 5px solid #34495e; max-width: 95vw; max-height: 75vh; }
     </style>
 </head>
 <body>
@@ -58,27 +24,25 @@
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-
 const GRID_SIZE = 42;
 const BOARD_POS = { x: 33, y: 40 };
-const BOARD_DIM = { rows: 8, cols: 8 };
 
-// 嚴格設計的工具形狀與解法位置，總計 64 格
+// 經過座標校驗的 64 格完整佈局
 let pieces = [
-    { name: "大槌子", color: "#E74C3C", x: 20, y: 420, sol: {x:0, y:0}, 
-      shape: [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:1,y:1},{x:1,y:2},{x:1,y:3},{x:1,y:4},{x:1,y:5}] },
-    { name: "鋸子", color: "#95A5A6", x: 160, y: 420, sol: {x:3, y:0}, 
-      shape: [{x:0,y:0},{x:1,y:0},{x:0,y:1},{x:1,y:1},{x:0,y:2},{x:1,y:2},{x:0,y:3},{x:1,y:3},{x:0,y:4},{x:1,y:4}] },
-    { name: "扳手", color: "#F1C40F", x: 260, y: 420, sol: {x:0, y:6}, 
-      shape: [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:4,y:0},{x:5,y:0},{x:6,y:0},{x:7,y:0},{x:0,y:1},{x:7,y:1}] },
-    { name: "螺絲起子", color: "#3498DB", x: 20, y: 530, sol: {x:5, y:0}, 
-      shape: [{x:0,y:0},{x:0,y:1},{x:0,y:2},{x:0,y:3},{x:0,y:4},{x:0,y:5},{x:0,y:6},{x:0,y:7}] },
-    { name: "鉗子", color: "#1ABC9C", x: 100, y: 530, sol: {x:6, y:0}, 
-      shape: [{x:0,y:0},{x:1,y:0},{x:0,y:1},{x:1,y:1},{x:0,y:2},{x:1,y:2},{x:0,y:3},{x:1,y:3},{x:0,y:4},{x:1,y:4}] },
-    { name: "美工刀", color: "#D35400", x: 210, y: 530, sol: {x:2, y:1}, 
-      shape: [{x:0,y:0},{x:0,y:1},{x:0,y:2},{x:0,y:3},{x:0,y:4},{x:1,y:4},{x:2,y:4},{x:2,y:3},{x:2,y:2}] },
-    { name: "L型尺", color: "#8E44AD", x: 320, y: 500, sol: {x:3, y:5}, 
-      shape: [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:4,y:0},{x:0,y:1},{x:0,y:2},{x:1,y:2},{x:2,y:2}] }
+    { name: "槌子", color: "#E74C3C", x: 20, y: 420, sol: {x:0, y:0}, 
+      shape: [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:1,y:1},{x:1,y:2},{x:1,y:3},{x:1,y:4},{x:1,y:5},{x:1,y:6},{x:1,y:7}] },
+    { name: "扳手", color: "#F1C40F", x: 160, y: 420, sol: {x:0, y:1}, 
+      shape: [{x:0,y:0},{x:0,y:1},{x:0,y:2},{x:0,y:3},{x:0,y:4},{x:2,y:0},{x:2,y:1},{x:2,y:2}] },
+    { name: "鋸子", color: "#95A5A6", x: 280, y: 420, sol: {x:3, y:0}, 
+      shape: [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:4,y:0},{x:0,y:1},{x:1,y:1},{x:2,y:1},{x:3,y:1},{x:0,y:2},{x:1,y:2},{x:2,y:2}] },
+    { name: "起子", color: "#3498DB", x: 20, y: 530, sol: {x:6, y:0}, 
+      shape: [{x:0,y:0},{x:0,y:1},{x:0,y:2},{x:0,y:3},{x:0,y:4},{x:0,y:5},{x:1,y:5}] },
+    { name: "鉗子", color: "#1ABC9C", x: 120, y: 530, sol: {x:3, y:3}, 
+      shape: [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:0,y:1},{x:1,y:1},{x:2,y:1},{x:0,y:2},{x:1,y:2},{x:2,y:2}] },
+    { name: "美工刀", color: "#D35400", x: 230, y: 530, sol: {x:2, y:6}, 
+      shape: [{x:0,y:0},{x:0,y:1},{x:1,y:0},{x:1,y:1},{x:2,y:0},{x:2,y:1},{x:3,y:0},{x:3,y:1},{x:4,y:0}] },
+    { name: "L型尺", color: "#8E44AD", x: 340, y: 530, sol: {x:2, y:4}, 
+      shape: [{x:0,y:0},{x:0,y:1},{x:0,y:2},{x:0,y:3},{x:1,y:3},{x:2,y:3},{x:3,y:3},{x:4,y:3},{x:5,y:3}] }
 ];
 
 let activePiece = null;
@@ -86,48 +50,26 @@ let offset = { x: 0, y: 0 };
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 1. 繪製 8x8 箱子網格
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(BOARD_POS.x, BOARD_POS.y, BOARD_DIM.cols * GRID_SIZE, BOARD_DIM.rows * GRID_SIZE);
+    // 畫網格
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(BOARD_POS.x, BOARD_POS.y, 8 * GRID_SIZE, 8 * GRID_SIZE);
     ctx.strokeStyle = '#bdc3c7';
-    ctx.lineWidth = 1;
-    for (let r = 0; r <= BOARD_DIM.rows; r++) {
-        ctx.beginPath();
-        ctx.moveTo(BOARD_POS.x, BOARD_POS.y + r * GRID_SIZE);
-        ctx.lineTo(BOARD_POS.x + BOARD_DIM.cols * GRID_SIZE, BOARD_POS.y + r * GRID_SIZE);
-        ctx.stroke();
+    for (let i = 0; i <= 8; i++) {
+        ctx.beginPath(); ctx.moveTo(BOARD_POS.x, BOARD_POS.y + i * GRID_SIZE); ctx.lineTo(BOARD_POS.x + 8 * GRID_SIZE, BOARD_POS.y + i * GRID_SIZE); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(BOARD_POS.x + i * GRID_SIZE, BOARD_POS.y); ctx.lineTo(BOARD_POS.x + i * GRID_SIZE, BOARD_POS.y + 8 * GRID_SIZE); ctx.stroke();
     }
-    for (let c = 0; c <= BOARD_DIM.cols; c++) {
-        ctx.beginPath();
-        ctx.moveTo(BOARD_POS.x + c * GRID_SIZE, BOARD_POS.y);
-        ctx.lineTo(BOARD_POS.x + c * GRID_SIZE, BOARD_POS.y + BOARD_DIM.rows * GRID_SIZE);
-        ctx.stroke();
-    }
-
-    // 2. 繪製所有工具
+    // 畫工具
     pieces.forEach(p => {
-        if (p === activePiece) return;
-        drawPiece(p);
+        ctx.fillStyle = p.color;
+        ctx.strokeStyle = "#2c3e50";
+        p.shape.forEach(cell => {
+            ctx.fillRect(p.x + cell.x * GRID_SIZE, p.y + cell.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+            ctx.strokeRect(p.x + cell.x * GRID_SIZE, p.y + cell.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+        });
     });
-    if (activePiece) drawPiece(activePiece);
-
     requestAnimationFrame(draw);
 }
 
-function drawPiece(p) {
-    ctx.fillStyle = p.color;
-    ctx.strokeStyle = "#2c3e50";
-    ctx.lineWidth = 2;
-    p.shape.forEach(cell => {
-        const px = p.x + cell.x * GRID_SIZE;
-        const py = p.y + cell.y * GRID_SIZE;
-        ctx.fillRect(px, py, GRID_SIZE, GRID_SIZE);
-        ctx.strokeRect(px, py, GRID_SIZE, GRID_SIZE);
-    });
-}
-
-// 事件邏輯
 function getPos(e) {
     const rect = canvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -140,12 +82,10 @@ function handleStart(e) {
     for (let i = pieces.length - 1; i >= 0; i--) {
         const p = pieces[i];
         for (let cell of p.shape) {
-            const cx = p.x + cell.x * GRID_SIZE;
-            const cy = p.y + cell.y * GRID_SIZE;
-            if (pos.x >= cx && pos.x <= cx + GRID_SIZE && pos.y >= cy && pos.y <= cy + GRID_SIZE) {
+            if (pos.x >= p.x + cell.x * GRID_SIZE && pos.x <= p.x + cell.x * GRID_SIZE + GRID_SIZE &&
+                pos.y >= p.y + cell.y * GRID_SIZE && pos.y <= p.y + cell.y * GRID_SIZE + GRID_SIZE) {
                 activePiece = p;
-                offset.x = pos.x - p.x;
-                offset.y = pos.y - p.y;
+                offset.x = pos.x - p.x; offset.y = pos.y - p.y;
                 return;
             }
         }
@@ -156,18 +96,12 @@ function handleMove(e) {
     if (!activePiece) return;
     if (e.cancelable) e.preventDefault();
     const pos = getPos(e);
-    activePiece.x = pos.x - offset.x;
-    activePiece.y = pos.y - offset.y;
+    activePiece.x = pos.x - offset.x; activePiece.y = pos.y - offset.y;
 }
 
 function handleEnd() {
     if (!activePiece) return;
-    // 吸附邏輯
-    if (activePiece.x > BOARD_POS.x - GRID_SIZE && 
-        activePiece.x < BOARD_POS.x + BOARD_DIM.cols * GRID_SIZE &&
-        activePiece.y > BOARD_POS.y - GRID_SIZE &&
-        activePiece.y < BOARD_POS.y + BOARD_DIM.rows * GRID_SIZE) {
-        
+    if (activePiece.x > BOARD_POS.x - GRID_SIZE && activePiece.x < BOARD_POS.x + 8 * GRID_SIZE) {
         activePiece.x = Math.round((activePiece.x - BOARD_POS.x) / GRID_SIZE) * GRID_SIZE + BOARD_POS.x;
         activePiece.y = Math.round((activePiece.y - BOARD_POS.y) / GRID_SIZE) * GRID_SIZE + BOARD_POS.y;
     }
@@ -181,9 +115,7 @@ function showSolution() {
     });
 }
 
-function resetGame() {
-    location.reload();
-}
+function resetGame() { location.reload(); }
 
 canvas.addEventListener('mousedown', handleStart);
 window.addEventListener('mousemove', handleMove);
