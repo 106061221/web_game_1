@@ -2,80 +2,120 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>實體工具大師</title>
+    <title>實體工具收納</title>
     <style>
-        body { margin: 0; background: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
-        canvas { background: #222; border: 5px solid #333; box-shadow: inset 0 0 30px #000; cursor: grab; }
+        body { margin: 0; background: #151515; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
+        canvas { background: #222; border: 8px solid #333; border-radius: 4px; box-shadow: 0 0 50px #000; cursor: grab; }
     </style>
 </head>
 <body>
 <canvas id="g" width="380" height="600"></canvas>
 <script>
 const cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
+
+// 定義工具物件：位置、目標(tx, ty)、尺寸
 let pieces = [
-    { name: 'Hammer', x: 50, y: 450, tx: 90, ty: 80, w: 180, h: 60, color: '#888' },
-    { name: 'Wrench', x: 200, y: 500, tx: 100, ty: 200, w: 150, h: 40, color: '#aaa' }
+    { id: 'hammer', x: 50, y: 450, tx: 100, ty: 80, w: 180, h: 80, isLocked: false },
+    { id: 'wrench', x: 220, y: 480, tx: 120, ty: 220, w: 160, h: 40, isLocked: false }
 ];
 let active = null, off = { x: 0, y: 0 };
 
+// 繪製寫實工具的函數
 function drawTool(p, isShadow = false) {
     ctx.save();
     ctx.translate(p.x, p.y);
-    if (isShadow) { ctx.filter = 'brightness(0)'; ctx.globalAlpha = 0.3; }
-    else {
-        ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 5;
+    
+    if (isShadow) {
+        ctx.globalAlpha = 0.3;
+        ctx.filter = 'brightness(0) blur(2px)';
+    } else {
+        ctx.shadowColor = 'rgba(0,0,0,0.6)';
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 8;
     }
 
-    if (p.name === 'Hammer') {
-        // 鎚頭：金屬漸層
-        let g = ctx.createLinearGradient(0, 0, 60, 0);
-        g.addColorStop(0, '#444'); g.addColorStop(0.5, '#eee'); g.addColorStop(1, '#444');
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, 60, 40); // 鎚頭主體
-        ctx.fillStyle = '#b52'; // 木柄
-        ctx.fillRect(20, 40, 20, 100); 
-    } else if (p.name === 'Wrench') {
-        // 扳手：鋼鐵質感
-        ctx.fillStyle = '#999';
-        ctx.fillRect(30, 10, 100, 20); // 柄
-        ctx.beginPath(); ctx.arc(30, 20, 20, 0, 7); ctx.fill(); // 頭
-        ctx.clearRect(15, 15, 15, 10); // 扳手開口
+    if (p.id === 'hammer') {
+        // --- 繪製榔頭 ---
+        // 木柄
+        let wood = ctx.createLinearGradient(0, 40, 0, 140);
+        wood.addColorStop(0, '#8d5524'); wood.addColorStop(0.5, '#c68642'); wood.addColorStop(1, '#8d5524');
+        ctx.fillStyle = wood;
+        ctx.beginPath();
+        ctx.roundRect(15, 30, 25, 120, 5); ctx.fill();
+        
+        // 鎚頭 (金屬漸層)
+        let steel = ctx.createLinearGradient(0, 0, 60, 0);
+        steel.addColorStop(0, '#333'); steel.addColorStop(0.3, '#eee'); steel.addColorStop(0.7, '#eee'); steel.addColorStop(1, '#333');
+        ctx.fillStyle = steel;
+        ctx.beginPath();
+        ctx.roundRect(0, 0, 60, 35, 3); ctx.fill();
+        // 拔釘器(後端)
+        ctx.beginPath();
+        ctx.moveTo(0, 5); ctx.quadraticCurveTo(-20, 5, -25, 25); ctx.lineTo(0, 20); ctx.fill();
+    } 
+    else if (p.id === 'wrench') {
+        // --- 繪製扳手 ---
+        let metal = ctx.createLinearGradient(0, 10, 0, 30);
+        metal.addColorStop(0, '#777'); metal.addColorStop(0.5, '#fff'); metal.addColorStop(1, '#777');
+        ctx.fillStyle = metal;
+        // 柄
+        ctx.beginPath();
+        ctx.roundRect(30, 12, 100, 16, 2); ctx.fill();
+        // 扳手頭 (開口端)
+        ctx.beginPath();
+        ctx.arc(30, 20, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'destination-out'; // 挖掉開口
+        ctx.save();
+        ctx.translate(30, 20); ctx.rotate(Math.PI / 4);
+        ctx.fillRect(-15, -8, 20, 16);
+        ctx.restore();
+        ctx.globalCompositeOperation = 'source-over';
     }
     ctx.restore();
 }
 
 function render() {
     ctx.clearRect(0, 0, cvs.width, cvs.height);
-    // 畫凹槽
-    pieces.forEach(p => { 
-        let temp = {...p, x: p.tx, y: p.ty};
-        drawTool(temp, true);
+    
+    // 1. 畫箱底影子板 (目標槽)
+    pieces.forEach(p => {
+        drawTool({ ...p, x: p.tx, y: p.ty }, true);
     });
-    // 畫實體
-    pieces.forEach(p => drawTool(p));
+
+    // 2. 畫實體工具
+    pieces.forEach(p => {
+        if (p !== active) drawTool(p);
+    });
+    if (active) drawTool(active);
+
     requestAnimationFrame(render);
 }
 
-cvs.onmousedown = e => {
-    const r = cvs.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
-    active = pieces.find(p => px > p.x && px < p.x + p.w && py > p.y && py < p.y + p.h);
+// 互動逻辑
+cvs.addEventListener('mousedown', e => {
+    const r = cvs.getBoundingClientRect();
+    const px = e.clientX - r.left, py = e.clientY - r.top;
+    active = pieces.slice().reverse().find(p => px > p.x - 20 && px < p.x + p.w && py > p.y - 10 && py < p.y + p.h + 100);
     if (active) { off.x = px - active.x; off.y = py - active.y; }
-};
-window.onmousemove = e => {
+});
+
+window.addEventListener('mousemove', e => {
     if (active) {
         const r = cvs.getBoundingClientRect();
         active.x = e.clientX - r.left - off.x;
         active.y = e.clientY - r.top - off.y;
     }
-};
-window.onmouseup = () => {
+});
+
+window.addEventListener('mouseup', () => {
     if (active) {
-        if (Math.abs(active.x - active.tx) < 20 && Math.abs(active.y - active.ty) < 20) {
-            active.x = active.tx; active.y = active.ty;
-        }
+        let d = Math.sqrt((active.x - active.tx)**2 + (active.y - active.ty)**2);
+        if (d < 30) { active.x = active.tx; active.y = active.ty; active.isLocked = true; }
         active = null;
     }
-};
+});
+
 render();
 </script>
 </body>
