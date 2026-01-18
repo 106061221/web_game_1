@@ -1,446 +1,145 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEON CASINO - PRO EDITION</title>
+    <title>工具箱挑戰 - 8x8 完美填滿</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        /* --- BASE & NEON THEME --- */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background-color: #000; color: #fff;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            height: 100vh; display: flex; justify-content: center; align-items: center;
-            overflow: hidden; transition: background-color 0.5s;
-        }
-        .neon-title {
-            font-size: 3.5rem; color: #000; text-align: center; line-height: 1.2;
-            -webkit-text-stroke: 1px #0ff; text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
-            letter-spacing: 10px; margin-bottom: 2rem;
-        }
-        body.vip-mode .neon-title { -webkit-text-stroke: 1px #ffdf00; text-shadow: 0 0 10px #ffdf00; }
-        
-        button {
-            background: transparent; border: 1px solid #ff00ff; color: #ff00ff;
-            padding: 12px 25px; cursor: pointer; font-size: 0.9rem; letter-spacing: 2px;
-            transition: 0.3s; text-transform: uppercase; margin: 5px;
-        }
-        button:hover { 
-            background: #ff00ff !important; 
-            color: #000 !important; 
-            box-shadow: 0 0 15px #ff00ff !important; 
-        }
-
-        body.vip-mode button { border-color: #ffdf00; color: #ffdf00; }
-        body.vip-mode button:hover { background: #ffdf00 !important; box-shadow: 0 0 15px #ffdf00 !important; }
-
-        .screen { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .hidden { display: none !important; }
-        .label-hidden { visibility: hidden; }
-
-        .top-hud {
-            position: absolute; top: 20px; width: 90%;
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid #222; padding-bottom: 10px;
-        }
-        .money-label { color: #0ff; font-size: 1.2rem; }
-        body.vip-mode .money-label { color: #ffdf00; }
-
-        .table { display: flex; flex-direction: column; gap: 30px; width: 100%; align-items: center; }
-        .hand-area { display: flex; flex-direction: column; align-items: center; min-height: 130px; }
-        .score-tag { font-size: 0.7rem; letter-spacing: 2px; color: #0ff; margin-bottom: 8px; text-transform: uppercase; }
-        body.vip-mode .score-tag { color: #ffdf00; }
-        
-        .cards-row { display: flex; gap: 15px; min-height: 90px; transition: all 0.5s ease; justify-content: center; }
-        
-        .card { width: 55px; height: 80px; perspective: 1000px; flex-shrink: 0; }
-        .card-inner { position: relative; width: 100%; height: 100%; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }
-        .card.flipped .card-inner { transform: rotateY(180deg); }
-        .card-front, .card-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 4px; border: 1px solid #fff; display: flex; align-items: center; justify-content: center; }
-        .card-back { background: #222; border-color: #444; }
-        .card-front { background: #111; transform: rotateY(180deg); }
-        .card.cyan .card-front { border-color: #0ff; color: #0ff; box-shadow: 0 0 8px #0ff; }
-        .card.magenta .card-front { border-color: #f0f; color: #f0f; box-shadow: 0 0 8px #f0f; }
-        body.vip-mode .card.cyan .card-front { border-color: #ffdf00; color: #ffdf00; }
-        .card-value { position: absolute; top: 3px; left: 5px; font-size: 14px; font-weight: bold; }
-        .card-suit { font-size: 12px; display: block; }
-
-        @keyframes card-smooth-entry {
-            0% { transform: translateY(-500px) rotate(20deg); opacity: 0; width: 0; margin-right: -8px; }
-            100% { transform: translateY(0) rotate(0); opacity: 1; width: 55px; margin-right: 0; }
-        }
-        .card-animate { animation: card-smooth-entry 0.6s cubic-bezier(0.23, 1, 0.32, 1) both; }
-
-        #table-crash-area { height: 200px; display: flex; align-items: center; justify-content: center; }
-        .multiplier-text { font-size: 5rem; font-weight: bold; color: #0ff; text-shadow: 0 0 20px #0ff; }
-        .crashed-text { color: #ff0055 !important; text-shadow: 0 0 20px #ff0055 !important; }
-
-        .controls { position: absolute; bottom: 40px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
-        .msg-box { height: 30px; font-size: 1rem; letter-spacing: 1px; text-transform: uppercase; text-align: center; }
-        .bet-input { background: transparent; border: 1px solid #0ff; color: #0ff; padding: 8px; width: 80px; text-align: center; outline: none; }
-        body.vip-mode .bet-input { border-color: #ffdf00; color: #ffdf00; }
-
-        @keyframes bankrupt-flash { 0%, 100% { background-color: #000; } 50% { background-color: #600; } }
-        .flash-red { animation: bankrupt-flash 0.5s 4; }
+        body { margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; background: #2c3e50; font-family: sans-serif; touch-action: none; }
+        canvas { background: #ecf0f1; border: 4px solid #34495e; box-shadow: 0 10px 20px rgba(0,0,0,0.3); max-width: 95vw; max-height: 80vh; }
+        .hint { color: white; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
-    <div id="menu-screen" class="screen">
-        <h1 id="main-title" class="neon-title">NEON<br>CASINO</h1>
-        <div style="display: flex; flex-direction: column; gap: 5px;">
-            <div style="display: flex; gap: 10px;">
-                <button onclick="showGame('bj')">Blackjack</button>
-                <button onclick="showGame('csp')" style="border-color: #0f8; color: #0f8;">Caribbean Stud Poker</button>
-            </div>
-            <div style="display: flex; gap: 10px;">
-                <button onclick="showGame('crash')" style="border-color: #0ff; color: #0ff;">Neon Crash</button>
-                <button onclick="showGame('rd')" style="border-color: #ffaa00; color: #ffaa00;">Red Dog</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="game-screen" class="screen hidden">
-        <div class="top-hud">
-            <div class="money-label">BALANCE: $<span id="ui-money">1000</span></div>
-            <div style="display: flex; align-items: center;">
-                <button onclick="toggleInfo()" id="info-btn" style="font-size: 0.6rem; border-color: #0f8; color: #0f8; margin-right: 10px; display:none;">INFO</button>
-                <button onclick="exitToMenu()" id="exit-btn" style="font-size: 0.6rem; border-color: #444; color: #666;">EXIT</button>
-            </div>
-        </div>
-        <div id="table-standard" class="table">
-            <div class="hand-area" id="dealer-area">
-                <div class="score-tag">DEALER: <span id="ui-d-score">?</span></div>
-                <div id="dealer-cards" class="cards-row"></div>
-            </div>
-            <div class="hand-area" id="player-area">
-                <div id="player-cards" class="cards-row"></div>
-                <div class="score-tag" style="margin-top:10px;">PLAYER: <span id="ui-p-score">0</span></div>
-            </div>
-        </div>
-        <div id="table-crash-area" class="table hidden">
-            <div id="table-crash-ui">
-                <div id="ui-multiplier" class="multiplier-text">1.00x</div>
-            </div>
-        </div>
-
-        <div id="info-overlay" class="hidden" style="position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.95); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; border: 1px solid #0f8;">
-            <div id="info-content" style="width:100%; display:flex; flex-direction:column; align-items:center;"></div>
-            <button onclick="toggleInfo()" style="margin-top: 20px; border-color: #fff; color: #fff;">CLOSE</button>
-        </div>
-
-        <div class="controls">
-            <div id="ui-msg" class="msg-box"></div>
-            <div id="bet-ui">
-                <input type="number" id="bet-val" class="bet-input" value="100" step="10">
-                <button onclick="startDeal()">DEAL</button>
-            </div>
-            <div id="bj-action-ui" class="hidden">
-                <button onclick="handleHit()">HIT</button>
-                <button onclick="handleStand()">STAND</button>
-                <button id="bj-double" onclick="handleBJDouble()" style="border-color: #0ff; color: #0ff;">DOUBLE</button>
-            </div>
-            <div id="csp-action-ui" class="hidden">
-                <button onclick="handleCSPFold()" style="border-color: #f0f; color: #f0f;">FOLD</button>
-                <button onclick="handleCSPRaise()" style="border-color: #0f8; color: #0f8;">RAISE (ADD 2X)</button>
-            </div>
-            <div id="crash-action-ui" class="hidden">
-                <button onclick="handleCashOut()" style="border-color: #0ff; color: #0ff; padding: 20px 50px;">CASH OUT</button>
-            </div>
-            <div id="rd-action-ui" class="hidden">
-                <button onclick="handleRDCall()">CALL</button>
-                <button onclick="handleRDRaise()" style="border-color: #0ff; color: #0ff;">RAISE (ADD 1X)</button>
-            </div>
-        </div>
-    </div>
+<div class="hint">目標：將所有工具放入 8x8 箱子內</div>
+<canvas id="gameCanvas" width="400" height="650"></canvas>
 
 <script>
-    let money = 1000, deck = [], pHand = [], dHand = [], bet = 0, isPlaying = false, currentGame = '';
-    let crashPoint = 0, currentMult = 1.00, crashInterval = null;
-    let actionLocked = false; 
-    const SUITS = [{s:'♠',c:'cyan'}, {s:'♣',c:'cyan'}, {s:'♥',c:'magenta'}, {s:'♦',c:'magenta'}];
-    const VALS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-    const sleep = (ms) => new Promise(res => setTimeout(res, ms));
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
-    function updateVIP() {
-        if (money >= 5000) { document.body.classList.add('vip-mode'); document.getElementById('main-title').innerHTML = "VIP NEON<br>CASINO"; }
-        else { document.body.classList.remove('vip-mode'); document.getElementById('main-title').innerHTML = "NEON<br>CASINO"; }
+const GRID_SIZE = 45;
+const BOARD_POS = { x: 20, y: 50 };
+const BOARD_DIM = { rows: 8, cols: 8 };
+
+// 定義工具物件與形狀 (總共 64 格)
+let pieces = [
+    { name: "大槌子", color: "#E74C3C", x: 20, y: 430, isDragging: false, 
+      shape: [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:0,y:1},{x:1,y:1},{x:2,y:1},{x:1,y:2},{x:1,y:3},{x:1,y:4},{x:1,y:5}] }, // 10格
+    { name: "長扳手", color: "#F1C40F", x: 180, y: 430, isDragging: false, 
+      shape: [{x:0,y:0},{x:0,y:1},{x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1},{x:4,y:0},{x:2,y:2}] }, // 8格
+    { name: "鋸子", color: "#95A5A6", x: 20, y: 530, isDragging: false, 
+      shape: [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:4,y:0},{x:0,y:1},{x:1,y:1},{x:2,y:1},{x:3,y:1},{x:0,y:2},{x:1,y:2},{x:2,y:2}] }, // 12格
+    { name: "螺絲起子", color: "#3498DB", x: 280, y: 430, isDragging: false, 
+      shape: [{x:0,y:0},{x:0,y:1},{x:0,y:2},{x:0,y:3},{x:0,y:4},{x:0,y:5}] }, // 6格
+    { name: "鉗子", color: "#1ABC9C", x: 180, y: 530, isDragging: false, 
+      shape: [{x:0,y:0},{x:1,y:0},{x:0,y:1},{x:1,y:1},{x:0,y:2},{x:1,y:2},{x:0,y:3},{x:1,y:3}] }, // 8格
+    { name: "美工刀", color: "#D35400", x: 280, y: 530, isDragging: false, 
+      shape: [{x:0,y:0},{x:1,y:0},{x:0,y:1},{x:1,y:1},{x:0,y:2},{x:1,y:2},{x:0,y:3},{x:1,y:3},{x:0,y:4},{x:1,y:4}] }, // 10格
+    { name: "L型尺", color: "#8E44AD", x: 10, y: 430, isDragging: false, 
+      shape: [{x:0,y:0},{x:0,y:1},{x:0,y:2},{x:0,y:3},{x:1,y:3},{x:2,y:3},{x:3,y:3},{x:4,y:3},{x:5,y:3},{x:6,y:3}] } // 10格
+];
+
+let activePiece = null;
+let offset = { x: 0, y: 0 };
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 1. 繪製箱子網格
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(BOARD_POS.x, BOARD_POS.y, BOARD_DIM.cols * GRID_SIZE, BOARD_DIM.rows * GRID_SIZE);
+    ctx.strokeStyle = '#bdc3c7';
+    ctx.lineWidth = 1;
+    for (let r = 0; r <= BOARD_DIM.rows; r++) {
+        ctx.beginPath();
+        ctx.moveTo(BOARD_POS.x, BOARD_POS.y + r * GRID_SIZE);
+        ctx.lineTo(BOARD_POS.x + BOARD_DIM.cols * GRID_SIZE, BOARD_POS.y + r * GRID_SIZE);
+        ctx.stroke();
+    }
+    for (let c = 0; c <= BOARD_DIM.cols; c++) {
+        ctx.beginPath();
+        ctx.moveTo(BOARD_POS.x + c * GRID_SIZE, BOARD_POS.y);
+        ctx.lineTo(BOARD_POS.x + c * GRID_SIZE, BOARD_POS.y + BOARD_DIM.rows * GRID_SIZE);
+        ctx.stroke();
     }
 
-    function showGame(type) {
-        currentGame = type;
-        document.getElementById('menu-screen').classList.add('hidden');
-        document.getElementById('game-screen').classList.remove('hidden');
-        const infoBtn = document.getElementById('info-btn');
-        infoBtn.style.display = 'block';
-        if (type === 'bj') { infoBtn.style.borderColor = '#ff00ff'; infoBtn.style.color = '#ff00ff'; }
-        else if (type === 'csp') { infoBtn.style.borderColor = '#0f8'; infoBtn.style.color = '#0f8'; }
-        else if (type === 'crash') { infoBtn.style.borderColor = '#0ff'; infoBtn.style.color = '#0ff'; }
-        else { infoBtn.style.borderColor = '#ffaa00'; infoBtn.style.color = '#ffaa00'; }
+    // 2. 繪製所有物件 (先畫沒被抓取的， activePiece 最後畫以免被遮擋)
+    pieces.forEach(p => {
+        if (p === activePiece) return;
+        drawPiece(p);
+    });
+    if (activePiece) drawPiece(activePiece);
 
-        if(type === 'crash') { 
-            document.getElementById('table-standard').classList.add('hidden'); 
-            document.getElementById('table-crash-area').classList.remove('hidden'); 
-        } else { 
-            document.getElementById('table-standard').classList.remove('hidden'); 
-            document.getElementById('table-crash-area').classList.add('hidden');
-            if (type === 'rd') {
-                document.getElementById('dealer-area').classList.add('hidden');
-                document.querySelectorAll('.score-tag').forEach(t => t.classList.add('label-hidden'));
-            } else {
-                document.getElementById('dealer-area').classList.remove('hidden');
-                document.querySelectorAll('.score-tag').forEach(t => t.classList.remove('label-hidden'));
+    requestAnimationFrame(draw);
+}
+
+function drawPiece(p) {
+    ctx.fillStyle = p.color;
+    ctx.strokeStyle = "#2c3e50";
+    ctx.lineWidth = 2;
+    p.shape.forEach(cell => {
+        const px = p.x + cell.x * GRID_SIZE;
+        const py = p.y + cell.y * GRID_SIZE;
+        ctx.fillRect(px, py, GRID_SIZE, GRID_SIZE);
+        ctx.strokeRect(px, py, GRID_SIZE, GRID_SIZE);
+    });
+}
+
+function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+function handleStart(e) {
+    const pos = getPos(e);
+    // 逆向遍歷，確保抓到最上層的物件
+    for (let i = pieces.length - 1; i >= 0; i--) {
+        const p = pieces[i];
+        for (let cell of p.shape) {
+            const cx = p.x + cell.x * GRID_SIZE;
+            const cy = p.y + cell.y * GRID_SIZE;
+            if (pos.x >= cx && pos.x <= cx + GRID_SIZE && pos.y >= cy && pos.y <= cy + GRID_SIZE) {
+                activePiece = p;
+                offset.x = pos.x - p.x;
+                offset.y = pos.y - p.y;
+                return;
             }
         }
-        updateVIP(); resetTable(); isPlaying = false;
     }
+}
 
-    function toggleInfo() {
-        const overlay = document.getElementById('info-overlay');
-        const content = document.getElementById('info-content');
-        if (!overlay.classList.contains('hidden')) { overlay.classList.add('hidden'); return; }
+function handleMove(e) {
+    if (!activePiece) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    activePiece.x = pos.x - offset.x;
+    activePiece.y = pos.y - offset.y;
+}
 
-        if (currentGame === 'bj') {
-            overlay.style.borderColor = '#f0f';
-            content.innerHTML = `
-                <h2 style="color: #f0f; margin-bottom: 15px; letter-spacing: 2px;">BLACKJACK RULES</h2>
-                <div style="font-size: 0.8rem; line-height: 1.4; text-align: left; margin-bottom: 20px; color: #ccc; max-width: 320px;">
-                    • <b style="color:#fff;">GOAL:</b> BEAT THE DEALER WITHOUT EXCEEDING 21.<br>
-                    • <b style="color:#f0f;">BUST:</b> IF TOTAL GOES OVER 21, YOU LOSE INSTANTLY.<br>
-                    • <b style="color:#fff;">DEALER:</b> STANDS ON 17. HITS ON 16 OR LESS.<br>
-                    • <b style="color:#fff;">DOUBLE:</b> 2X BET FOR EXACTLY ONE MORE CARD.
-                </div>
-                <table style="width: 100%; max-width: 300px; font-size: 0.75rem; border-collapse: collapse; color: #ff00ff;">
-                    <tr><td style="padding: 2px 0;">NATURAL BLACKJACK</td><td style="text-align:right;">3:2</td></tr>
-                    <tr><td style="padding: 2px 0;">STANDARD WIN</td><td style="text-align:right;">1:1</td></tr>
-                    <tr><td style="padding: 2px 0;">TIE (PUSH)</td><td style="text-align:right;">RETURN</td></tr>
-                </table>`;
-        } else if (currentGame === 'csp') {
-            overlay.style.borderColor = '#0f8';
-            content.innerHTML = `
-                <h2 style="color: #0f8; margin-bottom: 15px; letter-spacing: 2px;">CSP RULES & PAYOUTS</h2>
-                <div style="font-size: 0.8rem; line-height: 1.4; text-align: left; margin-bottom: 20px; color: #ccc; max-width: 320px;">
-                    • DEALER QUALIFIES WITH <b style="color:#fff;">ACE & KING</b> OR BETTER.<br>
-                    • IF DEALER NOT QUALIFIED: ANTE WINS 1:1, RAISE IS PUSH.<br>
-                    • IF DEALER QUALIFIED: HIGHER HAND WINS. RAISE PAYS BY TABLE:
-                </div>
-                <table style="width: 100%; max-width: 300px; font-size: 0.75rem; border-collapse: collapse; color: #0f8;">
-                    <tr><td style="padding: 2px 0;">ROYAL FLUSH</td><td style="text-align:right;">100:1</td></tr>
-                    <tr><td style="padding: 2px 0;">STR FLUSH</td><td style="text-align:right;">50:1</td></tr>
-                    <tr><td style="padding: 2px 0;">4 OF A KIND</td><td style="text-align:right;">20:1</td></tr>
-                    <tr><td style="padding: 2px 0;">FULL HOUSE</td><td style="text-align:right;">7:1</td></tr>
-                    <tr><td style="padding: 2px 0;">FLUSH</td><td style="text-align:right;">5:1</td></tr>
-                    <tr><td style="padding: 2px 0;">STRAIGHT</td><td style="text-align:right;">4:1</td></tr>
-                    <tr><td style="padding: 2px 0;">3 OF A KIND</td><td style="text-align:right;">3:1</td></tr>
-                    <tr><td style="padding: 2px 0;">2 PAIR</td><td style="text-align:right;">2:1</td></tr>
-                    <tr><td style="padding: 2px 0;">PAIR OR LESS</td><td style="text-align:right;">1:1</td></tr>
-                </table>`;
-        } else if (currentGame === 'crash') {
-            overlay.style.borderColor = '#0ff';
-            content.innerHTML = `
-                <h2 style="color: #0ff; margin-bottom: 15px; letter-spacing: 2px;">NEON CRASH RULES</h2>
-                <div style="font-size: 0.8rem; line-height: 1.4; text-align: left; margin-bottom: 20px; color: #ccc; max-width: 320px;">
-                    • <b style="color:#fff;">OBJECTIVE:</b> CASH OUT BEFORE THE MULTIPLIER CRASHES.<br>
-                    • <b style="color:#0ff;">GROWTH:</b> THE MULTIPLIER INCREASES EXPONENTIALLY OVER TIME.<br>
-                    • <b style="color:#fff;">CRASH:</b> IF IT CRASHES BEFORE YOU CASH OUT, YOU LOSE YOUR BET.<br>
-                    • <b style="color:#fff;">INSTA-CRASH:</b> THERE IS A 3% CHANCE TO CRASH AT 1.00X.
-                </div>`;
-        } else if (currentGame === 'rd') {
-            overlay.style.borderColor = '#ffaa00';
-            content.innerHTML = `
-                <h2 style="color: #ffaa00; margin-bottom: 15px; letter-spacing: 2px;">RED DOG RULES</h2>
-                <div style="font-size: 0.8rem; line-height: 1.4; text-align: left; margin-bottom: 20px; color: #ccc; max-width: 320px;">
-                    • <b style="color:#fff;">SPREAD:</b> THE NUMBER OF VALUES BETWEEN TWO CARDS.<br>
-                    • <b style="color:#ffaa00;">WIN:</b> THIRD CARD FALLS BETWEEN THE FIRST TWO.<br>
-                    • <b style="color:#fff;">PAIRS:</b> IF 3RD CARD MAKES 3-OF-KIND, PAYS 11:1.<br>
-                    • <b style="color:#fff;">CONSECUTIVE:</b> CARDS LIKE 7 & 8 ARE A PUSH.
-                </div>
-                <table style="width: 100%; max-width: 300px; font-size: 0.75rem; border-collapse: collapse; color: #ffaa00;">
-                    <tr><td style="padding: 2px 0;">SPREAD 1</td><td style="text-align:right;">5:1</td></tr>
-                    <tr><td style="padding: 2px 0;">SPREAD 2</td><td style="text-align:right;">4:1</td></tr>
-                    <tr><td style="padding: 2px 0;">SPREAD 3</td><td style="text-align:right;">2:1</td></tr>
-                    <tr><td style="padding: 2px 0;">SPREAD 4+</td><td style="text-align:right;">1:1</td></tr>
-                </table>`;
-        }
-        overlay.classList.remove('hidden');
+function handleEnd() {
+    if (!activePiece) return;
+    
+    // 簡易吸附與範圍判定
+    // 判斷是否靠近箱子
+    if (activePiece.x > BOARD_POS.x - GRID_SIZE && activePiece.x < BOARD_POS.x + BOARD_DIM.cols * GRID_SIZE) {
+        activePiece.x = Math.round((activePiece.x - BOARD_POS.x) / GRID_SIZE) * GRID_SIZE + BOARD_POS.x;
+        activePiece.y = Math.round((activePiece.y - BOARD_POS.y) / GRID_SIZE) * GRID_SIZE + BOARD_POS.y;
     }
+    
+    activePiece = null;
+}
 
-    function exitToMenu() { if (isPlaying && money > 0) return; clearInterval(crashInterval); document.getElementById('game-screen').classList.add('hidden'); document.getElementById('menu-screen').classList.remove('hidden'); }
+canvas.addEventListener('mousedown', handleStart);
+window.addEventListener('mousemove', handleMove);
+window.addEventListener('mouseup', handleEnd);
+canvas.addEventListener('touchstart', handleStart);
+window.addEventListener('touchmove', handleMove, { passive: false });
+window.addEventListener('touchend', handleEnd);
 
-    function resetTable() {
-        pHand = []; dHand = []; actionLocked = false; 
-        document.getElementById('player-cards').innerHTML = ''; document.getElementById('dealer-cards').innerHTML = '';
-        document.getElementById('ui-p-score').innerText = '0'; document.getElementById('ui-d-score').innerText = '?';
-        document.getElementById('ui-multiplier').innerText = '1.00x'; document.getElementById('ui-multiplier').classList.remove('crashed-text');
-        document.getElementById('ui-msg').innerText = 'PLACE YOUR BET'; document.getElementById('ui-msg').style.color = '#fff';
-        document.getElementById('bet-ui').classList.remove('hidden'); document.getElementById('bj-action-ui').classList.add('hidden');
-        document.getElementById('csp-action-ui').classList.add('hidden'); document.getElementById('crash-action-ui').classList.add('hidden');
-        document.getElementById('rd-action-ui').classList.add('hidden');
-        document.getElementById('info-overlay').classList.add('hidden');
-    }
-
-    function createDeck() {
-        deck = []; SUITS.forEach(s => VALS.forEach(v => { let w = VALS.indexOf(v) + 2; if(v === 'A') w = 14; deck.push({v, s:s.s, color:s.c, w}); }));
-        deck.sort(() => Math.random() - 0.5);
-    }
-
-    function renderCard(card, container, isStartHidden = false) {
-        const div = document.createElement('div');
-        div.className = `card ${card ? card.color : 'cyan'} card-animate ${!isStartHidden ? 'flipped' : ''}`;
-        div.innerHTML = `<div class="card-inner"><div class="card-back"></div><div class="card-front">${card ? `<div class="card-value">${card.v}<span class="card-suit">${card.s}</span></div>` : ''}</div></div>`;
-        container.appendChild(div); return div;
-    }
-
-    function startDeal() {
-        const val = parseInt(document.getElementById('bet-val').value);
-        if (isPlaying || isNaN(val) || val <= 0) return;
-        
-        if (currentGame === 'csp' && val > (money / 3)) { 
-            document.getElementById('ui-msg').innerText = `CSP MAX BET IS 1/3 OF BALANCE ($${Math.floor(money/3)})`; 
-            return; 
-        }
-        if (currentGame === 'rd' && val > (money / 2)) { 
-            document.getElementById('ui-msg').innerText = `RED DOG MAX BET IS 1/2 OF BALANCE ($${Math.floor(money/2)})`; 
-            return; 
-        }
-        if (val > money) { document.getElementById('ui-msg').innerText = 'NOT ENOUGH MONEY'; return; }
-        
-        bet = val; money -= bet; document.getElementById('ui-money').innerText = money; isPlaying = true;
-        document.getElementById('ui-msg').innerText = ''; 
-        if (currentGame === 'crash') handleCrashStart(); 
-        else { createDeck(); if (currentGame === 'bj') handleBJStart(); else if (currentGame === 'csp') handleCSPStart(); else handleRDStart(); }
-    }
-
-    function handleCrashStart() {
-        document.getElementById('bet-ui').classList.add('hidden'); document.getElementById('crash-action-ui').classList.remove('hidden');
-        currentMult = 1.00; crashPoint = (97 / (100 - Math.random() * 99)).toFixed(2);
-        let start = Date.now();
-        crashInterval = setInterval(() => {
-            currentMult = Math.pow(1.08, (Date.now() - start)/500);
-            if (currentMult >= crashPoint) { currentMult = crashPoint; clearInterval(crashInterval); document.getElementById('ui-multiplier').classList.add('crashed-text'); resolveGame('CRASHED'); }
-            document.getElementById('ui-multiplier').innerText = parseFloat(currentMult).toFixed(2) + 'x';
-        }, 50);
-    }
-    function handleCashOut() { if (!isPlaying || currentMult >= crashPoint) return; clearInterval(crashInterval); money += Math.floor(bet * currentMult); resolveGame('WIN'); }
-
-    async function handleBJStart() {
-        pHand = [deck.pop(), deck.pop()]; dHand = [deck.pop(), deck.pop()];
-        document.getElementById('bet-ui').classList.add('hidden');
-        renderCard(pHand[0], document.getElementById('player-cards')); await sleep(300);
-        renderCard(dHand[0], document.getElementById('dealer-cards')); await sleep(300);
-        renderCard(pHand[1], document.getElementById('player-cards')); await sleep(300);
-        renderCard(dHand[1], document.getElementById('dealer-cards'), true);
-        let s = getBJScore(pHand); document.getElementById('ui-p-score').innerText = s;
-        document.getElementById('bj-action-ui').classList.remove('hidden');
-        document.getElementById('bj-double').style.display = (money >= bet) ? 'inline-block' : 'none';
-        if (s === 21) handleStand(); 
-    }
-    function getBJScore(h) { let s = h.reduce((a, b) => a + (b.w > 10 ? (b.v==='A'?11:10) : b.w), 0); let aces = h.filter(c => c.v === 'A').length; while (s > 21 && aces > 0) { s -= 10; aces--; } return s; }
-    function handleHit() {
-        if (actionLocked || !isPlaying) return;
-        const c = deck.pop(); pHand.push(c); renderCard(c, document.getElementById('player-cards'));
-        let s = getBJScore(pHand); document.getElementById('ui-p-score').innerText = s;
-        if (s > 21) { actionLocked = true; document.getElementById('bj-action-ui').classList.add('hidden'); resolveGame('BUST'); }
-    }
-    async function handleBJDouble() {
-        if (actionLocked || !isPlaying) return;
-        actionLocked = true; money -= bet; bet *= 2; document.getElementById('ui-money').innerText = money;
-        const c = deck.pop(); pHand.push(c); renderCard(c, document.getElementById('player-cards'));
-        document.getElementById('ui-p-score').innerText = getBJScore(pHand);
-        if (getBJScore(pHand) > 21) { resolveGame('BUST'); } else { handleStand(); }
-    }
-    async function handleStand() {
-        actionLocked = true; document.getElementById('bj-action-ui').classList.add('hidden');
-        document.getElementById('dealer-cards').children[1].classList.add('flipped'); await sleep(600);
-        const draw = async () => {
-            let s = getBJScore(dHand); document.getElementById('ui-d-score').innerText = s;
-            if (s < 17) { let c = deck.pop(); dHand.push(c); renderCard(c, document.getElementById('dealer-cards')); await sleep(600); draw(); }
-            else {
-                let ps = getBJScore(pHand), ds = getBJScore(dHand);
-                if (ps === 21 && pHand.length === 2 && ds !== 21) { money += Math.floor(bet * 2.5); resolveGame('BLACKJACK!'); }
-                else if (ds > 21 || ps > ds) { money += bet * 2; resolveGame('WIN'); }
-                else if (ps < ds) resolveGame('LOSE'); else { money += bet; resolveGame('PUSH'); }
-            }
-        }; draw();
-    }
-
-    async function handleCSPStart() {
-        pHand = Array(5).fill().map(() => deck.pop()); dHand = Array(5).fill().map(() => deck.pop());
-        document.getElementById('bet-ui').classList.add('hidden');
-        for(let i=0; i<5; i++) { renderCard(pHand[i], document.getElementById('player-cards')); await sleep(150); }
-        for(let i=0; i<4; i++) { renderCard(dHand[i], document.getElementById('dealer-cards'), true); await sleep(150); }
-        renderCard(dHand[4], document.getElementById('dealer-cards'));
-        document.getElementById('csp-action-ui').classList.remove('hidden');
-        document.getElementById('ui-p-score').innerText = getPokerRank(pHand).name;
-    }
-    function handleCSPFold() { actionLocked = true; document.getElementById('csp-action-ui').classList.add('hidden'); resolveGame('LOSE'); }
-    async function handleCSPRaise() {
-        if (actionLocked || !isPlaying) return;
-        actionLocked = true; money -= bet * 2; document.getElementById('ui-money').innerText = money;
-        document.getElementById('csp-action-ui').classList.add('hidden');
-        for(let i=0; i<4; i++) { document.getElementById('dealer-cards').children[i].classList.add('flipped'); await sleep(100); }
-        let pRank = getPokerRank(pHand), dRank = getPokerRank(dHand);
-        document.getElementById('ui-d-score').innerText = dRank.name;
-        let qualified = (dRank.score > 1) || (dHand.some(c=>c.v==='A') && dHand.some(c=>c.v==='K'));
-        if (!qualified) { money += bet * 4; resolveGame('D-NOT QUALIFIED'); }
-        else {
-            if (pRank.score > dRank.score) { money += bet * 4 + (bet * 2 * CSP_PAYOUT[pRank.name]); resolveGame('WIN'); }
-            else if (pRank.score < dRank.score) resolveGame('LOSE');
-            else { money += bet * 3; resolveGame('PUSH'); }
-        }
-    }
-    const CSP_PAYOUT = { 'ROYAL FLUSH': 100, 'STR FLUSH': 50, '4 OF A KIND': 20, 'FULL HOUSE': 7, 'FLUSH': 5, 'STRAIGHT': 4, '3 OF A KIND': 3, '2 PAIR': 2, 'PAIR': 1, 'HIGH CARD': 1 };
-    function getPokerRank(h) {
-        const counts = {}, values = h.map(c => c.w).sort((a,b)=>b-a);
-        values.forEach(v => counts[v] = (counts[v]||0)+1);
-        const isFlush = new Set(h.map(c=>c.s)).size === 1;
-        if (isFlush && values[0] === 14 && values[4] === 10) return {name: 'ROYAL FLUSH', score: 10};
-        if (isFlush) return {name: 'FLUSH', score: 7};
-        if (Object.values(counts).includes(2)) return {name: 'PAIR', score: 3};
-        return {name: 'HIGH CARD', score: 2};
-    }
-
-    let rdCards = [], rdSpread = 0;
-    async function handleRDStart() {
-        const container = document.getElementById('player-cards');
-        rdCards = [deck.pop(), deck.pop()];
-        document.getElementById('bet-ui').classList.add('hidden');
-        renderCard(rdCards[0], container); await sleep(400);
-        renderCard(rdCards[1], container); await sleep(400);
-        let v1 = rdCards[0].w, v2 = rdCards[1].w;
-        if (v1 > v2) [v1, v2] = [v2, v1];
-        rdSpread = v2 - v1 - 1;
-        if (rdSpread === -1) { 
-            document.getElementById('ui-msg').innerText = "PAIR!"; await sleep(1000); 
-            let c3 = deck.pop(); const newCard = renderCard(c3, container);
-            container.insertBefore(newCard, container.children[1]); 
-            if (c3.w === v1) { money += bet * 12; resolveGame('11:1 THREE OF A KIND!'); }
-            else { money += bet; resolveGame('PUSH'); }
-        } else if (rdSpread === 0) { resolveGame('PUSH'); money += bet; }
-        else { document.getElementById('ui-msg').innerText = `SPREAD: ${rdSpread}`; document.getElementById('rd-action-ui').classList.remove('hidden'); }
-    }
-    function handleRDCall() { executeRDResult(); }
-    function handleRDRaise() { money -= bet; bet *= 2; document.getElementById('ui-money').innerText = money; executeRDResult(); }
-    async function executeRDResult() {
-        actionLocked = true; document.getElementById('rd-action-ui').classList.add('hidden');
-        const container = document.getElementById('player-cards');
-        let c3 = deck.pop(); 
-        const newCard = renderCard(c3, container);
-        container.insertBefore(newCard, container.children[1]); 
-        let v1 = rdCards[0].w, v2 = rdCards[1].w;
-        if (v1 > v2) [v1, v2] = [v2, v1];
-        if (c3.w > v1 && c3.w < v2) {
-            let pay = (rdSpread === 1) ? 5 : (rdSpread === 2) ? 4 : (rdSpread === 3) ? 2 : 1;
-            money += bet + (bet * pay); resolveGame(`WIN (${pay}:1)`);
-        } else { resolveGame('LOSE'); }
-    }
-
-    function resolveGame(res) {
-        isPlaying = false; const msg = document.getElementById('ui-msg');
-        msg.innerText = res; document.getElementById('ui-money').innerText = money; updateVIP();
-        if (money <= 0) { setTimeout(() => { document.body.classList.add('flash-red'); msg.innerText = "GAME OVER"; setTimeout(() => { document.body.classList.remove('flash-red'); exitToMenu(); }, 3000); }, 1000); }
-        else { setTimeout(resetTable, 2500); }
-    }
+draw();
 </script>
 </body>
 </html>
