@@ -22,7 +22,7 @@
 <body>
     <h1>ICE 🧊 FIRE</h1>
     <div id="loading">GENERATING LEVEL...</div>
-    <canvas id="gameCanvas" width="500" height="500"></canvas>
+    <canvas id="gameCanvas" width="450" height="450"></canvas>
 
     <div id="controls">
         <div class="row">
@@ -43,7 +43,7 @@
         const MIN_STEPS = 8, WALL_COUNT = 10;
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const TILE_SIZE = 50, GRID_SIZE = 10;
+        const TILE_SIZE = 50, GRID_SIZE = 9;
         
         let currentLevelData = null, map = [], ices = [], player = { gridX: 1, gridY: 1, x: 1, y: 1 }, isAutoSolving = false;
 
@@ -127,19 +127,18 @@
                     let tempMap = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(1));
                     for(let r=1; r<GRID_SIZE-1; r++) for(let c=1; c<GRID_SIZE-1; c++) tempMap[r][c] = 0;
                     for(let i=0; i < WALL_COUNT; i++) {
-                        let rx = Math.floor(Math.random()*8)+1, ry = Math.floor(Math.random()*8)+1;
+                        let rx = Math.floor(Math.random()*7)+1, ry = Math.floor(Math.random()*7)+1;
                         if(rx+ry > 3) tempMap[ry][rx] = 1;
                     }
                     let tempIces = [];
-                    // 修改處：將火與冰的生成循環拆開，確保地圖上已標記所有火的位置
                     for(let i=0; i<2; i++){
                         let fx, fy;
-                        do { fx = Math.floor(Math.random()*6)+2; fy = Math.floor(Math.random()*6)+2; } while(tempMap[fy][fx] !== 0);
+                        do { fx = Math.floor(Math.random()*5)+2; fy = Math.floor(Math.random()*5)+2; } while(tempMap[fy][fx] !== 0);
                         tempMap[fy][fx] = 3;
                     }
                     for(let i=0; i<2; i++){
                         let ix, iy;
-                        do { ix = Math.floor(Math.random()*6)+2; iy = Math.floor(Math.random()*6)+2; } 
+                        do { ix = Math.floor(Math.random()*5)+2; iy = Math.floor(Math.random()*5)+2; } 
                         while(tempMap[iy][ix] !== 0 || tempMap[iy][ix] === 3 || tempIces.some(ice => ice.x === ix && ice.y === iy));
                         tempIces.push({ id: Date.now() + i, x: ix, y: iy, gridX: ix, gridY: iy, isSliding: false });
                     }
