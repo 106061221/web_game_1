@@ -1,122 +1,222 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>實體工具收納</title>
+    <title>ICE 🧊 FIRE</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { margin: 0; background: #151515; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
-        canvas { background: #222; border: 8px solid #333; border-radius: 4px; box-shadow: 0 0 50px #000; cursor: grab; }
+        body { background: #0f172a; color: #f8fafc; text-align: center; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; overflow: hidden; touch-action: none; }
+        h1 { font-size: 1.8rem; letter-spacing: 4px; margin: 10px 0; color: #f8fafc; text-shadow: 0 0 10px rgba(56, 189, 248, 0.5); }
+        canvas { background: #1e293b; border: 4px solid #475569; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.5); max-width: 90vw; max-height: 40vh; height: auto; display: block; }
+        
+        #loading { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(15, 23, 42, 0.95); color: #38bdf8; padding: 25px 40px; border: 2px solid #38bdf8; border-radius: 15px; z-index: 1000; font-weight: bold; letter-spacing: 2px; box-shadow: 0 0 30px rgba(56, 189, 248, 0.5); pointer-events: none; }
+
+        #controls { margin-top: 20px; user-select: none; width: 90vw; max-width: 360px; }
+        .row { display: flex; justify-content: center; gap: 15px; margin-bottom: 12px; }
+        .ctrl-btn { width: 85px; height: 85px; font-size: 32px; background: #475569; color: white; border: none; border-radius: 15px; touch-action: manipulation; cursor: pointer; box-shadow: 0 6px 0 #1e293b; display: flex; align-items: center; justify-content: center; }
+        .ctrl-btn:active { background: #64748b; transform: translateY(3px); box-shadow: 0 3px 0 #1e293b; }
+        .admin-row { display: flex; justify-content: center; gap: 10px; margin-top: 5px; }
+        .admin-btn { flex: 1; height: 55px; font-size: 16px; font-weight: bold; background: #334155; color: #f1f5f9; border: 2px solid #475569; border-radius: 12px; cursor: pointer; touch-action: manipulation; }
     </style>
 </head>
 <body>
-<canvas id="g" width="380" height="600"></canvas>
-<script>
-const cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
+    <h1>ICE 🧊 FIRE</h1>
+    <div id="loading">GENERATING LEVEL...</div>
+    <canvas id="gameCanvas" width="500" height="500"></canvas>
 
-// 定義工具物件：位置、目標(tx, ty)、尺寸
-let pieces = [
-    { id: 'hammer', x: 50, y: 450, tx: 100, ty: 80, w: 180, h: 80, isLocked: false },
-    { id: 'wrench', x: 220, y: 480, tx: 120, ty: 220, w: 160, h: 40, isLocked: false }
-];
-let active = null, off = { x: 0, y: 0 };
+    <div id="controls">
+        <div class="row">
+            <button class="ctrl-btn" id="up">▲</button>
+        </div>
+        <div class="row">
+            <button class="ctrl-btn" id="left">◀</button>
+            <button class="ctrl-btn" id="down">▼</button>
+            <button class="ctrl-btn" id="right">▶</button>
+        </div>
+        <div class="admin-row">
+            <button class="admin-btn" id="restart">Restart (R)</button>
+            <button class="admin-btn" id="next">New Level (N)</button>
+        </div>
+    </div>
 
-// 繪製寫實工具的函數
-function drawTool(p, isShadow = false) {
-    ctx.save();
-    ctx.translate(p.x, p.y);
-    
-    if (isShadow) {
-        ctx.globalAlpha = 0.3;
-        ctx.filter = 'brightness(0) blur(2px)';
-    } else {
-        ctx.shadowColor = 'rgba(0,0,0,0.6)';
-        ctx.shadowBlur = 12;
-        ctx.shadowOffsetY = 8;
-    }
-
-    if (p.id === 'hammer') {
-        // --- 繪製榔頭 ---
-        // 木柄
-        let wood = ctx.createLinearGradient(0, 40, 0, 140);
-        wood.addColorStop(0, '#8d5524'); wood.addColorStop(0.5, '#c68642'); wood.addColorStop(1, '#8d5524');
-        ctx.fillStyle = wood;
-        ctx.beginPath();
-        ctx.roundRect(15, 30, 25, 120, 5); ctx.fill();
+    <script>
+        const MIN_STEPS = 8, WALL_COUNT = 10;
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const TILE_SIZE = 50, GRID_SIZE = 10;
         
-        // 鎚頭 (金屬漸層)
-        let steel = ctx.createLinearGradient(0, 0, 60, 0);
-        steel.addColorStop(0, '#333'); steel.addColorStop(0.3, '#eee'); steel.addColorStop(0.7, '#eee'); steel.addColorStop(1, '#333');
-        ctx.fillStyle = steel;
-        ctx.beginPath();
-        ctx.roundRect(0, 0, 60, 35, 3); ctx.fill();
-        // 拔釘器(後端)
-        ctx.beginPath();
-        ctx.moveTo(0, 5); ctx.quadraticCurveTo(-20, 5, -25, 25); ctx.lineTo(0, 20); ctx.fill();
-    } 
-    else if (p.id === 'wrench') {
-        // --- 繪製扳手 ---
-        let metal = ctx.createLinearGradient(0, 10, 0, 30);
-        metal.addColorStop(0, '#777'); metal.addColorStop(0.5, '#fff'); metal.addColorStop(1, '#777');
-        ctx.fillStyle = metal;
-        // 柄
-        ctx.beginPath();
-        ctx.roundRect(30, 12, 100, 16, 2); ctx.fill();
-        // 扳手頭 (開口端)
-        ctx.beginPath();
-        ctx.arc(30, 20, 18, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalCompositeOperation = 'destination-out'; // 挖掉開口
-        ctx.save();
-        ctx.translate(30, 20); ctx.rotate(Math.PI / 4);
-        ctx.fillRect(-15, -8, 20, 16);
-        ctx.restore();
-        ctx.globalCompositeOperation = 'source-over';
-    }
-    ctx.restore();
-}
+        let currentLevelData = null, map = [], ices = [], player = { gridX: 1, gridY: 1, x: 1, y: 1 }, isAutoSolving = false;
 
-function render() {
-    ctx.clearRect(0, 0, cvs.width, cvs.height);
-    
-    // 1. 畫箱底影子板 (目標槽)
-    pieces.forEach(p => {
-        drawTool({ ...p, x: p.tx, y: p.ty }, true);
-    });
+        function findPath(start, end, currentIces, currentMap) {
+            let queue = [[start]], visited = new Set([`${start.x},${start.y}`]);
+            if (start.x === end.x && start.y === end.y) return [start];
+            while (queue.length > 0) {
+                let path = queue.shift(), curr = path[path.length - 1];
+                if (curr.x === end.x && curr.y === end.y) return path;
+                for (let d of [{x:0,y:1},{x:0,y:-1},{x:1,y:0},{x:-1,y:0}]) {
+                    let n = {x: curr.x + d.x, y: curr.y + d.y};
+                    let isIce = currentIces.some(i => i.x === n.x && i.y === n.y);
+                    let isWall = currentMap[n.y] && currentMap[n.y][n.x] === 1;
+                    let isFire = currentMap[n.y] && currentMap[n.y][n.x] === 3;
+                    if (n.x >= 1 && n.x < GRID_SIZE-1 && n.y >= 1 && n.y < GRID_SIZE-1 && !isWall && !isFire && !isIce && !visited.has(`${n.x},${n.y}`)) {
+                        visited.add(`${n.x},${n.y}`); queue.push([...path, n]);
+                    }
+                }
+            }
+            return null;
+        }
 
-    // 2. 畫實體工具
-    pieces.forEach(p => {
-        if (p !== active) drawTool(p);
-    });
-    if (active) drawTool(active);
+        function getSlideResult(ix, iy, dx, dy, curMap, otherIces) {
+            let cx = ix, cy = iy;
+            while (true) {
+                let nx = cx + dx, ny = cy + dy;
+                if (otherIces.some(oi => oi.x === nx && oi.y === ny)) return { x: cx, y: cy, goal: false };
+                if (curMap[ny] && curMap[ny][nx] === 0) { cx = nx; cy = ny; }
+                else if (curMap[ny] && curMap[ny][nx] === 3) return { x: nx, y: ny, goal: true };
+                else return { x: cx, y: cy, goal: false };
+            }
+        }
 
-    requestAnimationFrame(render);
-}
+        function solveForOptimal(startState) {
+            let queue = [startState], visited = new Set();
+            while (queue.length > 0) {
+                let curr = queue.shift();
+                let fireCount = curr.map.flat().filter(t => t === 3).length;
+                if (fireCount === 0) return curr.steps;
+                let stateKey = `${curr.px},${curr.py}|${curr.ices.map(i=>`${i.x},${i.y}`).sort().join('|')}|${fireCount}`;
+                if (visited.has(stateKey)) continue;
+                visited.add(stateKey);
+                if (curr.steps.length > 15) continue; 
 
-// 互動逻辑
-cvs.addEventListener('mousedown', e => {
-    const r = cvs.getBoundingClientRect();
-    const px = e.clientX - r.left, py = e.clientY - r.top;
-    active = pieces.slice().reverse().find(p => px > p.x - 20 && px < p.x + p.w && py > p.y - 10 && py < p.y + p.h + 100);
-    if (active) { off.x = px - active.x; off.y = py - active.y; }
-});
+                for (let i = 0; i < curr.ices.length; i++) {
+                    let ice = curr.ices[i], others = curr.ices.filter((_, idx) => idx !== i);
+                    for (let d of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]) {
+                        let tx = ice.x - d.x, ty = ice.y - d.y;
+                        let path = findPath({x: curr.px, y: curr.py}, {x: tx, y: ty}, curr.ices, curr.map);
+                        if (path) {
+                            let res = getSlideResult(ice.x, ice.y, d.x, d.y, curr.map, others);
+                            if (res.x === ice.x && res.y === ice.y) continue;
+                            let nextIces = JSON.parse(JSON.stringify(curr.ices));
+                            let nextMap = JSON.parse(JSON.stringify(curr.map));
+                            let nextSteps = [...curr.steps, { iceID: ice.id, dx: d.x, dy: d.y, path: path }];
+                            if (res.goal) { nextIces.splice(i, 1); nextMap[res.y][res.x] = 0; }
+                            else { nextIces[i].x = res.x; nextIces[i].y = res.y; }
+                            queue.push({ px: res.x - d.x, py: res.y - d.y, ices: nextIces, map: nextMap, steps: nextSteps });
+                        }
+                    }
+                }
+            }
+            return null;
+        }
 
-window.addEventListener('mousemove', e => {
-    if (active) {
-        const r = cvs.getBoundingClientRect();
-        active.x = e.clientX - r.left - off.x;
-        active.y = e.clientY - r.top - off.y;
-    }
-});
+        function resetLevel() {
+            if (!currentLevelData) return;
+            map = JSON.parse(JSON.stringify(currentLevelData.map));
+            ices = JSON.parse(JSON.stringify(currentLevelData.ices));
+            player.gridX = currentLevelData.playerX; player.gridY = currentLevelData.playerY;
+            player.x = player.gridX; player.y = player.gridY;
+        }
 
-window.addEventListener('mouseup', () => {
-    if (active) {
-        let d = Math.sqrt((active.x - active.tx)**2 + (active.y - active.ty)**2);
-        if (d < 30) { active.x = active.tx; active.y = active.ty; active.isLocked = true; }
-        active = null;
-    }
-});
+        function generateNewLevel() {
+            const loader = document.getElementById('loading');
+            if(loader) loader.style.display = 'block';
 
-render();
-</script>
+            setTimeout(() => {
+                let found = false;
+                while (!found) {
+                    let tempMap = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(1));
+                    for(let r=1; r<GRID_SIZE-1; r++) for(let c=1; c<GRID_SIZE-1; c++) tempMap[r][c] = 0;
+                    for(let i=0; i < WALL_COUNT; i++) {
+                        let rx = Math.floor(Math.random()*8)+1, ry = Math.floor(Math.random()*8)+1;
+                        if(rx+ry > 3) tempMap[ry][rx] = 1;
+                    }
+                    let tempIces = [];
+                    // 修改處：將火與冰的生成循環拆開，確保地圖上已標記所有火的位置
+                    for(let i=0; i<2; i++){
+                        let fx, fy;
+                        do { fx = Math.floor(Math.random()*6)+2; fy = Math.floor(Math.random()*6)+2; } while(tempMap[fy][fx] !== 0);
+                        tempMap[fy][fx] = 3;
+                    }
+                    for(let i=0; i<2; i++){
+                        let ix, iy;
+                        do { ix = Math.floor(Math.random()*6)+2; iy = Math.floor(Math.random()*6)+2; } 
+                        while(tempMap[iy][ix] !== 0 || tempMap[iy][ix] === 3 || tempIces.some(ice => ice.x === ix && ice.y === iy));
+                        tempIces.push({ id: Date.now() + i, x: ix, y: iy, gridX: ix, gridY: iy, isSliding: false });
+                    }
+                    let bestSolution = solveForOptimal({ px: 1, py: 1, ices: tempIces.map(i => ({x: i.x, y: i.y, id: i.id})), map: JSON.parse(JSON.stringify(tempMap)), steps: [] });
+                    if (bestSolution && bestSolution.length >= MIN_STEPS) {
+                        currentLevelData = { map: tempMap, ices: tempIces, playerX: 1, playerY: 1 };
+                        found = true;
+                    }
+                }
+                resetLevel();
+                if(loader) loader.style.display = 'none';
+            }, 50);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (map.length === 0) { requestAnimationFrame(draw); return; }
+            
+            for (let r=0; r<GRID_SIZE; r++) {
+                for (let c=0; c<GRID_SIZE; c++) {
+                    let x = c*TILE_SIZE, y = r*TILE_SIZE;
+                    if (map[r][c] === 1) { ctx.fillStyle = "#334155"; ctx.fillRect(x+1, y+1, 48, 48); }
+                    else if (map[r][c] === 3) { ctx.fillStyle = "#f43f5e"; ctx.beginPath(); ctx.arc(x+25,y+25,12,0,Math.PI*2); ctx.fill(); }
+                }
+            }
+            ices.forEach(ice => { ctx.fillStyle = "#38bdf8"; ctx.fillRect(ice.x*TILE_SIZE+8, ice.y*TILE_SIZE+8, 34, 34); });
+            ctx.fillStyle = "#fbbf24"; ctx.beginPath(); ctx.arc(player.x*TILE_SIZE+25, player.y*TILE_SIZE+25, 14, 0, Math.PI*2); ctx.fill();
+            
+            if (!map.some(row => row.includes(3)) && !ices.some(i => i.isSliding)) {
+                ctx.fillStyle = "#10b981"; ctx.font = "bold 40px sans-serif"; ctx.textAlign = "center";
+                ctx.fillText("VICTORY!", canvas.width / 2, canvas.height / 2);
+            }
+
+            player.x += (player.gridX - player.x) * 0.3; player.y += (player.gridY - player.y) * 0.3;
+            ices.forEach((ice, idx) => {
+                if (ice.isSliding) {
+                    if (Math.abs(ice.gridX - ice.x) < 0.05 && Math.abs(ice.gridY - ice.y) < 0.05) {
+                        let nx = ice.gridX + ice.vx, ny = ice.gridY + ice.vy;
+                        let hitIce = ices.some((oi, oidx) => oidx !== idx && oi.gridX === nx && oi.gridY === ny);
+                        if (!hitIce && map[ny] && map[ny][nx] === 0) { ice.gridX = nx; ice.gridY = ny; }
+                        else if (map[ny] && map[ny][nx] === 3) { map[ny][nx] = 0; ice.isSliding = false; ices.splice(idx, 1); }
+                        else { ice.isSliding = false; ice.x = ice.gridX; ice.y = ice.gridY; }
+                    }
+                }
+                ice.x += (ice.gridX - ice.x) * 0.45; ice.y += (ice.gridY - ice.y) * 0.45;
+            });
+            requestAnimationFrame(draw);
+        }
+
+        function handleInput(dx, dy) {
+            let nx=player.gridX+dx, ny=player.gridY+dy;
+            if(map[ny] && map[ny][nx]===0){
+                let ice=ices.find(i=>i.gridX===nx && i.gridY===ny);
+                if(ice) { if(!ice.isSliding){ice.isSliding=true; ice.vx=dx; ice.vy=dy;} }
+                else player.gridX=nx, player.gridY=ny;
+            }
+        }
+
+        window.addEventListener('keydown', e => { 
+            const key = e.key.toLowerCase();
+            if(key === 'r') resetLevel(); if(key === 'n') generateNewLevel();
+            let dx=0, dy=0;
+            if(e.key==='ArrowUp') dy=-1; else if(e.key==='ArrowDown') dy=1;
+            else if(e.key==='ArrowLeft') dx=-1; else if(e.key==='ArrowRight') dx=1;
+            if(dx!==0||dy!==0) handleInput(dx, dy);
+        });
+
+        document.getElementById('up').onpointerdown = (e) => { e.preventDefault(); handleInput(0, -1); };
+        document.getElementById('down').onpointerdown = (e) => { e.preventDefault(); handleInput(0, 1); };
+        document.getElementById('left').onpointerdown = (e) => { e.preventDefault(); handleInput(-1, 0); };
+        document.getElementById('right').onpointerdown = (e) => { e.preventDefault(); handleInput(1, 0); };
+        document.getElementById('restart').onpointerdown = (e) => { e.preventDefault(); resetLevel(); };
+        document.getElementById('next').onpointerdown = (e) => { e.preventDefault(); generateNewLevel(); };
+
+        // 立即啟動
+        generateNewLevel();
+        draw();
+    </script>
 </body>
 </html>
